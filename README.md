@@ -1,17 +1,76 @@
-# attendance
+# AttendX – Attendance Management App
 
-A new Flutter project.
+AttendX is a role-based attendance management application built with Flutter and Firebase.
 
-## Getting Started
+## Tech Stack
 
-This project is a starting point for a Flutter application.
+- Flutter
+- Dart
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Firebase Cloud Messaging (FCM)
 
-A few resources to get you started if this is your first Flutter project:
+## User Roles
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Employee
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Employee can:
+
+- Login
+- Clock In
+- Capture attendance photo
+- View approval status
+- Clock Out after approval
+- View own attendance history
+
+Employee can only access their own attendance records.
+
+### TL
+
+TL can:
+
+- Login
+- View assigned team attendance
+- View pending attendance requests
+- Verify employee clock-in photo
+- Approve attendance
+- Reject attendance
+- View team attendance history
+
+TL can only access employees assigned to their team.
+
+### Admin
+
+Admin has full access to:
+
+- Employees
+- TLs
+- All attendance records
+- Pending approvals
+- Approved/rejected attendance
+- Daily attendance
+- Monthly attendance
+- Reports
+- User management
+
+## Attendance Flow
+
+```text
+Employee Login
+      ↓
+Clock In
+      ↓
+Camera Capture
+      ↓
+Upload Photo
+      ↓
+Create Attendance
+      ↓
+TL Approval
+      ↓
+Approved
+      ↓
+Clock Out
+      ↓
+Attendance Completed
