@@ -8,7 +8,7 @@ import 'providers/attendance_provider.dart';
 import 'providers/hr_provider.dart';
 import 'providers/leave_provider.dart';
 import 'providers/admin_provider.dart';
-import 'screens/shared/app_shell.dart';
+import 'screens/shared/main_navigation_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -128,7 +128,7 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.lightTheme(),
         themeMode: ThemeMode.light,
-        home: const AppShell(),
+        home: const MainNavigationScreen(),
       ),
     );
   }
