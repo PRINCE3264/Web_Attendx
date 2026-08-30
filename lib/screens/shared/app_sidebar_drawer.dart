@@ -9,22 +9,30 @@ import '../../providers/leave_provider.dart';
 import '../employee/break_tracking_sheet.dart';
 import '../employee/leave_management_screen.dart';
 import '../employee/attendance_history_screen.dart';
+import '../manager/manager_dashboard.dart';
 import '../manager/leave_approval_screen.dart';
+import '../hr/hr_dashboard.dart';
 import '../hr/report_generator_screen.dart';
 import '../hr/all_employees_screen.dart';
+import '../hr/add_employee_sheet.dart';
+import '../hr/create_announcement_sheet.dart';
 import '../admin/policy_settings_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/admin_panel_screen.dart';
+import 'profile_screen.dart';
+import 'notifications_screen.dart';
 import '../auth/login_screen.dart';
 
 class AppSidebarDrawer extends StatefulWidget {
   final int currentIndex;
   final Function(int) onSelectTab;
+  final Function(Widget screen, String title)? onSelectScreen;
 
   const AppSidebarDrawer({
     super.key,
     required this.currentIndex,
     required this.onSelectTab,
+    this.onSelectScreen,
   });
 
   @override
@@ -32,7 +40,14 @@ class AppSidebarDrawer extends StatefulWidget {
 }
 
 class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
-  bool _isApprovalsExpanded = false;
+  void _navigateToScreen(Widget screen, String title, {int? defaultTabIndex}) {
+    Navigator.pop(context);
+    if (defaultTabIndex != null) {
+      widget.onSelectTab(defaultTabIndex);
+    } else if (widget.onSelectScreen != null) {
+      widget.onSelectScreen!(screen, title);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,204 +82,301 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                _buildNavItem(
-                  icon: Icons.grid_view_rounded,
-                  title: 'Dashboard',
-                  isSelected: widget.currentIndex == 0,
-                  onTap: () {
-                    widget.onSelectTab(0);
-                    Navigator.pop(context);
-                  },
-                ),
-
-                // Employee Features
-                _buildNavItem(
-                  icon: Icons.access_time_rounded,
-                  title: 'Attendance History',
-                  isSelected: widget.currentIndex == 1 && user?.role == UserRole.employee,
-                  onTap: () {
-                    if (user?.role == UserRole.employee) {
-                      widget.onSelectTab(1);
+                // 1. Employee Navigation Items
+                if (user?.role == UserRole.employee) ...[
+                  _buildNavItem(
+                    icon: Icons.grid_view_rounded,
+                    title: 'Clock & Today',
+                    isSelected: widget.currentIndex == 0,
+                    onTap: () => _navigateToScreen(const SizedBox(), 'Clock & Today', defaultTabIndex: 0),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.access_time_rounded,
+                    title: 'Attendance History',
+                    isSelected: widget.currentIndex == 1,
+                    onTap: () => _navigateToScreen(const AttendanceHistoryScreen(), 'Attendance History', defaultTabIndex: 1),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.coffee_rounded,
+                    title: 'Break Tracker',
+                    onTap: () {
                       Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AttendanceHistoryScreen()),
-                      );
-                    }
-                  },
-                ),
-
-                _buildNavItem(
-                  icon: Icons.coffee_rounded,
-                  title: 'Break Tracker',
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (todayAttendance != null) {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                        ),
-                        builder: (_) => BreakTrackingSheet(attendance: todayAttendance),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please clock in before starting a break.')),
-                      );
-                    }
-                  },
-                ),
-
-                _buildNavItem(
-                  icon: Icons.beach_access_rounded,
-                  title: 'Leave Management',
-                  isSelected: widget.currentIndex == 2 && user?.role == UserRole.employee,
-                  badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                  badgeColor: const Color(0xFF8B5CF6),
-                  onTap: () {
-                    if (user?.role == UserRole.employee) {
-                      widget.onSelectTab(2);
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LeaveManagementScreen()),
-                      );
-                    }
-                  },
-                ),
-
-                // Manager Features (Expandable Section)
-                _buildExpandableNavItem(
-                  icon: Icons.supervisor_account_rounded,
-                  title: 'Team & Approvals',
-                  badgeCount: pendingApprovals + pendingLeaves,
-                  isExpanded: _isApprovalsExpanded,
-                  onToggle: () => setState(() => _isApprovalsExpanded = !_isApprovalsExpanded),
-                  children: [
-                    _buildSubNavItem(
-                      title: 'Clock-In Approvals',
-                      badge: pendingApprovals > 0 ? '$pendingApprovals' : null,
-                      onTap: () {
-                        if (user?.role == UserRole.manager) {
-                          widget.onSelectTab(0);
-                        }
-                        Navigator.pop(context);
-                      },
-                    ),
-                    _buildSubNavItem(
-                      title: 'Leave Approvals',
-                      badge: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LeaveApprovalScreen()),
+                      if (todayAttendance != null) {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                          ),
+                          builder: (_) => BreakTrackingSheet(attendance: todayAttendance),
                         );
-                      },
-                    ),
-                    _buildSubNavItem(
-                      title: 'Team Directory',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AllEmployeesScreen()),
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please clock in before starting a break.')),
                         );
-                      },
-                    ),
-                  ],
-                ),
+                      }
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.beach_access_rounded,
+                    title: 'Leave Management',
+                    isSelected: widget.currentIndex == 2,
+                    badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
+                    badgeColor: const Color(0xFF8B5CF6),
+                    onTap: () => _navigateToScreen(const LeaveManagementScreen(), 'Leave Management', defaultTabIndex: 2),
+                  ),
+                ],
 
-                // HR & Reports
-                _buildNavItem(
-                  icon: Icons.analytics_outlined,
-                  title: 'HR & Workforce KPIs',
-                  isSelected: widget.currentIndex == 0 && user?.role == UserRole.hr,
-                  onTap: () {
-                    if (user?.role == UserRole.hr) {
-                      widget.onSelectTab(0);
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AllEmployeesScreen()),
-                      );
-                    }
-                  },
-                ),
+                // 2. TL (Team Lead) Navigation Items
+                if (user?.role == UserRole.manager) ...[
+                  _buildNavItem(
+                    icon: Icons.grid_view_rounded,
+                    title: 'Approvals & Team',
+                    isSelected: widget.currentIndex == 0,
+                    badgeText: pendingApprovals > 0 ? '$pendingApprovals' : null,
+                    badgeColor: AppTheme.warning,
+                    onTap: () => _navigateToScreen(const ManagerDashboard(), 'Approvals & Team', defaultTabIndex: 0),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.beach_access_rounded,
+                    title: 'Leave Requests',
+                    isSelected: widget.currentIndex == 1,
+                    badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
+                    badgeColor: const Color(0xFF8B5CF6),
+                    onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests', defaultTabIndex: 1),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.groups_rounded,
+                    title: 'Team Roster',
+                    isSelected: widget.currentIndex == 2,
+                    onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Team Roster', defaultTabIndex: 2),
+                  ),
+                ],
 
-                _buildNavItem(
-                  icon: Icons.assessment_outlined,
-                  title: 'Audit & 30-Day Reports',
-                  isSelected: (widget.currentIndex == 2 && user?.role == UserRole.hr) ||
-                      (widget.currentIndex == 3 && user?.role == UserRole.admin),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ReportGeneratorScreen()),
-                    );
-                  },
-                ),
+                // 3. Admin Navigation Items
+                if (user?.role == UserRole.admin) ...[
+                  _buildNavItem(
+                    icon: Icons.home_rounded,
+                    title: 'Dashboard',
+                    isSelected: widget.currentIndex == 0,
+                    onTap: () => _navigateToScreen(const AdminPanelScreen(), 'Admin Dashboard', defaultTabIndex: 0),
+                  ),
+                  _buildExpandableSection(
+                    title: 'User Management',
+                    icon: Icons.manage_accounts_outlined,
+                    children: [
+                      _buildSubItem('All Users', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                      _buildSubItem('Add Employee', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const AddEmployeeSheet(),
+                        );
+                      }),
+                      _buildSubItem('Add TL', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.manager),
+                        );
+                      }),
+                      _buildSubItem('Add HR', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.hr),
+                        );
+                      }),
+                      _buildSubItem('Edit User', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Edit User')),
+                      _buildSubItem('Activate / Deactivate', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                      _buildSubItem('Assign TL', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Attendance',
+                    icon: Icons.calendar_month_outlined,
+                    children: [
+                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Attendance')),
+                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview')),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview')),
+                      _buildSubItem('Employee Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                      _buildSubItem('Attendance Reports', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Leave Management',
+                    icon: Icons.beach_access_outlined,
+                    children: [
+                      _buildSubItem('All Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Pending', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Announcements',
+                    icon: Icons.campaign_outlined,
+                    children: [
+                      _buildSubItem('Create', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      }),
+                      _buildSubItem('Holiday', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      }),
+                      _buildSubItem('Send to All', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      }),
+                      _buildSubItem('History', onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications')),
+                    ],
+                  ),
+                  _buildNavItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications'),
+                  ),
+                  _buildExpandableSection(
+                    title: 'Reports',
+                    icon: Icons.bar_chart_outlined,
+                    children: [
+                      _buildSubItem('Attendance', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Employee', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Leave', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'System Settings',
+                    icon: Icons.settings_outlined,
+                    children: [
+                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
+                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
+                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
+                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
+                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(), 'Audit Logs', defaultTabIndex: 2)),
+                    ],
+                  ),
+                ],
 
-                // Super Admin Section
-                _buildNavItem(
-                  icon: Icons.tune_rounded,
-                  title: 'Policy Engine',
-                  isSelected: widget.currentIndex == 1 && user?.role == UserRole.admin,
-                  onTap: () {
-                    if (user?.role == UserRole.admin) {
-                      widget.onSelectTab(1);
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PolicySettingsScreen()),
-                      );
-                    }
-                  },
-                ),
+                // 4. HR Navigation Items
+                if (user?.role == UserRole.hr) ...[
+                  _buildNavItem(
+                    icon: Icons.home_rounded,
+                    title: 'Dashboard',
+                    isSelected: widget.currentIndex == 0,
+                    onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0),
+                  ),
+                  _buildExpandableSection(
+                    title: 'Employees',
+                    icon: Icons.people_alt_outlined,
+                    children: [
+                      _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
+                      _buildSubItem('Add Employee', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const AddEmployeeSheet(),
+                        );
+                      }),
+                      _buildSubItem('Active / Inactive', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Attendance',
+                    icon: Icons.calendar_month_outlined,
+                    children: [
+                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
+                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0)),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0)),
+                      _buildSubItem('Attendance Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Leave',
+                    icon: Icons.beach_access_outlined,
+                    children: [
+                      _buildSubItem('Leave Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Announcements',
+                    icon: Icons.campaign_outlined,
+                    children: [
+                      _buildSubItem('Create Announcement', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      }),
+                      _buildSubItem('Holiday', onTap: () {
+                        Navigator.pop(context);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      }),
+                      _buildSubItem('History', onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications')),
+                    ],
+                  ),
+                  _buildNavItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications'),
+                  ),
+                  _buildExpandableSection(
+                    title: 'Reports',
+                    icon: Icons.bar_chart_outlined,
+                    children: [
+                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
+                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
+                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
+                    ],
+                  ),
+                ],
 
+                // Common Profile Navigation Item
                 _buildNavItem(
-                  icon: Icons.security_outlined,
-                  title: 'Security & Audit Logs',
-                  isSelected: widget.currentIndex == 2 && user?.role == UserRole.admin,
+                  icon: Icons.person_outline_rounded,
+                  title: 'My Profile',
+                  isSelected: (widget.currentIndex == 3 && user?.role != UserRole.admin) ||
+                      (widget.currentIndex == 4 && user?.role == UserRole.admin),
                   onTap: () {
-                    if (user?.role == UserRole.admin) {
-                      widget.onSelectTab(2);
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AuditLogsScreen()),
-                      );
-                    }
-                  },
-                ),
-
-                _buildNavItem(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Admin User Control',
-                  isSelected: widget.currentIndex == 0 && user?.role == UserRole.admin,
-                  onTap: () {
-                    if (user?.role == UserRole.admin) {
-                      widget.onSelectTab(0);
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
-                      );
-                    }
+                    final role = user?.role;
+                    int profileIndex = 3;
+                    if (role == UserRole.admin) profileIndex = 4;
+                    _navigateToScreen(const ProfileScreen(), 'Profile', defaultTabIndex: profileIndex);
                   },
                 ),
               ],
@@ -398,20 +510,12 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                       ],
                     ),
                     child: Center(
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/logo.png',
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Text(
-                            initial,
-                            style: GoogleFonts.outfit(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF2563EB),
-                            ),
-                          ),
+                      child: Text(
+                        initial,
+                        style: GoogleFonts.outfit(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2563EB),
                         ),
                       ),
                     ),
@@ -565,108 +669,60 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
     );
   }
 
-  Widget _buildExpandableNavItem({
-    required IconData icon,
+  Widget _buildExpandableSection({
     required String title,
-    required int badgeCount,
-    required bool isExpanded,
-    required VoidCallback onToggle,
+    required IconData icon,
     required List<Widget> children,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final unselectedColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: isExpanded
-            ? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : const Color(0xFFF8FAFC))
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-            leading: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, size: 22, color: unselectedColor),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF8B5CF6), // Purple dot indicator like reference
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            title: Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : const Color(0xFF1F2937),
-              ),
-            ),
-            trailing: Icon(
-              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-              color: unselectedColor,
-              size: 20,
-            ),
-            onTap: onToggle,
+    
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+        leading: Icon(icon, size: 22, color: unselectedColor),
+        title: Text(
+          title,
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isDark ? Colors.white : const Color(0xFF1F2937),
           ),
-          if (isExpanded) ...children,
-        ],
+        ),
+        childrenPadding: const EdgeInsets.only(left: 36, bottom: 8),
+        children: children,
       ),
     );
   }
 
-  Widget _buildSubNavItem({
-    required String title,
-    String? badge,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildSubItem(String title, {required VoidCallback onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 42, right: 14, bottom: 4),
-      child: ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white54 : Colors.black38,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
         ),
-        trailing: badge != null
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.warning,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              )
-            : const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF94A3B8)),
-        onTap: onTap,
       ),
     );
   }

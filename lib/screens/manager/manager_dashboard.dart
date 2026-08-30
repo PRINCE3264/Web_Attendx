@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/attendance_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
@@ -77,16 +78,22 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
       return const Center(child: Text('Please log in'));
     }
 
-    final pendingList = attendance.getPendingApprovals();
+    final pendingList = user.role == UserRole.manager
+        ? attendance.getPendingApprovalsForTL(user.userId)
+        : attendance.getPendingApprovals();
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    var allToday = attendance.getAttendanceByDate(todayStr);
+    var allToday = user.role == UserRole.manager
+        ? attendance.getTeamAttendanceForTL(user.userId).where((a) => a.date == todayStr).toList()
+        : attendance.getAttendanceByDate(todayStr);
 
     if (_filterOnlyLate) {
       allToday = allToday.where((a) => a.timingStatus == TimingStatus.lateArrival).toList();
     }
 
     final approvedToday = allToday.where((a) => a.status == AttendanceStatus.approved || a.status == AttendanceStatus.completed).toList();
-    final pendingLeaves = leaveProv.getPendingLeaves();
+    final pendingLeaves = user.role == UserRole.manager
+        ? leaveProv.getPendingLeavesForTL(user.userId)
+        : leaveProv.getPendingLeaves();
 
     return Scaffold(
       body: SafeArea(

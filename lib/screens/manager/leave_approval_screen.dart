@@ -4,11 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/leave_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
 
 class LeaveApprovalScreen extends StatelessWidget {
-  const LeaveApprovalScreen({super.key});
+  final bool isEmbedded;
+  const LeaveApprovalScreen({super.key, this.isEmbedded = true});
 
   @override
   Widget build(BuildContext context) {
@@ -17,16 +19,22 @@ class LeaveApprovalScreen extends StatelessWidget {
     final manager = auth.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final pendingLeaves = leaveProv.getPendingLeaves();
-    final allLeaves = leaveProv.allLeaves;
+    final pendingLeaves = (manager?.role == UserRole.manager && manager != null)
+        ? leaveProv.getPendingLeavesForTL(manager.userId)
+        : leaveProv.getPendingLeaves();
+    final allLeaves = (manager?.role == UserRole.manager && manager != null)
+        ? leaveProv.getLeavesForTL(manager.userId)
+        : leaveProv.allLeaves;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Leave Requests & Approvals',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Leave Requests & Approvals',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),

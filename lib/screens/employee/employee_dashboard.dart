@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../config/app_theme.dart';
 import '../../models/attendance_model.dart';
+import '../../models/report_model.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/report_service.dart';
+import '../../services/geofence_service.dart';
 import '../shared/custom_widgets.dart';
 import 'camera_capture_screen.dart';
 import 'attendance_history_screen.dart';
@@ -14,8 +17,92 @@ import 'break_tracking_sheet.dart';
 import 'leave_management_screen.dart';
 import 'correction_request_dialog.dart';
 
-class EmployeeDashboard extends StatelessWidget {
+class EmployeeDashboard extends StatefulWidget {
   const EmployeeDashboard({super.key});
+
+  @override
+  State<EmployeeDashboard> createState() => _EmployeeDashboardState();
+}
+
+class _EmployeeDashboardState extends State<EmployeeDashboard> {
+  bool _isCheckingLocation = false;
+  GeofenceResult? _lastGeofenceResult;
+
+  // HQ Coordinates (Example: Connaught Place, New Delhi)
+  final double _officeLat = 28.6304;
+  final double _officeLng = 77.2177;
+  final double _allowedRadius = 500.0; // 500 meters
+
+  Future<void> _checkLocationAndAction(String actionType) async {
+    setState(() => _isCheckingLocation = true);
+    
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied.');
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      
+      final result = GeofenceService.verifyLocation(
+        userLat: position.latitude,
+        userLng: position.longitude,
+        officeLat: _officeLat,
+        officeLng: _officeLng,
+        allowedRadiusMeters: _allowedRadius,
+      );
+
+      setState(() => _lastGeofenceResult = result);
+
+      if (!result.isWithinGeofence) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('You are ${result.distanceMeters}m away from the office. You must be within ${_allowedRadius}m to ${actionType == 'clockIn' ? 'clock in' : 'clock out'}.'),
+              backgroundColor: AppTheme.danger,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        setState(() => _isCheckingLocation = false);
+        return;
+      }
+
+      // Inside geofence -> Proceed to camera
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CameraCaptureScreen(
+              actionType: actionType,
+              latitude: position.latitude,
+              longitude: position.longitude,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+    
+    if (mounted) {
+      setState(() => _isCheckingLocation = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +188,11 @@ class EmployeeDashboard extends StatelessWidget {
 
                 // Today's Attendance Status Card
                 _buildTodayStatusCard(context, todayRec, user),
+
+                const SizedBox(height: 16),
+                
+                // Gamification Dashboard Card
+                _buildGamificationCard(context, report30Day, isDark),
 
                 const SizedBox(height: 16),
 
@@ -325,35 +417,44 @@ class EmployeeDashboard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.successSoft,
-                borderRadius: BorderRadius.circular(10),
+            if (_lastGeofenceResult != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.successSoft : AppTheme.dangerSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _lastGeofenceResult!.isWithinGeofence ? Icons.radar : Icons.location_off,
+                      size: 14,
+                      color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.success : AppTheme.danger,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _lastGeofenceResult!.isWithinGeofence
+                            ? 'GPS Verified • Distance: ${_lastGeofenceResult!.distanceMeters}m'
+                            : 'Too Far • Distance: ${_lastGeofenceResult!.distanceMeters}m (> ${_allowedRadius}m)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.success : AppTheme.danger,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.radar, size: 14, color: AppTheme.success),
-                  SizedBox(width: 6),
-                  Text(
-                    'GPS Verified • Inside Office Geofence Perimeter (<300m)',
-                    style: TextStyle(fontSize: 11, color: AppTheme.success, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CameraCaptureScreen(actionType: 'clockIn'),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.camera_alt, size: 20),
-              label: const Text('CLOCK IN (CAMERA SELFIE)'),
+              onPressed: _isCheckingLocation ? null : () => _checkLocationAndAction('clockIn'),
+              icon: _isCheckingLocation
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.camera_alt, size: 20),
+              label: Text(_isCheckingLocation ? 'VERIFYING GPS...' : 'CLOCK IN (CAMERA SELFIE)'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 minimumSize: const Size.fromHeight(50),
@@ -536,16 +637,11 @@ class EmployeeDashboard extends StatelessWidget {
                 // Clock Out button
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CameraCaptureScreen(actionType: 'clockOut'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: const Text('CLOCK OUT'),
+                    onPressed: _isCheckingLocation ? null : () => _checkLocationAndAction('clockOut'),
+                    icon: _isCheckingLocation 
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.logout, size: 18),
+                    label: Text(_isCheckingLocation ? 'VERIFYING...' : 'CLOCK OUT'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.danger,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -678,6 +774,101 @@ class EmployeeDashboard extends StatelessWidget {
           const StatusBadge(status: AttendanceStatus.completed, isCompact: true),
         ],
       ),
+    );
+  }
+
+  Widget _buildGamificationCard(BuildContext context, MonthlyAttendanceReport report30Day, bool isDark) {
+    // Dynamically calculate points & streak based on attendance percentage
+    final streak = (report30Day.presentDays / 1.5).floor(); // Mocked logic
+    final points = (report30Day.presentDays * 50) + (report30Day.attendancePercentage > 90 ? 250 : 0);
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.yellowAccent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    '🏆 Attendance Score',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              if (report30Day.attendancePercentage > 90)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Great consistency!',
+                    style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem('🔥', '$streak Day', 'Streak'),
+              Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+              _buildStatItem('📅', '${report30Day.attendancePercentage}%', 'Attendance'),
+              Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+              _buildStatItem('⭐', '$points', 'Points'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String emoji, String val, String label) {
+    return Column(
+      children: [
+        Text(
+          '$emoji $val',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
     );
   }
 

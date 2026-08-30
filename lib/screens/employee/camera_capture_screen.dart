@@ -8,10 +8,14 @@ import '../shared/custom_widgets.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
   final String actionType; // 'clockIn' or 'clockOut'
+  final double? latitude;
+  final double? longitude;
 
   const CameraCaptureScreen({
     super.key,
     this.actionType = 'clockIn',
+    this.latitude,
+    this.longitude,
   });
 
   @override
@@ -45,6 +49,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       final success = await attendance.submitClockIn(
         user,
         location: _selectedLocation,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
       );
 
       if (success && mounted) {
@@ -53,7 +59,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
     } else {
       final todayRec = attendance.getTodayAttendance(user.userId);
       if (todayRec != null) {
-        final success = await attendance.submitClockOut(todayRec.attendanceId);
+        final success = await attendance.submitClockOut(
+          todayRec.attendanceId,
+          latitude: widget.latitude,
+          longitude: widget.longitude,
+        );
         if (success && mounted) {
           Navigator.pop(context, true);
         }

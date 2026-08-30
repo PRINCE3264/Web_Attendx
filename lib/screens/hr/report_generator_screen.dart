@@ -7,7 +7,8 @@ import '../../models/report_model.dart';
 import '../../providers/hr_provider.dart';
 
 class ReportGeneratorScreen extends StatefulWidget {
-  const ReportGeneratorScreen({super.key});
+  final bool isEmbedded;
+  const ReportGeneratorScreen({super.key, this.isEmbedded = true});
 
   @override
   State<ReportGeneratorScreen> createState() => _ReportGeneratorScreenState();
@@ -142,12 +143,14 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     final reports = hr.generateAll30DayReports();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '30-Day Attendance Reports',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                '30-Day Attendance Reports',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: Column(
           children: [

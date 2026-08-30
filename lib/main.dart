@@ -8,13 +8,18 @@ import 'providers/attendance_provider.dart';
 import 'providers/hr_provider.dart';
 import 'providers/leave_provider.dart';
 import 'providers/admin_provider.dart';
-import 'screens/shared/main_navigation_screen.dart';
+import 'providers/notification_provider.dart';
+import 'screens/shared/splash_screen.dart';
 import 'services/notification_service.dart';
+
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint('Firebase initialized in local/offline fallback mode: $e');
   }
@@ -120,6 +125,7 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> {
         ChangeNotifierProvider(create: (_) => HrProvider()),
         ChangeNotifierProvider(create: (_) => LeaveProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => UserNotificationProvider()),
       ],
       child: MaterialApp(
         title: 'Smart Attendance System',
@@ -128,7 +134,7 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.lightTheme(),
         themeMode: ThemeMode.light,
-        home: const MainNavigationScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

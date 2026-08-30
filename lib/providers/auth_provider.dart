@@ -50,7 +50,25 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signUp({
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _currentUser = await _authService.signInWithGoogle();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> adminCreateEmployeeAccount({
     required String name,
     required String email,
     required String password,
@@ -59,13 +77,16 @@ class AuthProvider extends ChangeNotifier {
     required String department,
     String? teamId,
     String? teamName,
+    String? managerId,
+    String? managerName,
+    DateTime? joiningDate,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _currentUser = await _authService.signUpWithEmailAndPassword(
+      await _authService.adminCreateEmployeeAccount(
         name: name,
         email: email,
         password: password,
@@ -74,6 +95,9 @@ class AuthProvider extends ChangeNotifier {
         department: department,
         teamId: teamId,
         teamName: teamName,
+        managerId: managerId,
+        managerName: managerName,
+        joiningDate: joiningDate,
       );
       _isLoading = false;
       notifyListeners();
@@ -133,6 +157,25 @@ class AuthProvider extends ChangeNotifier {
     );
     await _authService.switchUser(user);
     notifyListeners();
+  }
+
+  Future<bool> updateMyProfile({required String newName, String? newAvatarUrl}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authService.updateMyProfile(newName: newName, newAvatarUrl: newAvatarUrl);
+      _currentUser = _authService.currentUser;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<void> selectUser(UserModel user) async {

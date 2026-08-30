@@ -8,7 +8,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
 
 class LeaveManagementScreen extends StatefulWidget {
-  const LeaveManagementScreen({super.key});
+  final bool isEmbedded;
+  const LeaveManagementScreen({super.key, this.isEmbedded = true});
 
   @override
   State<LeaveManagementScreen> createState() => _LeaveManagementScreenState();
@@ -182,12 +183,14 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
     final userLeaves = leaveProv.getLeavesForEmployee(user.userId);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Leave & Absence Portal',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Leave & Absence Portal',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),

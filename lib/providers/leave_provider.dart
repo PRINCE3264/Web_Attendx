@@ -36,6 +36,14 @@ class LeaveProvider extends ChangeNotifier {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
+  List<LeaveRequestModel> getLeavesForTL(String tlId) {
+    return _firestoreService.getLeavesForTL(tlId);
+  }
+
+  List<LeaveRequestModel> getPendingLeavesForTL(String tlId) {
+    return _firestoreService.getLeavesForTL(tlId).where((l) => l.status == LeaveStatus.pending).toList();
+  }
+
   LeaveBalanceModel getLeaveBalance(String employeeId) {
     return _firestoreService.getLeaveBalance(employeeId);
   }

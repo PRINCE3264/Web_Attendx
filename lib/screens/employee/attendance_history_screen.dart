@@ -10,7 +10,8 @@ import '../../providers/auth_provider.dart';
 import '../shared/custom_widgets.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
-  const AttendanceHistoryScreen({super.key});
+  final bool isEmbedded;
+  const AttendanceHistoryScreen({super.key, this.isEmbedded = true});
 
   @override
   State<AttendanceHistoryScreen> createState() => _AttendanceHistoryScreenState();
@@ -57,12 +58,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Attendance History & Calendar',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Attendance History & Calendar',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: Column(
           children: [

@@ -2,6 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Helper Functions ---
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,11 +12,15 @@ service cloud.firestore {
     }
 
     function getRole() {
-      return getUserData().role;
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        ? getUserData().role 
+        : 'guest';
     }
 
     function getEmployeeId() {
-      return getUserData().employeeId;
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? getUserData().employeeId 
+        : '';
     }
 
     function isAdmin() {
@@ -30,20 +35,50 @@ service cloud.firestore {
       return isAuthenticated() && (getRole() == 'tl' || getRole() == 'manager' || isHR());
     }
 
-    // Users Collection
+    // 1. Users Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'employeeId', 'isActive']));
     }
 
-    // Employees Collection
+    // 2. Employees Collection
     match /employees/{employeeId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isHR();
     }
 
-    // Attendance Collection
+    // 3. Departments Collection
+    match /departments/{departmentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 4. Teams Collection
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR() || isTL();
+    }
+
+    // 5. Office Locations Collection
+    match /officeLocations/{locationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 6. Shifts Collection
+    match /shifts/{shiftId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 7. Attendance Policies Collection
+    match /attendancePolicies/{policyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 8. Attendance Records Collection
     match /attendance/{attendanceId} {
       allow read: if isAuthenticated() && (
         resource.data.employeeId == getEmployeeId() ||
@@ -52,9 +87,7 @@ service cloud.firestore {
       );
 
       allow create: if isAuthenticated() && 
-        request.resource.data.employeeId == getEmployeeId() &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.approvalStatus == 'pending';
+        (request.resource.data.employeeId == getEmployeeId() || isAdmin() || isHR());
 
       allow update: if isAuthenticated() && (
         isAdmin() ||
@@ -62,39 +95,89 @@ service cloud.firestore {
         (isTL() && resource.data.managerId == getEmployeeId() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvalStatus', 'approvedBy', 'approvedByName', 'approvedAt', 'rejectedBy', 'rejectedByName', 'rejectedAt', 'rejectionReason', 'managerComments', 'updatedAt'])) ||
         (resource.data.employeeId == getEmployeeId() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'approvalStatus', 'approvedBy', 'approvedAt', 'rejectedBy', 'rejectedAt']))
       );
+      allow delete: if isAdmin();
     }
 
-    // Attendance Approvals Collection
+    // 9. Attendance Approvals Collection
     match /attendanceApprovals/{approvalId} {
-      allow read: if isAuthenticated() && (resource.data.managerId == getEmployeeId() || resource.data.employeeId == getEmployeeId() || isHR());
+      allow read: if isAuthenticated() && (
+        resource.data.managerId == getEmployeeId() || 
+        resource.data.employeeId == getEmployeeId() || 
+        isHR()
+      );
       allow create: if isAuthenticated();
-      allow update: if isTL() || isHR();
+      allow update: if isTL() || isHR() || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Leaves Collection
+    // 10. Attendance Corrections / Regularization Collection
+    match /attendanceCorrections/{correctionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.employeeId == getEmployeeId() ||
+        resource.data.managerId == getEmployeeId() ||
+        isHR()
+      );
+      allow create: if isAuthenticated() && (request.resource.data.employeeId == getEmployeeId() || isAdmin());
+      allow update: if isTL() || isHR() || isAdmin() || (resource.data.employeeId == getEmployeeId() && resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    // 11. Leaves Collection
     match /leaves/{leaveId} {
       allow read: if isAuthenticated() && (
         resource.data.employeeId == getEmployeeId() ||
         resource.data.managerId == getEmployeeId() ||
         isHR()
       );
-      allow create: if isAuthenticated() && request.resource.data.employeeId == getEmployeeId();
+      allow create: if isAuthenticated() && (request.resource.data.employeeId == getEmployeeId() || isAdmin());
       allow update: if isAuthenticated() && (
         (isTL() && resource.data.managerId == getEmployeeId()) ||
         isHR() ||
         (resource.data.employeeId == getEmployeeId() && resource.data.status == 'pending')
       );
+      allow delete: if isAdmin();
     }
 
-    // Audit Logs Collection (Immutable)
+    // 12. Leave Types Collection
+    match /leaveTypes/{leaveTypeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 13. Holidays Collection
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 14. Notifications Collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isHR());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // 15. Reports Collection
+    match /reports/{reportId} {
+      allow read: if isAuthenticated() && (
+        resource.data.targetId == getEmployeeId() ||
+        resource.data.employeeId == getEmployeeId() ||
+        isHR() ||
+        isAdmin()
+      );
+      allow write: if isAdmin() || isHR();
+    }
+
+    // 16. Audit Logs Collection (Append-Only, Immutable)
     match /auditLogs/{logId} {
       allow read: if isAdmin() || isHR();
       allow create: if isAuthenticated();
       allow update, delete: if false;
     }
 
-    // Settings, Policies, Shifts, Office Locations
-    match /{collection}/{docId} {
+    // 17. App Settings Collection
+    match /appSettings/{settingKey} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }

@@ -1,6 +1,6 @@
 enum UserRole {
   employee,
-  manager,
+  manager, // Represents TL (Team Lead)
   hr,
   admin,
 }
@@ -11,11 +11,11 @@ extension UserRoleExtension on UserRole {
       case UserRole.employee:
         return 'Employee';
       case UserRole.manager:
-        return 'TL / Manager';
+        return 'TL';
       case UserRole.hr:
-        return 'HR Executive';
+        return 'HR';
       case UserRole.admin:
-        return 'Administrator';
+        return 'Admin';
     }
   }
 
@@ -24,7 +24,7 @@ extension UserRoleExtension on UserRole {
       case UserRole.employee:
         return 'employee';
       case UserRole.manager:
-        return 'manager';
+        return 'tl';
       case UserRole.hr:
         return 'hr';
       case UserRole.admin:
@@ -34,15 +34,16 @@ extension UserRoleExtension on UserRole {
 
   static UserRole fromString(String? roleStr) {
     switch (roleStr?.toLowerCase().trim()) {
-      case 'manager':
       case 'tl':
+      case 'manager':
       case 'team lead':
         return UserRole.manager;
+      case 'admin':
+      case 'administrator':
+        return UserRole.admin;
       case 'hr':
       case 'human resources':
         return UserRole.hr;
-      case 'admin':
-        return UserRole.admin;
       case 'employee':
       default:
         return UserRole.employee;

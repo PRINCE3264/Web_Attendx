@@ -137,13 +137,112 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     );
   }
 
+  String _selectedRoleFilter = 'All';
+
+  void _openAssignTLModal(UserModel employee) {
+    final adminProv = context.read<AdminProvider>();
+    final tls = adminProv.users.where((u) => u.role == UserRole.manager).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          top: 24,
+          left: 24,
+          right: 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Assign TL to ${employee.name}',
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Select which Team Lead (TL) is responsible for attendance approvals and team records for this employee.',
+              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            if (tls.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No TLs found. Please create or assign a user to the TL role first.'),
+              )
+            else
+              ...tls.map((tl) {
+                final isAssigned = employee.managerId == tl.userId;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    tileColor: isAssigned ? AppTheme.primary.withValues(alpha: 0.1) : null,
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.secondary.withValues(alpha: 0.2),
+                      child: const Icon(Icons.supervisor_account, color: AppTheme.secondary, size: 20),
+                    ),
+                    title: Text(tl.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text('${tl.employeeId} • Team: ${tl.teamName}', style: const TextStyle(fontSize: 12)),
+                    trailing: isAssigned
+                        ? const Icon(Icons.check_circle, color: AppTheme.success)
+                        : ElevatedButton(
+                            onPressed: () async {
+                              final admin = context.read<AuthProvider>().currentUser;
+                              if (admin == null) return;
+                              final nav = Navigator.of(ctx);
+                              await adminProv.assignEmployeeToTL(
+                                employeeId: employee.userId,
+                                tlUser: tl,
+                                admin: admin,
+                              );
+                              nav.pop();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('${employee.name} assigned to TL ${tl.name}')),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            child: const Text('Assign'),
+                          ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final adminProv = context.watch<AdminProvider>();
     final admin = auth.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final users = adminProv.users;
+    
+    var users = adminProv.users;
+    if (_selectedRoleFilter == 'Employee') {
+      users = users.where((u) => u.role == UserRole.employee).toList();
+    } else if (_selectedRoleFilter == 'TL') {
+      users = users.where((u) => u.role == UserRole.manager).toList();
+    } else if (_selectedRoleFilter == 'Admin') {
+      users = users.where((u) => u.role == UserRole.admin).toList();
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -170,7 +269,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Manage employee roles, enrollment, and account statuses',
+                          'Manage employee roles, TL team assignments, and account statuses',
                           style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
                         ),
                       ],
@@ -191,7 +290,29 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // Role Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: ['All', 'Employee', 'TL', 'Admin'].map((filter) {
+                    final isSelected = _selectedRoleFilter == filter;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(filter),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedRoleFilter = filter);
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               Text(
                 'Organization Directory (${users.length} Users)',
@@ -208,33 +329,59 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        child: ClipOval(
-                          child: PhotoDisplayWidget(
-                            photoUrl: u.avatarUrl,
-                            size: 40,
-                            borderRadius: 20,
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            child: ClipOval(
+                              child: PhotoDisplayWidget(
+                                photoUrl: u.avatarUrl,
+                                size: 40,
+                                borderRadius: 20,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(u.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text('${u.employeeId} • ${u.role.name} • ${u.department}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: u.isActive,
+                            activeThumbColor: AppTheme.success,
+                            onChanged: admin == null ? null : (val) => adminProv.toggleUserStatus(u.userId, val, admin),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      if (u.role == UserRole.employee) ...[
+                        const Divider(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(u.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text('${u.employeeId} • ${u.role.name} • ${u.department}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            Text(
+                              'Assigned TL: ${u.managerName ?? "Not Assigned"}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: u.managerName != null ? AppTheme.secondary : Colors.grey,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _openAssignTLModal(u),
+                              icon: const Icon(Icons.assignment_ind, size: 16),
+                              label: const Text('Change TL', style: TextStyle(fontSize: 12)),
+                            ),
                           ],
                         ),
-                      ),
-                      Switch(
-                        value: u.isActive,
-                        activeThumbColor: AppTheme.success,
-                        onChanged: admin == null ? null : (val) => adminProv.toggleUserStatus(u.userId, val, admin),
-                      ),
+                      ],
                     ],
                   ),
                 );

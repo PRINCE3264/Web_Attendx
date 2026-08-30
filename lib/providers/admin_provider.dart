@@ -88,6 +88,32 @@ class AdminProvider extends ChangeNotifier {
     await _firestoreService.toggleUserActive(userId, isActive, admin);
   }
 
+  // Assign Employee to TL
+  Future<bool> assignEmployeeToTL({
+    required String employeeId,
+    required UserModel tlUser,
+    required UserModel admin,
+  }) async {
+    try {
+      _isProcessing = true;
+      notifyListeners();
+
+      await _firestoreService.assignEmployeeToTL(
+        employeeId: employeeId,
+        tlUser: tlUser,
+        actor: admin,
+      );
+      _isProcessing = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isProcessing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Update Policy
   Future<bool> updatePolicy(AttendancePolicyModel newPolicy, UserModel admin) async {
     try {

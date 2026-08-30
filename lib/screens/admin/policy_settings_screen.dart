@@ -7,7 +7,8 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class PolicySettingsScreen extends StatefulWidget {
-  const PolicySettingsScreen({super.key});
+  final bool isEmbedded;
+  const PolicySettingsScreen({super.key, this.isEmbedded = true});
 
   @override
   State<PolicySettingsScreen> createState() => _PolicySettingsScreenState();
@@ -80,12 +81,14 @@ class _PolicySettingsScreenState extends State<PolicySettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Attendance Policy Engine',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Attendance Policy Engine',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),

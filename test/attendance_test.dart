@@ -143,7 +143,7 @@ void main() {
 
     test('AuthService handles Sign Up and duplicate email prevention', () async {
       final auth = AuthService();
-      final user = await auth.signUpWithEmailAndPassword(
+      final user = await auth.adminCreateEmployeeAccount(
         name: 'New Developer',
         email: 'dev.new@company.com',
         password: 'password123',
@@ -158,7 +158,7 @@ void main() {
 
       // Duplicate registration should throw
       expect(
-        () async => await auth.signUpWithEmailAndPassword(
+        () async => await auth.adminCreateEmployeeAccount(
           name: 'Another Dev',
           email: 'dev.new@company.com',
           password: 'password123',

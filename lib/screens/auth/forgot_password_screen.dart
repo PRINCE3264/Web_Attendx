@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -79,167 +78,425 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          'Reset Password',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E3A8A)),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(Icons.lock_reset, size: 36, color: AppTheme.primary),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isCodeSent ? 'Set New Password' : 'Forgot Password?',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _isCodeSent
-                        ? 'Enter the 6-digit code sent to your email and create a new password.'
-                        : 'Enter your registered work email to receive a password reset code.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTheme.cardDark : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (!_isCodeSent) ...[
-                          TextField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'Registered Email',
-                              prefixIcon: Icon(Icons.email_outlined, size: 20),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: auth.isLoading ? null : _sendResetCode,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: auth.isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : Text(
-                                    'Send Reset Code',
-                                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
-                                  ),
-                          ),
-                        ] else ...[
-                          TextField(
-                            controller: _otpController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: '6-Digit Verification Code',
-                              prefixIcon: Icon(Icons.pin, size: 20),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: _newPasswordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'New Password',
-                              prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 20),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: _confirmPasswordController,
-                            obscureText: _obscurePassword,
-                            decoration: const InputDecoration(
-                              labelText: 'Confirm New Password',
-                              prefixIcon: Icon(Icons.lock_outline, size: 20),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: auth.isLoading ? null : _handleResetPassword,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: auth.isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : Text(
-                                    'Update Password',
-                                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
-                                  ),
-                          ),
-                        ],
-
-                        if (_localError != null || auth.errorMessage != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            _localError ?? auth.errorMessage ?? '',
-                            style: const TextStyle(color: AppTheme.danger, fontSize: 13),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back to Sign In'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFEBF4FA), Color(0xFFD6E8F9)],
           ),
         ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -50,
+              left: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 80,
+              left: 20,
+              child: Text(
+                'Work\nBuild\nBelong',
+                style: GoogleFonts.caveat(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E3A8A),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 80,
+              right: 20,
+              child: Text(
+                'People\nAttendance\nProgress\nTogether',
+                textAlign: TextAlign.right,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'A',
+                            style: GoogleFonts.outfit(
+                              fontSize: 54,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF1D4ED8),
+                            ),
+                          ),
+                          const Icon(Icons.check_circle, color: Color(0xFF2563EB), size: 36),
+                        ],
+                      ),
+                      Text(
+                        'AttendX',
+                        style: GoogleFonts.outfit(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1E3A8A),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+
+                      Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              _isCodeSent ? 'Create New Password' : 'Reset Password',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _isCodeSent
+                                  ? 'Enter the 6-digit code sent to your email.'
+                                  : 'Enter your email to receive a reset code.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 28),
+
+                            if (!_isCodeSent) ...[
+                              TextField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.mail_outline, color: Color(0xFF94A3B8), size: 20),
+                                  hintText: 'Email',
+                                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 14),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              TextField(
+                                controller: _otpController,
+                                keyboardType: TextInputType.number,
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFF94A3B8), size: 20),
+                                  hintText: '6-digit Reset Code',
+                                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 14),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _newPasswordController,
+                                obscureText: _obscurePassword,
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF94A3B8), size: 20),
+                                  hintText: 'New Password',
+                                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 14),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                      color: const Color(0xFF94A3B8),
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _confirmPasswordController,
+                                obscureText: _obscurePassword,
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.lock_reset, color: Color(0xFF94A3B8), size: 20),
+                                  hintText: 'Confirm Password',
+                                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 14),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 16),
+                            
+                            if (_localError != null || auth.errorMessage != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Text(
+                                  _localError ?? auth.errorMessage!,
+                                  style: GoogleFonts.inter(color: Colors.red.shade600, fontSize: 12),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+
+                            ElevatedButton(
+                              onPressed: auth.isLoading ? null : (_isCodeSent ? _handleResetPassword : _sendResetCode),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2563EB),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: auth.isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : Text(
+                                      _isCodeSent ? 'RESET PASSWORD' : 'SEND RESET CODE',
+                                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Footer Area exactly matching design
+                      SizedBox(
+                        height: 220,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Building and Billboard (Right)
+                            Positioned(
+                              right: -10,
+                              bottom: 0,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // Small building
+                                  Container(
+                                    width: 40,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF93C5FD).withValues(alpha: 0.5),
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Main building with billboard
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.bottomCenter,
+                                    children: [
+                                      Container(
+                                        width: 100,
+                                        height: 180,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF93C5FD).withValues(alpha: 0.8),
+                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                        ),
+                                      ),
+                                      // Billboard
+                                      Positioned(
+                                        bottom: 40,
+                                        child: Container(
+                                          width: 90,
+                                          height: 100,
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.9),
+                                            borderRadius: BorderRadius.circular(4),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.05),
+                                                blurRadius: 10,
+                                              )
+                                            ],
+                                          ),
+                                          child: Text(
+                                            'Great\nTeams\nBuild\nGreater\nFutures',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              height: 1.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF3B82F6),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Leaves (Left)
+                            Positioned(
+                              left: -20,
+                              bottom: -20,
+                              child: Icon(Icons.eco, size: 140, color: const Color(0xFF3B82F6).withValues(alpha: 0.8)),
+                            ),
+
+                            // Clouds (Bottom)
+                            Positioned(
+                              bottom: -20,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: List.generate(
+                                  5,
+                                  (index) => Container(
+                                    width: 80,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2563EB).withValues(alpha: 0.9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Foreground Text and Icons
+                            Positioned.fill(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildBottomIcon(Icons.shield_outlined, 'Secure'),
+                                      const SizedBox(width: 24),
+                                      _buildBottomIcon(Icons.people_outline, 'Productive'),
+                                      const SizedBox(width: 24),
+                                      _buildBottomIcon(Icons.bar_chart, 'Better Together'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    'AttendX  •  A Smarter Workplace',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildBottomIcon(IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+          ),
+          child: Icon(icon, color: const Color(0xFF64748B), size: 18),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF64748B),
+          ),
+        ),
+      ],
     );
   }
 }

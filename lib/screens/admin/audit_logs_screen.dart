@@ -7,7 +7,8 @@ import '../../models/audit_log_model.dart';
 import '../../providers/admin_provider.dart';
 
 class AuditLogsScreen extends StatefulWidget {
-  const AuditLogsScreen({super.key});
+  final bool isEmbedded;
+  const AuditLogsScreen({super.key, this.isEmbedded = true});
 
   @override
   State<AuditLogsScreen> createState() => _AuditLogsScreenState();
@@ -29,12 +30,14 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Security & Audit Trail Log',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Security & Audit Trail Log',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
       body: SafeArea(
         child: Column(
           children: [

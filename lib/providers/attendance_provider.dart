@@ -8,6 +8,7 @@ import '../models/break_model.dart';
 import '../models/correction_model.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
+import '../services/auth_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
@@ -29,18 +30,28 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   void _initStream() {
-    _allAttendance = _firestoreService.getAllAttendance();
+    _allAttendance = _filterAttendance(_firestoreService.getAllAttendance());
     _corrections = _firestoreService.getAllCorrections();
 
     _attendanceSub = _firestoreService.attendanceStream.listen((records) {
-      _allAttendance = records;
+      _allAttendance = _filterAttendance(records);
       notifyListeners();
     });
 
     _correctionsSub = _firestoreService.correctionsStream.listen((corrs) {
-      _corrections = corrs;
+      _corrections = corrs; // Could also filter corrections if needed
       notifyListeners();
     });
+  }
+
+  List<AttendanceModel> _filterAttendance(List<AttendanceModel> records) {
+    try {
+      final user = AuthService().currentUser;
+      if (user != null && user.role == UserRole.employee) {
+        return records.where((r) => r.employeeId == user.userId).toList();
+      }
+    } catch (_) {}
+    return records;
   }
 
   @override
@@ -81,6 +92,16 @@ class AttendanceProvider extends ChangeNotifier {
         .where((a) => a.status == AttendanceStatus.pending)
         .toList()
       ..sort((a, b) => (b.clockInTime ?? DateTime.now()).compareTo(a.clockInTime ?? DateTime.now()));
+  }
+
+  List<AttendanceModel> getPendingApprovalsForTL(String? tlId) {
+    if (tlId == null) return [];
+    return _firestoreService.getPendingApprovalsForTL(tlId);
+  }
+
+  List<AttendanceModel> getTeamAttendanceForTL(String? tlId) {
+    if (tlId == null) return [];
+    return _firestoreService.getAttendanceForTL(tlId);
   }
 
   List<AttendanceModel> getLateEmployeesToday() {
@@ -281,7 +302,7 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> submitClockOut(String attendanceId) async {
+  Future<bool> submitClockOut(String attendanceId, {double? latitude, double? longitude}) async {
     try {
       _isProcessing = true;
       notifyListeners();
@@ -289,6 +310,8 @@ class AttendanceProvider extends ChangeNotifier {
       await _firestoreService.submitClockOut(
         attendanceId: attendanceId,
         clockOutPhotoUrl: _tempPhotoDataUrl,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       _tempPhotoFile = null;

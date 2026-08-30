@@ -9,6 +9,7 @@ import '../../providers/hr_provider.dart';
 import '../shared/custom_widgets.dart';
 import 'all_employees_screen.dart';
 import 'report_generator_screen.dart';
+import 'create_announcement_sheet.dart';
 
 class HrDashboard extends StatelessWidget {
   const HrDashboard({super.key});
@@ -151,6 +152,11 @@ class HrDashboard extends StatelessWidget {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // AI Insights Card
+              _buildAiInsightsCard(isDark),
 
               const SizedBox(height: 20),
 
@@ -405,6 +411,40 @@ class HrDashboard extends StatelessWidget {
                         );
                       },
                     ),
+                    const Divider(height: 20),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.campaign, color: AppTheme.accent),
+                      ),
+                      title: Text(
+                        'Broadcast Announcements',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Publish holidays or general notices to all employees or managers.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -412,6 +452,84 @@ class HrDashboard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAiInsightsCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF374151) : const Color(0xFFFEF3C7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF4B5563) : const Color(0xFFF59E0B).withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.psychology, color: Color(0xFFD97706), size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'AI Attendance Insights',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF92400E),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Auto-Detected',
+                  style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildInsightRow(Icons.trending_down, 'Development Team: Attendance ↓ 4.2%', isDark),
+          const SizedBox(height: 10),
+          _buildInsightRow(Icons.watch_later, 'Most late: Rahul — 6 times', isDark),
+          const SizedBox(height: 10),
+          _buildInsightRow(Icons.verified, 'Highest attendance: Priya — 98%', isDark),
+          const SizedBox(height: 10),
+          _buildInsightRow(Icons.warning_amber, '3 employees below 75%', isDark, isWarning: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightRow(IconData icon, String text, bool isDark, {bool isWarning = false}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: isWarning ? AppTheme.danger : (isDark ? Colors.white70 : Colors.black87)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: isWarning ? FontWeight.w600 : FontWeight.w500,
+              color: isWarning ? AppTheme.danger : (isDark ? Colors.white : Colors.black87),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

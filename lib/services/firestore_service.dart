@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/team_model.dart';
@@ -11,12 +14,23 @@ import 'mock_data_seeder.dart';
 import 'notification_service.dart';
 import 'audit_service.dart';
 import 'geofence_service.dart';
+import '../models/announcement_model.dart';
+import '../models/notification_model.dart';
 
 class FirestoreService {
   static final FirestoreService _instance = FirestoreService._internal();
   factory FirestoreService() => _instance;
   FirestoreService._internal() {
     _initializeData();
+    _bindFirestoreListeners();
+  }
+
+  FirebaseFirestore? get _db {
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
   }
 
   final List<UserModel> _users = [];
@@ -26,20 +40,105 @@ class FirestoreService {
   final List<LeaveBalanceModel> _leaveBalances = [];
   final List<AttendanceCorrectionModel> _corrections = [];
   AttendancePolicyModel _policy = MockDataSeeder.getSeedPolicy();
+  final List<AnnouncementModel> _announcements = [];
+  final List<NotificationModel> _notifications = [];
 
-  final _attendanceStreamController = StreamController<List<AttendanceModel>>.broadcast();
+  final _attendanceStreamController =
+      StreamController<List<AttendanceModel>>.broadcast();
   final _usersStreamController = StreamController<List<UserModel>>.broadcast();
   final _teamsStreamController = StreamController<List<TeamModel>>.broadcast();
-  final _leavesStreamController = StreamController<List<LeaveRequestModel>>.broadcast();
-  final _correctionsStreamController = StreamController<List<AttendanceCorrectionModel>>.broadcast();
-  final _policyStreamController = StreamController<AttendancePolicyModel>.broadcast();
+  final _leavesStreamController =
+      StreamController<List<LeaveRequestModel>>.broadcast();
+  final _correctionsStreamController =
+      StreamController<List<AttendanceCorrectionModel>>.broadcast();
+  final _policyStreamController =
+      StreamController<AttendancePolicyModel>.broadcast();
+  final _announcementsStreamController =
+      StreamController<List<AnnouncementModel>>.broadcast();
+  final _notificationsStreamController =
+      StreamController<List<NotificationModel>>.broadcast();
 
-  Stream<List<AttendanceModel>> get attendanceStream => _attendanceStreamController.stream;
+  Stream<List<AttendanceModel>> get attendanceStream =>
+      _attendanceStreamController.stream;
   Stream<List<UserModel>> get usersStream => _usersStreamController.stream;
   Stream<List<TeamModel>> get teamsStream => _teamsStreamController.stream;
-  Stream<List<LeaveRequestModel>> get leavesStream => _leavesStreamController.stream;
-  Stream<List<AttendanceCorrectionModel>> get correctionsStream => _correctionsStreamController.stream;
-  Stream<AttendancePolicyModel> get policyStream => _policyStreamController.stream;
+  Stream<List<LeaveRequestModel>> get leavesStream =>
+      _leavesStreamController.stream;
+  Stream<List<AttendanceCorrectionModel>> get correctionsStream =>
+      _correctionsStreamController.stream;
+  Stream<AttendancePolicyModel> get policyStream =>
+      _policyStreamController.stream;
+  Stream<List<AnnouncementModel>> get announcementsStream =>
+      _announcementsStreamController.stream;
+  Stream<List<NotificationModel>> get notificationsStream =>
+      _notificationsStreamController.stream;
+
+  void _bindFirestoreListeners() {
+    try {
+      final db = _db;
+      if (db == null) return;
+
+      // Users live stream from Firestore
+      db.collection('users').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList();
+          _users.clear();
+          _users.addAll(items);
+          _usersStreamController.add(List.unmodifiable(_users));
+        }
+      }, onError: (e) => debugPrint('Live users sync info: $e'));
+
+      // Teams live stream from Firestore
+      db.collection('teams').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) => TeamModel.fromMap(d.data(), d.id)).toList();
+          _teams.clear();
+          _teams.addAll(items);
+          _teamsStreamController.add(List.unmodifiable(_teams));
+        }
+      }, onError: (e) => debugPrint('Live teams sync info: $e'));
+
+      // Attendance live stream from Firestore
+      db.collection('attendance').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) => AttendanceModel.fromMap(d.data(), d.id)).toList();
+          _attendance.clear();
+          _attendance.addAll(items);
+          _attendanceStreamController.add(List.unmodifiable(_attendance));
+        }
+      }, onError: (e) => debugPrint('Live attendance sync info: $e'));
+
+      // Leaves live stream from Firestore
+      db.collection('leaves').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) => LeaveRequestModel.fromMap(d.data(), d.id)).toList();
+          _leaves.clear();
+          _leaves.addAll(items);
+          _leavesStreamController.add(List.unmodifiable(_leaves));
+        }
+      }, onError: (e) => debugPrint('Live leaves sync info: $e'));
+
+      // Corrections live stream from Firestore
+      db.collection('attendanceCorrections').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) => AttendanceCorrectionModel.fromMap(d.data(), d.id)).toList();
+          _corrections.clear();
+          _corrections.addAll(items);
+          _correctionsStreamController.add(List.unmodifiable(_corrections));
+        }
+      }, onError: (e) => debugPrint('Live corrections sync info: $e'));
+
+      // Policy live stream from Firestore
+      db.collection('attendancePolicies').doc('policy_standard').snapshots().listen((snap) {
+        if (snap.exists && snap.data() != null) {
+          _policy = AttendancePolicyModel.fromMap(snap.data()!, snap.id);
+          _policyStreamController.add(_policy);
+        }
+      }, onError: (e) => debugPrint('Live policy sync info: $e'));
+    } catch (e) {
+      debugPrint('Firestore real-time listeners fallback: $e');
+    }
+  }
 
   void _initializeData() {
     _users.addAll(MockDataSeeder.getSeedUsers());
@@ -60,6 +159,8 @@ class FirestoreService {
     _leavesStreamController.add(List.unmodifiable(_leaves));
     _correctionsStreamController.add(List.unmodifiable(_corrections));
     _policyStreamController.add(_policy);
+    _announcementsStreamController.add(List.unmodifiable(_announcements));
+    _notificationsStreamController.add(List.unmodifiable(_notifications));
   }
 
   void resetToDefaultSeed() {
@@ -75,15 +176,25 @@ class FirestoreService {
   // Policy methods
   AttendancePolicyModel get currentPolicy => _policy;
 
-  Future<void> updatePolicy(AttendancePolicyModel newPolicy, UserModel actor) async {
+  Future<void> updatePolicy(
+    AttendancePolicyModel newPolicy,
+    UserModel actor,
+  ) async {
     final oldStart = _policy.officeStartTime;
     _policy = newPolicy;
     _policyStreamController.add(_policy);
 
+    try {
+      _db?.collection('attendancePolicies').doc(newPolicy.policyId).set(newPolicy.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore policy update error: $e');
+    }
+
     AuditService().log(
       actor: actor,
       actionType: 'POLICY_UPDATE',
-      description: 'Updated Attendance Policy (Start: ${_policy.officeStartTime}, Grace: ${_policy.gracePeriodMinutes}m, Geofence: ${_policy.geofenceRadiusMeters}m).',
+      description:
+          'Updated Attendance Policy (Start: ${_policy.officeStartTime}, Grace: ${_policy.gracePeriodMinutes}m, Geofence: ${_policy.geofenceRadiusMeters}m).',
       targetEntityId: newPolicy.policyId,
       oldValue: 'Start: $oldStart',
       newValue: 'Start: ${_policy.officeStartTime}',
@@ -98,7 +209,8 @@ class FirestoreService {
 
   // User management (Admin)
   List<UserModel> getAllUsers() => List.unmodifiable(_users);
-  List<UserModel> getEmployees() => _users.where((u) => u.role == UserRole.employee).toList();
+  List<UserModel> getEmployees() =>
+      _users.where((u) => u.role == UserRole.employee).toList();
 
   UserModel? getUserById(String id) {
     try {
@@ -113,10 +225,17 @@ class FirestoreService {
     _leaveBalances.add(LeaveBalanceModel(employeeId: newUser.userId));
     _usersStreamController.add(List.unmodifiable(_users));
 
+    try {
+      _db?.collection('users').doc(newUser.userId).set(newUser.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore user create error: $e');
+    }
+
     AuditService().log(
       actor: actor,
       actionType: 'ADMIN_USER_ADD',
-      description: 'Added new employee: ${newUser.name} (${newUser.employeeId}) in ${newUser.department}.',
+      description:
+          'Added new employee: ${newUser.name} (${newUser.employeeId}) in ${newUser.department}.',
       targetEntityId: newUser.userId,
     );
 
@@ -129,11 +248,20 @@ class FirestoreService {
     return newUser;
   }
 
-  Future<UserModel> updateEmployee(UserModel updatedUser, UserModel actor) async {
+  Future<UserModel> updateEmployee(
+    UserModel updatedUser,
+    UserModel actor,
+  ) async {
     final index = _users.indexWhere((u) => u.userId == updatedUser.userId);
     if (index != -1) {
       _users[index] = updatedUser;
       _usersStreamController.add(List.unmodifiable(_users));
+
+      try {
+        _db?.collection('users').doc(updatedUser.userId).set(updatedUser.toMap(), SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Firestore user update error: $e');
+      }
 
       AuditService().log(
         actor: actor,
@@ -145,7 +273,11 @@ class FirestoreService {
     return updatedUser;
   }
 
-  Future<void> toggleUserActive(String userId, bool isActive, UserModel actor) async {
+  Future<void> toggleUserActive(
+    String userId,
+    bool isActive,
+    UserModel actor,
+  ) async {
     final index = _users.indexWhere((u) => u.userId == userId);
     if (index != -1) {
       final old = _users[index];
@@ -155,12 +287,48 @@ class FirestoreService {
       AuditService().log(
         actor: actor,
         actionType: 'ADMIN_USER_STATUS',
-        description: '${isActive ? "Activated" : "Disabled"} user account for ${old.name}.',
+        description:
+            '${isActive ? "Activated" : "Disabled"} user account for ${old.name}.',
         targetEntityId: userId,
         oldValue: 'isActive: ${old.isActive}',
         newValue: 'isActive: $isActive',
       );
     }
+  }
+
+  Future<UserModel> assignEmployeeToTL({
+    required String employeeId,
+    required UserModel tlUser,
+    required UserModel actor,
+  }) async {
+    final index = _users.indexWhere((u) => u.userId == employeeId);
+    if (index != -1) {
+      final old = _users[index];
+      final updated = old.copyWith(
+        managerId: tlUser.userId,
+        managerName: tlUser.name,
+        teamId: tlUser.teamId,
+        teamName: tlUser.teamName,
+      );
+      _users[index] = updated;
+      _usersStreamController.add(List.unmodifiable(_users));
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'ADMIN_ASSIGN_TL',
+        description: 'Assigned employee ${old.name} to TL ${tlUser.name}.',
+        targetEntityId: employeeId,
+      );
+
+      NotificationService().sendNotification(
+        title: 'TL Assigned 👥',
+        message: 'Assigned ${old.name} to ${tlUser.name}.',
+        type: 'info',
+      );
+
+      return updated;
+    }
+    throw Exception('Employee not found');
   }
 
   // Attendance Queries
@@ -178,17 +346,54 @@ class FirestoreService {
   }
 
   List<AttendanceModel> getAttendanceForEmployee(String employeeId) {
+    return _attendance.where((a) => a.employeeId == employeeId).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+  }
+
+  Set<String> getEmployeeIdsForTL(String tlId) {
+    return _users
+        .where((u) => u.managerId == tlId || u.userId == tlId)
+        .map((u) => u.userId)
+        .toSet();
+  }
+
+  List<AttendanceModel> getAttendanceForTL(String tlId) {
+    final empIds = getEmployeeIdsForTL(tlId);
     return _attendance
-        .where((a) => a.employeeId == employeeId)
+        .where((a) => empIds.contains(a.employeeId))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+  }
+
+  List<AttendanceModel> getPendingApprovalsForTL(String tlId) {
+    final empIds = getEmployeeIdsForTL(tlId);
+    return _attendance
+        .where((a) => a.status == AttendanceStatus.pending && empIds.contains(a.employeeId))
+        .toList()
+      ..sort(
+        (a, b) => (b.clockInTime ?? DateTime.now()).compareTo(
+          a.clockInTime ?? DateTime.now(),
+        ),
+      );
+  }
+
+  List<LeaveRequestModel> getLeavesForTL(String tlId) {
+    final empIds = getEmployeeIdsForTL(tlId);
+    return _leaves
+        .where((l) => empIds.contains(l.employeeId))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   List<AttendanceModel> getPendingApprovals() {
     return _attendance
         .where((a) => a.status == AttendanceStatus.pending)
         .toList()
-      ..sort((a, b) => (b.clockInTime ?? DateTime.now()).compareTo(a.clockInTime ?? DateTime.now()));
+      ..sort(
+        (a, b) => (b.clockInTime ?? DateTime.now()).compareTo(
+          a.clockInTime ?? DateTime.now(),
+        ),
+      );
   }
 
   List<AttendanceModel> getAttendanceByDate(String dateStr) {
@@ -227,8 +432,16 @@ class FirestoreService {
     final startHour = int.tryParse(startParts[0]) ?? 9;
     final startMin = int.tryParse(startParts[1]) ?? 30;
 
-    final shiftStartTime = DateTime(now.year, now.month, now.day, startHour, startMin);
-    final graceEndTime = shiftStartTime.add(Duration(minutes: _policy.gracePeriodMinutes));
+    final shiftStartTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      startHour,
+      startMin,
+    );
+    final graceEndTime = shiftStartTime.add(
+      Duration(minutes: _policy.gracePeriodMinutes),
+    );
 
     if (now.isAfter(graceEndTime)) {
       timingStatus = TimingStatus.lateArrival;
@@ -260,16 +473,37 @@ class FirestoreService {
     _attendance.insert(0, record);
     _notifyAll();
 
+    try {
+      _db?.collection('attendance').doc(record.attendanceId).set(record.toMap(), SetOptions(merge: true));
+      _db?.collection('attendanceApprovals').doc('appr_${record.attendanceId}').set({
+        'approvalId': 'appr_${record.attendanceId}',
+        'attendanceId': record.attendanceId,
+        'employeeId': user.userId,
+        'employeeName': user.name,
+        'teamId': user.teamId,
+        'managerId': user.managerId,
+        'date': dateStr,
+        'selfieUrl': photoUrl,
+        'distanceMeters': geofenceRes.distanceMeters,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore clock-in write error: $e');
+    }
+
     AuditService().log(
       actor: user,
       actionType: 'CLOCK_IN',
-      description: '${user.name} clocked in (${timingStatus.label}, Distance: ${geofenceRes.distanceMeters}m).',
+      description:
+          '${user.name} clocked in (${timingStatus.label}, Distance: ${geofenceRes.distanceMeters}m).',
       targetEntityId: attendanceId,
     );
 
     NotificationService().sendNotification(
       title: 'Clock-In Submitted 📍',
-      message: '${user.name} clocked in at ${DateFormat('hh:mm a').format(now)} (${timingStatus.label}). Awaiting TL Review.',
+      message:
+          '${user.name} clocked in at ${DateFormat('hh:mm a').format(now)} (${timingStatus.label}). Awaiting TL Review.',
       type: 'info',
     );
 
@@ -297,6 +531,12 @@ class FirestoreService {
     final updated = rec.copyWith(breaks: updatedBreaks);
     _attendance[index] = updated;
     _notifyAll();
+
+    try {
+      _db?.collection('attendance').doc(updated.attendanceId).set(updated.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore start break error: $e');
+    }
 
     AuditService().log(
       actor: user,
@@ -344,10 +584,17 @@ class FirestoreService {
     _attendance[index] = updated;
     _notifyAll();
 
+    try {
+      _db?.collection('attendance').doc(updated.attendanceId).set(updated.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore end break error: $e');
+    }
+
     AuditService().log(
       actor: user,
       actionType: 'BREAK_END',
-      description: '${user.name} resumed duty after break. Total break: ${totalBreakMins}m.',
+      description:
+          '${user.name} resumed duty after break. Total break: ${totalBreakMins}m.',
       targetEntityId: attendanceId,
     );
 
@@ -382,6 +629,17 @@ class FirestoreService {
     _attendance[index] = updated;
     _notifyAll();
 
+    try {
+      _db?.collection('attendance').doc(updated.attendanceId).set(updated.toMap(), SetOptions(merge: true));
+      _db?.collection('attendanceApprovals').doc('appr_${updated.attendanceId}').set({
+        'status': updated.status.code,
+        'reviewedAt': FieldValue.serverTimestamp(),
+        'rejectionReason': null,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore attendance approval error: $e');
+    }
+
     AuditService().log(
       actor: manager,
       actionType: 'TL_APPROVED',
@@ -411,6 +669,9 @@ class FirestoreService {
           approvedAt: now,
           managerComment: 'Bulk verified & approved by TL',
         );
+        try {
+          _db?.collection('attendance').doc(_attendance[i].attendanceId).set(_attendance[i].toMap(), SetOptions(merge: true));
+        } catch (_) {}
         count++;
       }
     }
@@ -448,22 +709,37 @@ class FirestoreService {
       approvedBy: manager.userId,
       approvedByName: '${manager.name} (${manager.role.name})',
       approvedAt: DateTime.now(),
-      rejectionReason: reason.trim().isEmpty ? 'Photo or geofence verification failed' : reason,
+      rejectionReason: reason.trim().isEmpty
+          ? 'Photo or geofence verification failed'
+          : reason,
     );
 
     _attendance[index] = updated;
     _notifyAll();
 
+    try {
+      _db?.collection('attendance').doc(updated.attendanceId).set(updated.toMap(), SetOptions(merge: true));
+      _db?.collection('attendanceApprovals').doc('appr_${updated.attendanceId}').set({
+        'status': updated.status.code,
+        'reviewedAt': FieldValue.serverTimestamp(),
+        'rejectionReason': updated.rejectionReason,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore attendance reject error: $e');
+    }
+
     AuditService().log(
       actor: manager,
       actionType: 'TL_REJECTED',
-      description: 'Rejected attendance for ${old.employeeName}. Reason: ${updated.rejectionReason}',
+      description:
+          'Rejected attendance for ${old.employeeName}. Reason: ${updated.rejectionReason}',
       targetEntityId: attendanceId,
     );
 
     NotificationService().sendNotification(
       title: 'Attendance Rejected ⚠️',
-      message: 'Your attendance was rejected by ${manager.name}. Reason: ${updated.rejectionReason}',
+      message:
+          'Your attendance was rejected by ${manager.name}. Reason: ${updated.rejectionReason}',
       type: 'rejection',
     );
 
@@ -473,6 +749,8 @@ class FirestoreService {
   Future<AttendanceModel> submitClockOut({
     required String attendanceId,
     String? clockOutPhotoUrl,
+    double? latitude,
+    double? longitude,
   }) async {
     final index = _attendance.indexWhere((a) => a.attendanceId == attendanceId);
     if (index == -1) throw Exception('Attendance record not found');
@@ -489,7 +767,9 @@ class FirestoreService {
       return b;
     }).toList();
 
-    final grossMinutes = old.clockInTime != null ? now.difference(old.clockInTime!).inMinutes : 0;
+    final grossMinutes = old.clockInTime != null
+        ? now.difference(old.clockInTime!).inMinutes
+        : 0;
     int totalBreakMins = 0;
     for (final b in closedBreaks) {
       totalBreakMins += b.currentDurationMinutes;
@@ -507,6 +787,12 @@ class FirestoreService {
     _attendance[index] = updated;
     _notifyAll();
 
+    try {
+      _db?.collection('attendance').doc(updated.attendanceId).set(updated.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore clock-out error: $e');
+    }
+
     AuditService().log(
       actor: UserModel(
         userId: old.employeeId,
@@ -518,13 +804,15 @@ class FirestoreService {
         department: '',
       ),
       actionType: 'CLOCK_OUT',
-      description: '${old.employeeName} completed daily shift (Net: ${updated.formattedNetDuration}).',
+      description:
+          '${old.employeeName} completed daily shift (Net: ${updated.formattedNetDuration}).',
       targetEntityId: attendanceId,
     );
 
     NotificationService().sendNotification(
       title: 'Clock-Out Completed 👍',
-      message: 'Daily shift completed. Net worked: ${updated.formattedNetDuration}.',
+      message:
+          'Daily shift completed. Net worked: ${updated.formattedNetDuration}.',
       type: 'info',
     );
 
@@ -536,6 +824,56 @@ class FirestoreService {
 
   List<LeaveRequestModel> getLeavesForEmployee(String employeeId) {
     return _leaves.where((l) => l.employeeId == employeeId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  List<AttendanceCorrectionModel> getCorrectionsForEmployee(String employeeId) {
+    return _corrections.where((c) => c.employeeId == employeeId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  // Announcements & Notifications
+  Future<void> publishAnnouncement(AnnouncementModel announcement) async {
+    _announcements.add(announcement);
+    _announcementsStreamController.add(List.unmodifiable(_announcements));
+    
+    // Simulate Firebase Cloud Functions / backend trigger to create user notifications
+    final targetUsers = _users.where((u) {
+      if (announcement.audience == 'everyone') return true;
+      if (announcement.audience == 'all_employees' && u.role == UserRole.employee) return true;
+      if (announcement.audience == 'all_tls' && u.role == UserRole.manager) return true;
+      return false;
+    }).toList();
+
+    for (final u in targetUsers) {
+      final notif = NotificationModel(
+        id: 'notif_${DateTime.now().microsecondsSinceEpoch}_${u.userId}',
+        userId: u.userId,
+        announcementId: announcement.id,
+        title: announcement.title,
+        message: announcement.message,
+        type: announcement.type,
+        createdAt: DateTime.now(),
+      );
+      _notifications.add(notif);
+    }
+    
+    _notificationsStreamController.add(List.unmodifiable(_notifications));
+
+    // Simulate sending FCM push notification (Firebase Cloud Messaging)
+    // NotificationService().sendPushNotification(title: announcement.title, body: announcement.message);
+  }
+
+  Future<void> markNotificationAsRead(String notificationId) async {
+    final idx = _notifications.indexWhere((n) => n.id == notificationId);
+    if (idx != -1) {
+      _notifications[idx] = _notifications[idx].copyWith(isRead: true);
+      _notificationsStreamController.add(List.unmodifiable(_notifications));
+    }
+  }
+
+  List<NotificationModel> getNotificationsForUser(String userId) {
+    return _notifications.where((n) => n.userId == userId).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -574,16 +912,24 @@ class FirestoreService {
     _leaves.insert(0, leave);
     _leavesStreamController.add(List.unmodifiable(_leaves));
 
+    try {
+      _db?.collection('leaves').doc(leave.leaveId).set(leave.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore apply leave error: $e');
+    }
+
     AuditService().log(
       actor: employee,
       actionType: 'LEAVE_APPLY',
-      description: '${employee.name} applied for $totalDays days ${leaveType.label}.',
+      description:
+          '${employee.name} applied for $totalDays days ${leaveType.label}.',
       targetEntityId: leave.leaveId,
     );
 
     NotificationService().sendNotification(
       title: 'Leave Application Submitted 🌴',
-      message: '$totalDays days ${leaveType.label} requested. Sent to Manager for review.',
+      message:
+          '$totalDays days ${leaveType.label} requested. Sent to Manager for review.',
       type: 'info',
     );
 
@@ -610,17 +956,31 @@ class FirestoreService {
 
     _leaves[index] = updated;
 
+    try {
+      _db?.collection('leaves').doc(updated.leaveId).set(updated.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore review leave error: $e');
+    }
+
     // Deduct from balance if approved
     if (isApproved) {
-      final bIndex = _leaveBalances.indexWhere((b) => b.employeeId == old.employeeId);
+      final bIndex = _leaveBalances.indexWhere(
+        (b) => b.employeeId == old.employeeId,
+      );
       if (bIndex != -1) {
         final bal = _leaveBalances[bIndex];
         if (old.leaveType == LeaveType.casual) {
-          _leaveBalances[bIndex] = bal.copyWith(casualUsed: bal.casualUsed + old.totalDays);
+          _leaveBalances[bIndex] = bal.copyWith(
+            casualUsed: bal.casualUsed + old.totalDays,
+          );
         } else if (old.leaveType == LeaveType.sick) {
-          _leaveBalances[bIndex] = bal.copyWith(sickUsed: bal.sickUsed + old.totalDays);
+          _leaveBalances[bIndex] = bal.copyWith(
+            sickUsed: bal.sickUsed + old.totalDays,
+          );
         } else if (old.leaveType == LeaveType.earned) {
-          _leaveBalances[bIndex] = bal.copyWith(earnedUsed: bal.earnedUsed + old.totalDays);
+          _leaveBalances[bIndex] = bal.copyWith(
+            earnedUsed: bal.earnedUsed + old.totalDays,
+          );
         }
       }
     }
@@ -630,13 +990,15 @@ class FirestoreService {
     AuditService().log(
       actor: manager,
       actionType: isApproved ? 'LEAVE_APPROVE' : 'LEAVE_REJECT',
-      description: '${isApproved ? "Approved" : "Rejected"} leave request for ${old.employeeName}.',
+      description:
+          '${isApproved ? "Approved" : "Rejected"} leave request for ${old.employeeName}.',
       targetEntityId: leaveId,
     );
 
     NotificationService().sendNotification(
       title: isApproved ? 'Leave Approved 🎉' : 'Leave Rejected ⚠️',
-      message: 'Your ${old.leaveType.label} was ${isApproved ? "approved" : "rejected"} by ${manager.name}.',
+      message:
+          'Your ${old.leaveType.label} was ${isApproved ? "approved" : "rejected"} by ${manager.name}.',
       type: isApproved ? 'approval' : 'rejection',
     );
 
@@ -644,7 +1006,8 @@ class FirestoreService {
   }
 
   // Attendance Regularization / Correction
-  List<AttendanceCorrectionModel> getAllCorrections() => List.unmodifiable(_corrections);
+  List<AttendanceCorrectionModel> getAllCorrections() =>
+      List.unmodifiable(_corrections);
 
   Future<AttendanceCorrectionModel> submitCorrectionRequest({
     required UserModel employee,
@@ -670,10 +1033,17 @@ class FirestoreService {
     _corrections.insert(0, corr);
     _correctionsStreamController.add(List.unmodifiable(_corrections));
 
+    try {
+      _db?.collection('attendanceCorrections').doc(corr.correctionId).set(corr.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore correction request error: $e');
+    }
+
     AuditService().log(
       actor: employee,
       actionType: 'CORRECTION_REQUEST',
-      description: '${employee.name} requested attendance regularization for $date.',
+      description:
+          '${employee.name} requested attendance regularization for $date.',
       targetEntityId: corr.correctionId,
     );
 
@@ -692,12 +1062,16 @@ class FirestoreService {
     required UserModel manager,
     String? note,
   }) async {
-    final index = _corrections.indexWhere((c) => c.correctionId == correctionId);
+    final index = _corrections.indexWhere(
+      (c) => c.correctionId == correctionId,
+    );
     if (index == -1) throw Exception('Correction not found');
 
     final old = _corrections[index];
     final updated = old.copyWith(
-      status: isApproved ? CorrectionStatus.approved : CorrectionStatus.rejected,
+      status: isApproved
+          ? CorrectionStatus.approved
+          : CorrectionStatus.rejected,
       reviewedBy: manager.userId,
       reviewerName: manager.name,
       reviewedAt: DateTime.now(),
@@ -706,11 +1080,21 @@ class FirestoreService {
 
     _corrections[index] = updated;
 
+    try {
+      _db?.collection('attendanceCorrections').doc(updated.correctionId).set(updated.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore review correction error: $e');
+    }
+
     // Apply correction to attendance record if approved
     if (isApproved) {
-      final aIndex = _attendance.indexWhere((a) => a.attendanceId == old.attendanceId);
+      final aIndex = _attendance.indexWhere(
+        (a) => a.attendanceId == old.attendanceId,
+      );
       if (aIndex != -1) {
-        final gross = old.requestedClockOut.difference(old.requestedClockIn).inMinutes;
+        final gross = old.requestedClockOut
+            .difference(old.requestedClockIn)
+            .inMinutes;
         _attendance[aIndex] = _attendance[aIndex].copyWith(
           clockInTime: old.requestedClockIn,
           clockOutTime: old.requestedClockOut,
@@ -719,6 +1103,10 @@ class FirestoreService {
           managerComment: 'Regularized: ${old.reason}',
         );
         _attendanceStreamController.add(List.unmodifiable(_attendance));
+
+        try {
+          _db?.collection('attendance').doc(old.attendanceId).set(_attendance[aIndex].toMap(), SetOptions(merge: true));
+        } catch (_) {}
       }
     }
 
@@ -727,13 +1115,17 @@ class FirestoreService {
     AuditService().log(
       actor: manager,
       actionType: isApproved ? 'CORRECTION_APPROVE' : 'CORRECTION_REJECT',
-      description: '${isApproved ? "Approved" : "Rejected"} attendance regularization for ${old.employeeName}.',
+      description:
+          '${isApproved ? "Approved" : "Rejected"} attendance regularization for ${old.employeeName}.',
       targetEntityId: correctionId,
     );
 
     NotificationService().sendNotification(
-      title: isApproved ? 'Attendance Regularized 🎉' : 'Correction Rejected ⚠️',
-      message: 'Regularization for ${old.date} was ${isApproved ? "approved" : "rejected"}.',
+      title: isApproved
+          ? 'Attendance Regularized 🎉'
+          : 'Correction Rejected ⚠️',
+      message:
+          'Regularization for ${old.date} was ${isApproved ? "approved" : "rejected"}.',
       type: isApproved ? 'approval' : 'rejection',
     );
 

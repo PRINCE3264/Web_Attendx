@@ -4,6 +4,8 @@ import '../services/firestore_service.dart';
 import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 
+import 'package:google_sign_in/google_sign_in.dart';
+
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -12,6 +14,15 @@ class AuthService {
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
   final Map<String, String> _passwords = {};
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _isGoogleSignInInitialized = false;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (!_isGoogleSignInInitialized) {
+      await _googleSignIn.initialize();
+      _isGoogleSignInInitialized = true;
+    }
+  }
 
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
   UserModel? get currentUser => _currentUser;
@@ -40,7 +51,51 @@ class AuthService {
     return user;
   }
 
-  Future<UserModel> signUpWithEmailAndPassword({
+  Future<UserModel> signInWithGoogle() async {
+    try {
+      await _ensureGoogleSignInInitialized();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      if (googleUser == null) {
+        throw Exception('Google sign-in was aborted.');
+      }
+
+      final email = googleUser.email.toLowerCase().trim();
+      final users = FirestoreService().getAllUsers();
+      
+      // Strict role-based security: check if user exists in Firestore
+      final userIndex = users.indexWhere((u) => u.email.toLowerCase() == email);
+      
+      if (userIndex == -1) {
+        // Not registered
+        await _googleSignIn.signOut();
+        throw Exception('Your account is not registered. Please contact Admin/HR.');
+      }
+
+      final user = users[userIndex];
+
+      if (!user.isActive) {
+        await _googleSignIn.signOut();
+        throw Exception('This account has been disabled by Administrator.');
+      }
+
+      _currentUser = user;
+      _authStateController.add(_currentUser);
+
+      AuditService().log(
+        actor: user,
+        actionType: 'GOOGLE_LOGIN',
+        description: '${user.name} logged into system via Google.',
+        targetEntityId: user.userId,
+      );
+
+      return user;
+    } catch (e) {
+      await _googleSignIn.signOut();
+      rethrow;
+    }
+  }
+
+  Future<UserModel> adminCreateEmployeeAccount({
     required String name,
     required String email,
     required String password,
@@ -49,6 +104,9 @@ class AuthService {
     required String department,
     String? teamId,
     String? teamName,
+    String? managerId,
+    String? managerName,
+    DateTime? joiningDate,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final users = FirestoreService().getAllUsers();
@@ -69,23 +127,20 @@ class AuthService {
       employeeId: employeeId.trim().toUpperCase(),
       teamId: teamId ?? (role == UserRole.employee ? 'team_mobile' : 'team_mgmt'),
       teamName: teamName ?? (role == UserRole.employee ? 'Mobile App Team' : 'Management'),
-      managerId: 'mgr_01',
-      managerName: 'Vikram Mehta (TL)',
+      managerId: managerId,
+      managerName: managerName,
       department: department.trim(),
       isActive: true,
-      createdAt: DateTime.now(),
+      createdAt: joiningDate ?? DateTime.now(),
     );
 
     _passwords[cleanEmail] = password;
 
-    await FirestoreService().createEmployee(newUser, newUser);
-
-    _currentUser = newUser;
-    _authStateController.add(_currentUser);
+    await FirestoreService().createEmployee(newUser, _currentUser ?? newUser);
 
     NotificationService().sendNotification(
-      title: 'Welcome to Smart Attendance 🎉',
-      message: 'Your account has been created as ${role.name}.',
+      title: 'New Account Created 🎉',
+      message: 'Account created for ${newUser.name} as ${role.name}.',
       type: 'info',
     );
 
@@ -136,6 +191,27 @@ class AuthService {
     );
 
     return true;
+  }
+
+  Future<void> updateMyProfile({required String newName, String? newAvatarUrl}) async {
+    if (_currentUser == null) return;
+    
+    final updatedUser = _currentUser!.copyWith(
+      name: newName.trim(),
+      avatarUrl: newAvatarUrl,
+    );
+    
+    // We update in Firestore
+    await FirestoreService().updateEmployee(updatedUser, _currentUser!);
+    
+    _currentUser = updatedUser;
+    _authStateController.add(_currentUser);
+
+    NotificationService().sendNotification(
+      title: 'Profile Updated ✅',
+      message: 'Your profile information has been saved successfully.',
+      type: 'success',
+    );
   }
 
   Future<void> switchUser(UserModel user) async {
