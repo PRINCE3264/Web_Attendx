@@ -1,0 +1,151 @@
+import 'package:flutter/material.dart';
+import 'nav_menu_item.dart';
+import '../permissions/role_model.dart';
+
+class AdminMenu {
+  static List<NavMenuItem> getMenuItems({int pendingApprovals = 0, int pendingNotifs = 0}) => [
+    const NavMenuItem(
+      title: 'Dashboard',
+      icon: Icons.dashboard_rounded,
+      destination: NavDestinationKey.dashboard,
+      route: '/admin/dashboard',
+    ),
+    const NavMenuItem(
+      title: 'Users',
+      icon: Icons.manage_accounts_outlined,
+      destination: NavDestinationKey.users,
+      route: '/admin/users',
+      requiredPermission: AppPermission.manageUsers,
+    ),
+    const NavMenuItem(
+      title: 'Employees',
+      icon: Icons.people_alt_outlined,
+      destination: NavDestinationKey.employees,
+      route: '/admin/employees',
+      requiredPermission: AppPermission.manageUsers,
+    ),
+    const NavMenuItem(
+      title: 'Managers / TLs',
+      icon: Icons.supervisor_account_rounded,
+      destination: NavDestinationKey.managersTLs,
+      route: '/admin/managers',
+      requiredPermission: AppPermission.manageRoles,
+    ),
+    const NavMenuItem(
+      title: 'HR Management',
+      icon: Icons.badge_outlined,
+      destination: NavDestinationKey.hrManagement,
+      route: '/admin/hr-management',
+      requiredPermission: AppPermission.manageRoles,
+    ),
+    const NavMenuItem(
+      title: 'Teams',
+      icon: Icons.hub_outlined,
+      destination: NavDestinationKey.teams,
+      route: '/admin/teams',
+      requiredPermission: AppPermission.manageTeams,
+    ),
+    const NavMenuItem(
+      title: 'Departments',
+      icon: Icons.domain_rounded,
+      destination: NavDestinationKey.departments,
+      route: '/admin/departments',
+      requiredPermission: AppPermission.manageDepartments,
+    ),
+    const NavMenuItem(
+      title: 'Attendance',
+      icon: Icons.co_present_outlined,
+      destination: NavDestinationKey.companyAttendance,
+      route: '/admin/attendance',
+    ),
+    NavMenuItem(
+      title: 'Attendance Approvals',
+      icon: Icons.fact_check_outlined,
+      destination: NavDestinationKey.pendingApprovals,
+      route: '/admin/approvals',
+      badgeCount: pendingApprovals > 0 ? pendingApprovals : null,
+    ),
+    const NavMenuItem(
+      title: 'Leave Management',
+      icon: Icons.beach_access_rounded,
+      destination: NavDestinationKey.leaveManagement,
+      route: '/admin/leaves',
+    ),
+    const NavMenuItem(
+      title: 'Holidays',
+      icon: Icons.event_available_rounded,
+      destination: NavDestinationKey.holidays,
+      route: '/admin/holidays',
+      requiredPermission: AppPermission.manageHolidays,
+    ),
+    const NavMenuItem(
+      title: 'Shifts',
+      icon: Icons.access_time_rounded,
+      destination: NavDestinationKey.shifts,
+      route: '/admin/shifts',
+      requiredPermission: AppPermission.manageShifts,
+    ),
+    const NavMenuItem(
+      title: 'Office Locations',
+      icon: Icons.location_city_rounded,
+      destination: NavDestinationKey.officeLocations,
+      route: '/admin/office-locations',
+      requiredPermission: AppPermission.manageOfficeLocations,
+    ),
+    const NavMenuItem(
+      title: 'Geofencing',
+      icon: Icons.radar_rounded,
+      destination: NavDestinationKey.geofencing,
+      route: '/admin/geofencing',
+      requiredPermission: AppPermission.manageGeofencing,
+    ),
+    const NavMenuItem(
+      title: 'Attendance Policies',
+      icon: Icons.policy_rounded,
+      destination: NavDestinationKey.attendancePolicies,
+      route: '/admin/policies',
+      requiredPermission: AppPermission.manageAttendancePolicies,
+    ),
+    const NavMenuItem(
+      title: 'Reports',
+      icon: Icons.analytics_outlined,
+      destination: NavDestinationKey.attendanceReports,
+      route: '/admin/reports',
+      requiredPermission: AppPermission.generateAttendanceReports,
+    ),
+    NavMenuItem(
+      title: 'Notifications',
+      icon: Icons.notifications_none_rounded,
+      destination: NavDestinationKey.notifications,
+      route: '/admin/notifications',
+      badgeCount: pendingNotifs > 0 ? pendingNotifs : null,
+    ),
+    const NavMenuItem(
+      title: 'Audit Logs',
+      icon: Icons.receipt_long_rounded,
+      destination: NavDestinationKey.auditLogs,
+      route: '/admin/audit-logs',
+      requiredPermission: AppPermission.viewAuditLogs,
+    ),
+    const NavMenuItem(
+      title: 'System Settings',
+      icon: Icons.settings_applications_rounded,
+      destination: NavDestinationKey.systemSettings,
+      route: '/admin/settings',
+      requiredPermission: AppPermission.manageSystemSettings,
+    ),
+    const NavMenuItem(
+      title: 'My Profile',
+      icon: Icons.person_outline_rounded,
+      destination: NavDestinationKey.myProfile,
+      route: '/admin/profile',
+    ),
+    const NavMenuItem(
+      title: 'Logout',
+      icon: Icons.power_settings_new_rounded,
+      destination: NavDestinationKey.logout,
+      route: '/auth/logout',
+      isDestructive: true,
+    ),
+  ];
+}
