@@ -128,9 +128,12 @@ class LeaveRequestModel {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  String get uid => employeeId;
+
   Map<String, dynamic> toMap() {
     return {
       'leaveId': leaveId,
+      'uid': employeeId,
       'employeeId': employeeId,
       'employeeName': employeeName,
       'employeeCode': employeeCode,
@@ -152,7 +155,7 @@ class LeaveRequestModel {
   factory LeaveRequestModel.fromMap(Map<String, dynamic> map, [String? id]) {
     return LeaveRequestModel(
       leaveId: id ?? map['leaveId'] ?? '',
-      employeeId: map['employeeId'] ?? '',
+      employeeId: map['uid'] ?? map['employeeId'] ?? '',
       employeeName: map['employeeName'] ?? '',
       employeeCode: map['employeeCode'] ?? '',
       department: map['department'] ?? '',

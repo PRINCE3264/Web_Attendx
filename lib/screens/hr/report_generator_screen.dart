@@ -8,7 +8,7 @@ import '../../providers/hr_provider.dart';
 
 class ReportGeneratorScreen extends StatefulWidget {
   final bool isEmbedded;
-  const ReportGeneratorScreen({super.key, this.isEmbedded = true});
+  const ReportGeneratorScreen({super.key, this.isEmbedded = false});
 
   @override
   State<ReportGeneratorScreen> createState() => _ReportGeneratorScreenState();

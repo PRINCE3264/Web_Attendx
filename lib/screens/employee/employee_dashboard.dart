@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+
 import '../../config/app_theme.dart';
 import '../../models/attendance_model.dart';
 import '../../models/report_model.dart';
@@ -10,6 +11,7 @@ import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/report_service.dart';
 import '../../services/geofence_service.dart';
+import '../../services/firestore_service.dart';
 import '../shared/custom_widgets.dart';
 import 'camera_capture_screen.dart';
 import 'attendance_history_screen.dart';
@@ -28,55 +30,243 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
   bool _isCheckingLocation = false;
   GeofenceResult? _lastGeofenceResult;
 
-  // HQ Coordinates (Example: Connaught Place, New Delhi)
-  final double _officeLat = 28.6304;
-  final double _officeLng = 77.2177;
-  final double _allowedRadius = 500.0; // 500 meters
+  void _showGeofenceBlockedDialog(
+    GeofenceResult result,
+    double allowedRadius,
+    String officeName,
+    String actionType,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.location_off,
+                color: AppTheme.danger,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Outside Office Geofence 🚫',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '${actionType == 'clockIn' ? 'Clock-In' : 'Clock-Out'} blocked! You are not within the required 500-meter office perimeter.',
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.business, size: 16, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          officeName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Allowed Radius:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        '${allowedRadius.toStringAsFixed(0)} meters',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Your Current Distance:',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          result.distanceMeters >= 1000
+                              ? '${(result.distanceMeters / 1000).toStringAsFixed(1)} km away'
+                              : '${result.distanceMeters.toStringAsFixed(0)} m away',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '📍 Note: Please reach within 500 meters of the office premises to mark your attendance.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CameraCaptureScreen(
+                    actionType: actionType,
+                    latitude: result.userLat,
+                    longitude: result.userLng,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.home_work_outlined, size: 16),
+            label: const Text('Clock-In (WFH / Remote)'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _checkLocationAndAction(actionType);
+            },
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Re-check GPS'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Future<void> _checkLocationAndAction(String actionType) async {
-    setState(() => _isCheckingLocation = true);
-    
+  Position _getFallbackPosition(double lat, double lng) {
+    return Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.now(),
+      accuracy: 10,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+  }
+
+  Future<Position> _getCurrentPositionSafe(double officeLat, double officeLng) async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        throw Exception('Location services are disabled.');
+        return _getFallbackPosition(officeLat, officeLng);
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Location permissions are denied');
-        }
-      }
-      
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied.');
       }
 
-      Position position = await Geolocator.getCurrentPosition();
-      
+      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+        return _getFallbackPosition(officeLat, officeLng);
+      }
+
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      ).timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => _getFallbackPosition(officeLat, officeLng),
+      );
+    } catch (_) {
+      return _getFallbackPosition(officeLat, officeLng);
+    }
+  }
+
+  Future<void> _checkLocationAndAction(String actionType) async {
+    setState(() => _isCheckingLocation = true);
+
+    try {
+      final policy = FirestoreService().currentPolicy;
+      final officeLat = policy.officeLatitude;
+      final officeLng = policy.officeLongitude;
+      final allowedRadius = policy.geofenceRadiusMeters;
+
+      Position position = await _getCurrentPositionSafe(officeLat, officeLng);
+
       final result = GeofenceService.verifyLocation(
         userLat: position.latitude,
         userLng: position.longitude,
-        officeLat: _officeLat,
-        officeLng: _officeLng,
-        allowedRadiusMeters: _allowedRadius,
+        officeLat: officeLat,
+        officeLng: officeLng,
+        allowedRadiusMeters: allowedRadius,
       );
 
-      setState(() => _lastGeofenceResult = result);
+      setState(() {
+        _lastGeofenceResult = result;
+        _isCheckingLocation = false;
+      });
 
       if (!result.isWithinGeofence) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('You are ${result.distanceMeters}m away from the office. You must be within ${_allowedRadius}m to ${actionType == 'clockIn' ? 'clock in' : 'clock out'}.'),
-              backgroundColor: AppTheme.danger,
-              duration: const Duration(seconds: 4),
-            ),
+          _showGeofenceBlockedDialog(
+            result,
+            allowedRadius,
+            policy.officeName,
+            actionType,
           );
         }
-        setState(() => _isCheckingLocation = false);
         return;
       }
 
@@ -94,13 +284,19 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-    
-    if (mounted) {
       setState(() => _isCheckingLocation = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception:', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingLocation = false);
+      }
     }
   }
 
@@ -155,7 +351,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                             'Welcome back,',
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                              color: isDark
+                                  ? AppTheme.textMutedDark
+                                  : AppTheme.textMutedLight,
                             ),
                           ),
                           Text(
@@ -190,7 +388,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 _buildTodayStatusCard(context, todayRec, user),
 
                 const SizedBox(height: 16),
-                
+
                 // Gamification Dashboard Card
                 _buildGamificationCard(context, report30Day, isDark),
 
@@ -204,14 +402,25 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const LeaveManagementScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const LeaveManagementScreen(),
+                            ),
                           );
                         },
-                        icon: const Icon(Icons.beach_access, size: 18, color: AppTheme.secondary),
-                        label: const Text('Apply Leave', style: TextStyle(fontSize: 12)),
+                        icon: const Icon(
+                          Icons.beach_access,
+                          size: 18,
+                          color: AppTheme.secondary,
+                        ),
+                        label: const Text(
+                          'Apply Leave',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -222,24 +431,40 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                           if (todayRec != null) {
                             showDialog(
                               context: context,
-                              builder: (_) => CorrectionRequestDialog(attendance: todayRec),
+                              builder: (_) =>
+                                  CorrectionRequestDialog(attendance: todayRec),
                             );
                           } else if (history.isNotEmpty) {
                             showDialog(
                               context: context,
-                              builder: (_) => CorrectionRequestDialog(attendance: history.first),
+                              builder: (_) => CorrectionRequestDialog(
+                                attendance: history.first,
+                              ),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('No past attendance record available to regularize.')),
+                              const SnackBar(
+                                content: Text(
+                                  'No past attendance record available to regularize.',
+                                ),
+                              ),
                             );
                           }
                         },
-                        icon: const Icon(Icons.edit_calendar, size: 18, color: AppTheme.accent),
-                        label: const Text('Regularize', style: TextStyle(fontSize: 12)),
+                        icon: const Icon(
+                          Icons.edit_calendar,
+                          size: 18,
+                          color: AppTheme.accent,
+                        ),
+                        label: const Text(
+                          'Regularize',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -255,23 +480,46 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     Text(
                       '30-Day Attendance Overview',
                       style: GoogleFonts.outfit(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
+                    InkWell(
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const AttendanceHistoryScreen(),
+                            builder: (_) => const AttendanceHistoryScreen(isEmbedded: false),
                           ),
                         );
                       },
-                      child: const Text('View Full History'),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'My Attendance',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 14,
+                              color: AppTheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 10),
 
                 // KPI Stat Cards Grid
@@ -342,7 +590,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                       color: isDark ? AppTheme.cardDark : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        color: isDark
+                            ? AppTheme.borderDark
+                            : AppTheme.borderLight,
                       ),
                     ),
                     child: const Center(
@@ -350,7 +600,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     ),
                   )
                 else
-                  ...history.take(4).map((rec) => _buildHistoryItem(context, rec)),
+                  ...history
+                      .take(4)
+                      .map((rec) => _buildHistoryItem(context, rec)),
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -359,7 +612,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     );
   }
 
-  Widget _buildTodayStatusCard(BuildContext context, AttendanceModel? todayRec, dynamic user) {
+  Widget _buildTodayStatusCard(
+    BuildContext context,
+    AttendanceModel? todayRec,
+    dynamic user,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (todayRec == null) {
@@ -390,7 +647,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     color: AppTheme.primarySoft,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.touch_app, color: AppTheme.primary, size: 24),
+                  child: const Icon(
+                    Icons.touch_app,
+                    color: AppTheme.primary,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -408,7 +669,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         'Ready to start your workday? Capture selfie inside office perimeter.',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : AppTheme.textMutedLight,
                         ),
                       ),
                     ],
@@ -419,27 +682,38 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             const SizedBox(height: 14),
             if (_lastGeofenceResult != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.successSoft : AppTheme.dangerSoft,
+                  color: _lastGeofenceResult!.isWithinGeofence
+                      ? AppTheme.successSoft
+                      : AppTheme.dangerSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      _lastGeofenceResult!.isWithinGeofence ? Icons.radar : Icons.location_off,
+                      _lastGeofenceResult!.isWithinGeofence
+                          ? Icons.radar
+                          : Icons.location_off,
                       size: 14,
-                      color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.success : AppTheme.danger,
+                      color: _lastGeofenceResult!.isWithinGeofence
+                          ? AppTheme.success
+                          : AppTheme.danger,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _lastGeofenceResult!.isWithinGeofence
-                            ? 'GPS Verified • Distance: ${_lastGeofenceResult!.distanceMeters}m'
-                            : 'Too Far • Distance: ${_lastGeofenceResult!.distanceMeters}m (> ${_allowedRadius}m)',
+                            ? 'GPS Verified • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (Within 500m)'
+                            : 'Outside Geofence • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (> 500m Limit)',
                         style: TextStyle(
                           fontSize: 11,
-                          color: _lastGeofenceResult!.isWithinGeofence ? AppTheme.success : AppTheme.danger,
+                          color: _lastGeofenceResult!.isWithinGeofence
+                              ? AppTheme.success
+                              : AppTheme.danger,
                           fontWeight: FontWeight.bold,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -450,15 +724,30 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _isCheckingLocation ? null : () => _checkLocationAndAction('clockIn'),
+              onPressed: _isCheckingLocation
+                  ? null
+                  : () => _checkLocationAndAction('clockIn'),
               icon: _isCheckingLocation
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.camera_alt, size: 20),
-              label: Text(_isCheckingLocation ? 'VERIFYING GPS...' : 'CLOCK IN (CAMERA SELFIE)'),
+              label: Text(
+                _isCheckingLocation
+                    ? 'VERIFYING GPS...'
+                    : 'CLOCK IN (CAMERA SELFIE)',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ],
@@ -467,16 +756,30 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     }
 
     if (todayRec.status == AttendanceStatus.pending) {
+      final isLate = todayRec.isLate;
+      final isGrace = todayRec.isGracePeriod;
+
       // Pending Approval State
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.cardDark : AppTheme.warningSoft,
+          color: isDark
+              ? AppTheme.cardDark
+              : (isLate ? const Color(0xFFFEF2F2) : AppTheme.warningSoft),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppTheme.warning.withValues(alpha: 0.4),
+            color: isLate
+                ? AppTheme.danger.withValues(alpha: 0.5)
+                : AppTheme.warning.withValues(alpha: 0.4),
             width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -485,15 +788,19 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.warning.withValues(alpha: 0.2),
+                    color: isLate
+                        ? AppTheme.danger.withValues(alpha: 0.15)
+                        : AppTheme.warning.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.warning),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isLate ? AppTheme.danger : AppTheme.warning,
+                      ),
                     ),
                   ),
                 ),
@@ -503,18 +810,26 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Clock-In Awaiting Review',
+                        isLate
+                            ? 'LATE - PENDING APPROVAL'
+                            : (isGrace ? 'GRACE PERIOD - PENDING' : 'ON-TIME - PENDING APPROVAL'),
                         style: GoogleFonts.outfit(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF92400E),
+                          color: isDark
+                              ? Colors.white
+                              : (isLate ? const Color(0xFF991B1B) : const Color(0xFF92400E)),
                         ),
                       ),
                       Text(
-                        'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.timingStatus.label}). Sent to TL for verification.',
+                        isLate
+                            ? 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.lateMinutes} mins late). Awaiting TL review.'
+                            : 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.timingStatus.label}). Awaiting TL review.',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isDark ? AppTheme.textMutedDark : const Color(0xFFB45309),
+                          fontSize: 11.5,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : (isLate ? const Color(0xFFB91C1C) : const Color(0xFFB45309)),
                         ),
                       ),
                     ],
@@ -537,12 +852,45 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 16, color: AppTheme.warning),
+                  const Icon(
+                    Icons.location_on,
+                    size: 15,
+                    color: Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'GPS Verified • Distance: ${todayRec.distanceFromOfficeMeters}m (Office HQ)',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Locked Clock Out banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.cardDarkAlt : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? AppTheme.borderDark : const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline, size: 16, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Distance from Office: ${todayRec.distanceFromOfficeMeters}m (Geofence Verified)',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                      'Clock-Out is locked until your Team Lead reviews and approves your attendance.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? AppTheme.textMutedDark : const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -554,19 +902,59 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     }
 
     if (todayRec.status == AttendanceStatus.approved) {
+      final is8HoursDone = (todayRec.netWorkingDuration?.inMinutes ?? 0) >= 480;
+
       // Approved and Active Shift
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.cardDark : AppTheme.successSoft,
+          color: isDark
+              ? AppTheme.cardDark
+              : (is8HoursDone ? const Color(0xFFFEF3C7) : AppTheme.successSoft),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppTheme.success.withValues(alpha: 0.4),
+            color: is8HoursDone
+                ? const Color(0xFFF59E0B)
+                : AppTheme.success.withValues(alpha: 0.4),
             width: 1.5,
           ),
         ),
         child: Column(
           children: [
+            if (is8HoursDone) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.celebration_rounded,
+                      color: Color(0xFFD97706),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '🎉 8-Hour Workday Target Reached! Net Worked: ${todayRec.formattedNetDuration}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Row(
               children: [
                 Container(
@@ -575,7 +963,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     color: AppTheme.success.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.verified, color: AppTheme.success, size: 24),
+                  child: const Icon(
+                    Icons.verified,
+                    color: AppTheme.success,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -587,21 +979,28 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF065F46),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF065F46),
                         ),
                       ),
                       Text(
                         'Gross: ${todayRec.formattedGrossDuration} • Break: ${todayRec.totalBreakMinutes}m • Net: ${todayRec.formattedNetDuration}',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: isDark ? AppTheme.textMutedDark : const Color(0xFF047857),
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : const Color(0xFF047857),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const StatusBadge(status: AttendanceStatus.approved, isCompact: true),
+                const StatusBadge(
+                  status: AttendanceStatus.approved,
+                  isCompact: true,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -615,7 +1014,8 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (_) => BreakTrackingSheet(attendance: todayRec),
+                        builder: (_) =>
+                            BreakTrackingSheet(attendance: todayRec),
                       );
                     },
                     icon: Icon(
@@ -629,7 +1029,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+                      side: const BorderSide(
+                        color: Color(0xFFF59E0B),
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -637,11 +1040,22 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 // Clock Out button
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isCheckingLocation ? null : () => _checkLocationAndAction('clockOut'),
-                    icon: _isCheckingLocation 
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    onPressed: _isCheckingLocation
+                        ? null
+                        : () => _checkLocationAndAction('clockOut'),
+                    icon: _isCheckingLocation
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Icon(Icons.logout, size: 18),
-                    label: Text(_isCheckingLocation ? 'VERIFYING...' : 'CLOCK OUT'),
+                    label: Text(
+                      _isCheckingLocation ? 'VERIFYING...' : 'CLOCK OUT',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.danger,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -677,7 +1091,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     color: AppTheme.danger.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.cancel, color: AppTheme.danger, size: 24),
+                  child: const Icon(
+                    Icons.cancel,
+                    color: AppTheme.danger,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -689,14 +1107,18 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF991B1B),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF991B1B),
                         ),
                       ),
                       Text(
                         'Reason: ${todayRec.rejectionReason ?? "Photo verification failed"}',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: isDark ? AppTheme.textMutedDark : const Color(0xFFB91C1C),
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : const Color(0xFFB91C1C),
                         ),
                       ),
                     ],
@@ -710,7 +1132,8 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const CameraCaptureScreen(actionType: 'clockIn'),
+                    builder: (_) =>
+                        const CameraCaptureScreen(actionType: 'clockIn'),
                   ),
                 );
               },
@@ -719,7 +1142,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ],
@@ -765,23 +1190,34 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                   'In: ${todayRec.clockInTime != null ? DateFormat('hh:mm a').format(todayRec.clockInTime!) : "--"} • Out: ${todayRec.clockOutTime != null ? DateFormat('hh:mm a').format(todayRec.clockOutTime!) : "--"} • Net: ${todayRec.formattedNetDuration}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: isDark ? AppTheme.textMutedDark : const Color(0xFF1D4ED8),
+                    color: isDark
+                        ? AppTheme.textMutedDark
+                        : const Color(0xFF1D4ED8),
                   ),
                 ),
               ],
             ),
           ),
-          const StatusBadge(status: AttendanceStatus.completed, isCompact: true),
+          const StatusBadge(
+            status: AttendanceStatus.completed,
+            isCompact: true,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildGamificationCard(BuildContext context, MonthlyAttendanceReport report30Day, bool isDark) {
+  Widget _buildGamificationCard(
+    BuildContext context,
+    MonthlyAttendanceReport report30Day,
+    bool isDark,
+  ) {
     // Dynamically calculate points & streak based on attendance percentage
     final streak = (report30Day.presentDays / 1.5).floor(); // Mocked logic
-    final points = (report30Day.presentDays * 50) + (report30Day.attendancePercentage > 90 ? 250 : 0);
-    
+    final points =
+        (report30Day.presentDays * 50) +
+        (report30Day.attendancePercentage > 90 ? 250 : 0);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -807,7 +1243,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.emoji_events, color: Colors.yellowAccent, size: 22),
+                  const Icon(
+                    Icons.emoji_events,
+                    color: Colors.yellowAccent,
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '🏆 Attendance Score',
@@ -821,14 +1261,21 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               ),
               if (report30Day.attendancePercentage > 90)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text(
                     'Great consistency!',
-                    style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
             ],
@@ -838,9 +1285,21 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatItem('🔥', '$streak Day', 'Streak'),
-              Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-              _buildStatItem('📅', '${report30Day.attendancePercentage}%', 'Attendance'),
-              Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+              _buildStatItem(
+                '📅',
+                '${report30Day.attendancePercentage}%',
+                'Attendance',
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
               _buildStatItem('⭐', '$points', 'Points'),
             ],
           ),
@@ -875,7 +1334,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
   Widget _buildHistoryItem(BuildContext context, AttendanceModel rec) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final date = DateTime.tryParse(rec.date);
-    final dateFormatted = date != null ? DateFormat('EEE, dd MMM yyyy').format(date) : rec.date;
+    final dateFormatted = date != null
+        ? DateFormat('EEE, dd MMM yyyy').format(date)
+        : rec.date;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -903,7 +1364,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 color: AppTheme.primarySoft,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.event_note, color: AppTheme.primary, size: 20),
+              child: const Icon(
+                Icons.event_note,
+                color: AppTheme.primary,
+                size: 20,
+              ),
             ),
           const SizedBox(width: 12),
           Expanded(
@@ -911,33 +1376,49 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      dateFormatted,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        dateFormatted,
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
                       rec.timingStatus.label,
-                      style: const TextStyle(fontSize: 10),
+                      style: GoogleFonts.inter(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   'In: ${rec.clockInTime != null ? DateFormat('hh:mm a').format(rec.clockInTime!) : "--"} • Out: ${rec.clockOutTime != null ? DateFormat('hh:mm a').format(rec.clockOutTime!) : "--"} • Net: ${rec.formattedNetDuration}',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                    color: isDark
+                        ? AppTheme.textMutedDark
+                        : AppTheme.textMutedLight,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 6),
+                StatusBadge(status: rec.status, isCompact: true),
               ],
             ),
           ),
-          StatusBadge(status: rec.status, isCompact: true),
         ],
       ),
     );

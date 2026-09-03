@@ -12,7 +12,7 @@ import 'add_employee_sheet.dart';
 
 class AllEmployeesScreen extends StatelessWidget {
   final bool isEmbedded;
-  const AllEmployeesScreen({super.key, this.isEmbedded = true});
+  const AllEmployeesScreen({super.key, this.isEmbedded = false});
 
   @override
   Widget build(BuildContext context) {

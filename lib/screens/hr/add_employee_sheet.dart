@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
@@ -18,13 +20,14 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _passwordController = TextEditingController(text: 'Pass@2026');
   final _employeeIdController = TextEditingController();
   final _departmentController = TextEditingController();
 
   UserModel? _selectedTL;
   DateTime _joiningDate = DateTime.now();
   late UserRole _selectedRole;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -56,20 +59,25 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedTL == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a TL.')));
+    if (_selectedTL == null && _selectedRole == UserRole.employee) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an assigned TL.')));
       return;
     }
 
     final auth = context.read<AuthProvider>();
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final empId = _employeeIdController.text.trim();
+    final dept = _departmentController.text.trim().isEmpty ? 'General' : _departmentController.text.trim();
 
     final success = await auth.adminCreateEmployeeAccount(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
+      name: name,
+      email: email,
+      password: password,
       role: _selectedRole,
-      employeeId: _employeeIdController.text.trim(),
-      department: _departmentController.text.trim(),
+      employeeId: empId,
+      department: dept,
       managerId: _selectedTL != null ? _selectedTL!.userId : 'unassigned',
       managerName: _selectedTL != null ? _selectedTL!.name : 'Unassigned',
       joiningDate: _joiningDate,
@@ -78,7 +86,20 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     if (success && mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Employee ${_nameController.text} added successfully.')),
+        SnackBar(
+          content: Text('Employee $name enrolled! Email: $email | Pass: $password'),
+          backgroundColor: AppTheme.success,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'COPY',
+            textColor: Colors.white,
+            onPressed: () {
+              Clipboard.setData(ClipboardData(
+                text: 'Email: $email\nPassword: $password\nEmployee ID: $empId',
+              ));
+            },
+          ),
+        ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,13 +173,35 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Temporary Password', border: OutlineInputBorder()),
-                validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Temporary Password (Min 6 chars)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.shuffle, size: 18, color: AppTheme.primary),
+                        tooltip: 'Generate random password',
+                        onPressed: () {
+                          final randPass = 'Emp@${DateTime.now().millisecondsSinceEpoch % 10000}!';
+                          setState(() => _passwordController.text = randPass);
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, size: 18),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                    ],
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().length < 6) ? 'Min 6 characters' : null,
               ),
               const SizedBox(height: 12),
               if (currentUser?.role == UserRole.admin) ...[
                 DropdownButtonFormField<UserRole>(
-                  value: _selectedRole,
+                  initialValue: _selectedRole,
                   decoration: const InputDecoration(labelText: 'User Role', border: OutlineInputBorder()),
                   items: UserRole.values.map((r) {
                     return DropdownMenuItem(
@@ -173,7 +216,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                 const SizedBox(height: 12),
               ],
               DropdownButtonFormField<UserModel>(
-                value: _selectedTL,
+                initialValue: _selectedTL,
                 decoration: const InputDecoration(labelText: 'TL / Manager', border: OutlineInputBorder()),
                 hint: const Text('Select TL'),
                 items: managers.map((m) => DropdownMenuItem(value: m, child: Text(m.name))).toList(),

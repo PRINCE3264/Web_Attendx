@@ -40,8 +40,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    // Navigate to next screen after splash delay
-    Timer(const Duration(milliseconds: 2200), () {
+    // Navigate to Login Screen after splash delay
+    Timer(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final nextScreen = auth.isAuthenticated
@@ -146,12 +146,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           color: isDark ? Colors.white : AppTheme.textMainLight,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Envision Beyond India Pvt Ltd',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppTheme.primaryLight : AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         'Smart Attendance & Workforce System',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w500,
                           color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
                         ),

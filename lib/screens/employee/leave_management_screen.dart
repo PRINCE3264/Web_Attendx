@@ -9,7 +9,7 @@ import '../../providers/leave_provider.dart';
 
 class LeaveManagementScreen extends StatefulWidget {
   final bool isEmbedded;
-  const LeaveManagementScreen({super.key, this.isEmbedded = true});
+  const LeaveManagementScreen({super.key, this.isEmbedded = false});
 
   @override
   State<LeaveManagementScreen> createState() => _LeaveManagementScreenState();
@@ -294,26 +294,44 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
 
   Widget _buildLeaveItem(BuildContext context, LeaveRequestModel l, bool isDark) {
     Color statusColor;
+    IconData statusIcon;
     switch (l.status) {
       case LeaveStatus.approved:
         statusColor = AppTheme.success;
+        statusIcon = Icons.check_circle_rounded;
         break;
       case LeaveStatus.rejected:
         statusColor = AppTheme.danger;
+        statusIcon = Icons.cancel_rounded;
         break;
       case LeaveStatus.pending:
-        statusColor = AppTheme.warning;
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.hourglass_top_rounded;
         break;
     }
 
     final df = DateFormat('dd MMM yyyy');
+    final dtf = DateFormat('dd MMM yyyy, hh:mm a');
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: l.status == LeaveStatus.pending
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
+              : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          width: l.status == LeaveStatus.pending ? 1.2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,31 +339,224 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(l.leaveType.label, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(statusIcon, color: statusColor, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.leaveType.label,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Applied on ${df.format(l.createdAt)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   l.status.label,
-                  style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            '${df.format(l.startDate)} - ${df.format(l.endDate)} (${l.totalDays} ${l.totalDays > 1 ? "Days" : "Day"})',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          const SizedBox(height: 12),
+          // Date & Duration Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.cardDarkAlt : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: isDark ? AppTheme.borderDark : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.date_range_rounded, size: 16, color: Color(0xFF64748B)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${df.format(l.startDate)} ➔ ${df.format(l.endDate)}',
+                    style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${l.totalDays} ${l.totalDays > 1 ? "Days" : "Day"}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Reason: ${l.reason}',
-            style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+          const SizedBox(height: 8),
+          // Reason
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              'Reason: ${l.reason}',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? AppTheme.textMutedDark : const Color(0xFF475569),
+              ),
+            ),
           ),
+          // Reviewer / Decision Box
+          if (l.status == LeaveStatus.approved) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.success.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified, size: 16, color: AppTheme.success),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Approved by ${l.reviewerName ?? "Management"}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.success,
+                          ),
+                        ),
+                        if (l.reviewedAt != null)
+                          Text(
+                            'Reviewed on ${dtf.format(l.reviewedAt!)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.success.withValues(alpha: 0.8),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (l.status == LeaveStatus.rejected) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.danger.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.error_outline, size: 16, color: AppTheme.danger),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Rejected by ${l.reviewerName ?? "Management"}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.danger,
+                          ),
+                        ),
+                      ),
+                      if (l.reviewedAt != null)
+                        Text(
+                          df.format(l.reviewedAt!),
+                          style: const TextStyle(fontSize: 10, color: AppTheme.danger),
+                        ),
+                    ],
+                  ),
+                  if (l.rejectionReason != null && l.rejectionReason!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Reason: ${l.rejectionReason}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 15, color: Color(0xFFD97706)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Request forwarded to Admin, TL & HR for approval.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFB45309),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

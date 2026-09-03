@@ -21,6 +21,7 @@ import '../admin/audit_logs_screen.dart';
 import '../admin/admin_panel_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
+import 'ai_voice_assistant_sheet.dart';
 import '../auth/login_screen.dart';
 
 class AppSidebarDrawer extends StatefulWidget {
@@ -91,10 +92,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     onTap: () => _navigateToScreen(const SizedBox(), 'Clock & Today', defaultTabIndex: 0),
                   ),
                   _buildNavItem(
-                    icon: Icons.access_time_rounded,
-                    title: 'Attendance History',
+                    icon: Icons.calendar_month_rounded,
+                    title: 'My Attendance',
                     isSelected: widget.currentIndex == 1,
-                    onTap: () => _navigateToScreen(const AttendanceHistoryScreen(), 'Attendance History', defaultTabIndex: 1),
+                    onTap: () => _navigateToScreen(const AttendanceHistoryScreen(), 'My Attendance', defaultTabIndex: 1),
                   ),
                   _buildNavItem(
                     icon: Icons.coffee_rounded,
@@ -366,7 +367,17 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   ),
                 ],
 
-                // Common Profile Navigation Item
+                // Common AI Chatbot & Profile Navigation Items
+                _buildNavItem(
+                  icon: Icons.smart_toy_rounded,
+                  title: 'AI Chatbot',
+                  badgeText: 'AI',
+                  badgeColor: const Color(0xFF6366F1),
+                  onTap: () {
+                    Navigator.pop(context);
+                    AIVoiceAssistantSheet.show(context);
+                  },
+                ),
                 _buildNavItem(
                   icon: Icons.person_outline_rounded,
                   title: 'My Profile',
@@ -590,7 +601,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                       ),
                     ),
                     child: Text(
-                      'enterprise',
+                      'Envision Beyond',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -626,12 +637,11 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
+      child: Material(
         color: isSelected ? selectedBg : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: Icon(
@@ -666,7 +676,8 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
             : null,
         onTap: onTap,
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildExpandableSection({

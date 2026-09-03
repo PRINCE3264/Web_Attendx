@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class AppNotification {
   final String id;
@@ -20,13 +22,64 @@ class AppNotification {
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
-  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
+
+  NotificationService._internal() {
+    _initLocalNotifications();
+  }
+
+  Future<void> _initLocalNotifications() async {
+    if (_isInitialized) return;
+    try {
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
+
+      await _localNotifications.initialize(initSettings);
+
+      const androidChannel = AndroidNotificationChannel(
+        'attendx_announcements',
+        'AttendX Official Announcements & Notifications',
+        description: 'System channel for AttendX announcements, notices, and approvals.',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(androidChannel);
+        await androidPlugin.requestNotificationsPermission();
+      }
+
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('Local notifications init error: $e');
+    }
+  }
 
   final _notificationController = StreamController<AppNotification>.broadcast();
   Stream<AppNotification> get notificationStream => _notificationController.stream;
 
   final List<AppNotification> _history = [];
   List<AppNotification> get history => List.unmodifiable(_history);
+
+  void playNotificationSound() {
+    try {
+      SystemSound.play(SystemSoundType.click);
+      HapticFeedback.vibrate();
+      HapticFeedback.heavyImpact();
+    } catch (e) {
+      debugPrint('Notification sound feedback error: $e');
+    }
+  }
 
   void sendNotification({
     required String title,
@@ -40,8 +93,46 @@ class NotificationService {
       type: type,
     );
 
+    playNotificationSound();
     _history.insert(0, notification);
     _notificationController.add(notification);
+
+    _showSystemNotification(notification);
+  }
+
+  Future<void> _showSystemNotification(AppNotification notification) async {
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'attendx_announcements',
+        'AttendX Official Announcements & Notifications',
+        channelDescription: 'System channel for AttendX announcements, notices, and approvals.',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF4F46E5),
+      );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      final notificationId = notification.id.hashCode & 0x7FFFFFFF;
+      await _localNotifications.show(
+        notificationId,
+        notification.title,
+        notification.message,
+        notificationDetails,
+      );
+    } catch (e) {
+      debugPrint('System mobile notification error: $e');
+    }
   }
 
   void showNotificationBanner(BuildContext context, AppNotification notification) {

@@ -355,16 +355,21 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
   Widget _buildPendingCard(BuildContext context, AttendanceModel rec) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final timeStr = rec.clockInTime != null ? DateFormat('hh:mm a').format(rec.clockInTime!) : '--';
+    final isLate = rec.isLate;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardDark : Colors.white,
+        color: isDark
+            ? AppTheme.cardDark
+            : (isLate ? const Color(0xFFFEF2F2) : Colors.white),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: AppTheme.warning.withValues(alpha: 0.35),
-          width: 1.2,
+          color: isLate
+              ? AppTheme.danger.withValues(alpha: 0.6)
+              : AppTheme.warning.withValues(alpha: 0.4),
+          width: isLate ? 1.5 : 1.2,
         ),
         boxShadow: [
           BoxShadow(
@@ -408,16 +413,54 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const StatusBadge(status: AttendanceStatus.pending, isCompact: true),
-                  const SizedBox(height: 2),
-                  Text(rec.timingStatus.label, style: const TextStyle(fontSize: 10)),
-                ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isLate
+                      ? AppTheme.danger
+                      : (rec.isGracePeriod ? const Color(0xFFF59E0B) : AppTheme.success),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  isLate
+                      ? 'LATE - PENDING APPROVAL'
+                      : (rec.isGracePeriod ? 'GRACE - PENDING' : 'ON-TIME - PENDING'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
+          if (isLate) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.danger.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, size: 16, color: AppTheme.danger),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Late by ${rec.lateMinutes} minutes (Office Start: 09:30 AM | Grace ends: 09:45 AM)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF991B1B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
@@ -490,10 +533,12 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                     ElevatedButton.icon(
                       onPressed: () => _openReviewModal(rec),
                       icon: const Icon(Icons.remove_red_eye, size: 15),
-                      label: const Text('Review & Verify'),
+                      label: Text(isLate ? 'Review Late Clock-In' : 'Review & Verify'),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: isLate ? const Color(0xFFDC2626) : AppTheme.primary,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        textStyle: const TextStyle(fontSize: 12),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],

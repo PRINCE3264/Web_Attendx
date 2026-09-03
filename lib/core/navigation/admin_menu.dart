@@ -5,6 +5,12 @@ import '../permissions/role_model.dart';
 class AdminMenu {
   static List<NavMenuItem> getMenuItems({int pendingApprovals = 0, int pendingNotifs = 0}) => [
     const NavMenuItem(
+      title: 'My Clock-In & Self',
+      icon: Icons.touch_app_rounded,
+      destination: NavDestinationKey.myAttendance,
+      route: '/employee/dashboard',
+    ),
+    const NavMenuItem(
       title: 'Dashboard',
       icon: Icons.dashboard_rounded,
       destination: NavDestinationKey.dashboard,
@@ -133,6 +139,12 @@ class AdminMenu {
       destination: NavDestinationKey.systemSettings,
       route: '/admin/settings',
       requiredPermission: AppPermission.manageSystemSettings,
+    ),
+    const NavMenuItem(
+      title: 'AI Assistant',
+      icon: Icons.smart_toy_rounded,
+      destination: NavDestinationKey.aiAssistant,
+      route: '/admin/ai-assistant',
     ),
     const NavMenuItem(
       title: 'My Profile',

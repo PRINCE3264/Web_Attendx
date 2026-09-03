@@ -9,6 +9,7 @@ import '../models/correction_model.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
@@ -48,7 +49,8 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       final user = AuthService().currentUser;
       if (user != null && user.role == UserRole.employee) {
-        return records.where((r) => r.employeeId == user.userId).toList();
+        final validIds = {user.userId, user.employeeId};
+        return records.where((r) => validIds.contains(r.employeeId) || validIds.contains(r.employeeCode) || validIds.contains(r.uid)).toList();
       }
     } catch (_) {}
     return records;
@@ -65,17 +67,26 @@ class AttendanceProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   XFile? get tempPhotoFile => _tempPhotoFile;
   String? get tempPhotoDataUrl => _tempPhotoDataUrl;
+  List<AttendanceModel> get allAttendance => _allAttendance;
   List<AttendanceCorrectionModel> get corrections => _corrections;
 
-  AttendanceModel? getTodayAttendance(String? employeeId) {
-    if (employeeId == null) return null;
+  AttendanceModel? getTodayAttendance(String? identifier) {
+    if (identifier == null) return null;
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final user = AuthService().currentUser;
+    final validIds = {
+      identifier,
+      if (user != null) user.userId,
+      if (user != null) user.employeeId,
+    };
+
     try {
       return _allAttendance.firstWhere(
-        (a) => a.employeeId == employeeId && a.date == todayStr,
+        (a) => (validIds.contains(a.employeeId) || validIds.contains(a.employeeCode) || validIds.contains(a.uid)) && a.date == todayStr,
       );
     } catch (_) {
-      return null;
+      // Fallback directly to FirestoreService storage cache if provider stream hasn't filtered yet
+      return _firestoreService.getTodayAttendance(identifier);
     }
   }
 
@@ -228,6 +239,8 @@ class AttendanceProvider extends ChangeNotifier {
         user: user,
       );
 
+      checkShiftCompletedAlert(user);
+
       _isProcessing = false;
       notifyListeners();
       return true;
@@ -236,6 +249,25 @@ class AttendanceProvider extends ChangeNotifier {
       _isProcessing = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  final Set<String> _notified8HourAttendanceIds = {};
+
+  void checkShiftCompletedAlert(UserModel user) {
+    final todayRec = getTodayAttendance(user.userId);
+    if (todayRec == null || todayRec.clockOutTime != null) return;
+    if (_notified8HourAttendanceIds.contains(todayRec.attendanceId)) return;
+
+    final netMins = todayRec.netWorkingDuration?.inMinutes ?? 0;
+    if (netMins >= 480) { // 8 Hours (480 mins)
+      _notified8HourAttendanceIds.add(todayRec.attendanceId);
+      
+      NotificationService().sendNotification(
+        title: '🎉 8-Hour Workday Completed!',
+        message: 'Congratulations ${user.name}! You have completed your standard 8-hour shift target (${todayRec.formattedNetDuration}). You can clock out now or continue working.',
+        type: 'approval',
+      );
     }
   }
 

@@ -4,6 +4,7 @@ import '../permissions/role_model.dart';
 enum NavDestinationKey {
   // Common
   dashboard,
+  aiAssistant,
   myProfile,
   settings,
   notifications,

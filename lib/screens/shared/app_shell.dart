@@ -23,6 +23,7 @@ import '../hr/hr_dashboard.dart';
 import '../hr/report_generator_screen.dart';
 import '../manager/leave_approval_screen.dart';
 import '../manager/manager_dashboard.dart';
+import 'ai_voice_assistant_sheet.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -199,6 +200,8 @@ class _AppShellState extends State<AppShell> {
         }
 
       case NavDestinationKey.myAttendance:
+        return const EmployeeDashboard();
+
       case NavDestinationKey.attendanceHistory:
       case NavDestinationKey.attendanceCalendar:
         return const AttendanceHistoryScreen();
@@ -315,6 +318,11 @@ class _AppShellState extends State<AppShell> {
 
   void _handleMenuSelection(NavMenuItem item) {
     if (item.destination == NavDestinationKey.logout) {
+      return;
+    }
+
+    if (item.destination == NavDestinationKey.aiAssistant) {
+      AIVoiceAssistantSheet.show(context);
       return;
     }
 

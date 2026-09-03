@@ -83,6 +83,24 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Delete Employee
+  Future<bool> deleteEmployee(String userId, UserModel admin) async {
+    try {
+      _isProcessing = true;
+      notifyListeners();
+
+      final success = await _firestoreService.deleteEmployee(userId, admin);
+      _isProcessing = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isProcessing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Toggle user active
   Future<void> toggleUserStatus(String userId, bool isActive, UserModel admin) async {
     await _firestoreService.toggleUserActive(userId, isActive, admin);

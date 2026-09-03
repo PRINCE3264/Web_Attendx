@@ -93,6 +93,70 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
 
               const SizedBox(height: 18),
 
+              // Timing Status Banner
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: att.isLate
+                      ? const Color(0xFFFEF2F2)
+                      : (att.isGracePeriod ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: att.isLate
+                        ? const Color(0xFFFCA5A5)
+                        : (att.isGracePeriod ? const Color(0xFFFDE68A) : const Color(0xFFA7F3D0)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      att.isLate
+                          ? Icons.warning_amber_rounded
+                          : (att.isGracePeriod ? Icons.schedule : Icons.check_circle),
+                      color: att.isLate
+                          ? const Color(0xFFDC2626)
+                          : (att.isGracePeriod ? const Color(0xFFD97706) : const Color(0xFF059669)),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            att.isLate
+                                ? 'LATE - PENDING APPROVAL'
+                                : (att.isGracePeriod ? 'GRACE PERIOD CLOCK-IN' : 'ON-TIME CLOCK-IN'),
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: att.isLate
+                                  ? const Color(0xFF991B1B)
+                                  : (att.isGracePeriod ? const Color(0xFF92400E) : const Color(0xFF065F46)),
+                            ),
+                          ),
+                          Text(
+                            att.isLate
+                                ? 'Late by ${att.lateMinutes} mins (Office start: 09:30 AM | Grace ends: 09:45 AM)'
+                                : (att.isGracePeriod
+                                    ? 'Clocked in during 15-min grace window ($timeFormatted)'
+                                    : 'Clocked in on time at $timeFormatted'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: att.isLate
+                                  ? const Color(0xFFB91C1C)
+                                  : (att.isGracePeriod ? const Color(0xFFB45309) : const Color(0xFF047857)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
               // Employee Info Row
               Container(
                 padding: const EdgeInsets.all(12),

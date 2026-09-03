@@ -5,6 +5,12 @@ import '../permissions/role_model.dart';
 class TLMenu {
   static List<NavMenuItem> getMenuItems({int pendingApprovalsCount = 0, int pendingNotifs = 0}) => [
     const NavMenuItem(
+      title: 'My Clock-In & Self',
+      icon: Icons.touch_app_rounded,
+      destination: NavDestinationKey.myAttendance,
+      route: '/employee/dashboard',
+    ),
+    const NavMenuItem(
       title: 'Dashboard',
       icon: Icons.dashboard_rounded,
       destination: NavDestinationKey.dashboard,
@@ -52,6 +58,12 @@ class TLMenu {
       destination: NavDestinationKey.notifications,
       route: '/tl/notifications',
       badgeCount: pendingNotifs > 0 ? pendingNotifs : null,
+    ),
+    const NavMenuItem(
+      title: 'AI Assistant',
+      icon: Icons.smart_toy_rounded,
+      destination: NavDestinationKey.aiAssistant,
+      route: '/tl/ai-assistant',
     ),
     const NavMenuItem(
       title: 'My Profile',

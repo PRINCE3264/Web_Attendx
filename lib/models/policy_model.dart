@@ -6,9 +6,9 @@ class AttendancePolicyModel {
   final double minimumWorkingHours; // 8.0
   final int maxBreakMinutes; // 60
   final bool isAutoClockOutEnabled;
-  final double officeLatitude; // 28.6139
-  final double officeLongitude; // 77.2090
-  final double geofenceRadiusMeters; // 300.0
+  final double officeLatitude; // 21.1986872
+  final double officeLongitude; // 72.7965515
+  final double geofenceRadiusMeters; // 500.0
   final String officeName;
   final DateTime updatedAt;
 
@@ -20,10 +20,10 @@ class AttendancePolicyModel {
     this.minimumWorkingHours = 8.0,
     this.maxBreakMinutes = 60,
     this.isAutoClockOutEnabled = false,
-    this.officeLatitude = 28.6139,
-    this.officeLongitude = 77.2090,
-    this.geofenceRadiusMeters = 300.0,
-    this.officeName = 'HQ Enterprise Tech Park (Cyber Tower)',
+    this.officeLatitude = 21.1986872,
+    this.officeLongitude = 72.7965515,
+    this.geofenceRadiusMeters = 500.0,
+    this.officeName = 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
@@ -53,10 +53,10 @@ class AttendancePolicyModel {
       minimumWorkingHours: (map['minimumWorkingHours'] as num?)?.toDouble() ?? 8.0,
       maxBreakMinutes: map['maxBreakMinutes'] ?? 60,
       isAutoClockOutEnabled: map['isAutoClockOutEnabled'] ?? false,
-      officeLatitude: (map['officeLatitude'] as num?)?.toDouble() ?? 28.6139,
-      officeLongitude: (map['officeLongitude'] as num?)?.toDouble() ?? 77.2090,
-      geofenceRadiusMeters: (map['geofenceRadiusMeters'] as num?)?.toDouble() ?? 300.0,
-      officeName: map['officeName'] ?? 'HQ Enterprise Tech Park',
+      officeLatitude: (map['officeLatitude'] as num?)?.toDouble() ?? 21.1986872,
+      officeLongitude: (map['officeLongitude'] as num?)?.toDouble() ?? 72.7965515,
+      geofenceRadiusMeters: (map['geofenceRadiusMeters'] as num?)?.toDouble() ?? 500.0,
+      officeName: map['officeName'] ?? 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
       updatedAt: map['updatedAt'] != null
           ? DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),

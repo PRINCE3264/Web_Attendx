@@ -66,6 +66,7 @@ class UserModel {
   final String? fcmToken;
   final bool isActive;
   final DateTime? createdAt;
+  final String? initialPassword;
 
   UserModel({
     required this.userId,
@@ -82,6 +83,7 @@ class UserModel {
     this.fcmToken,
     this.isActive = true,
     this.createdAt,
+    this.initialPassword,
   });
 
   Map<String, dynamic> toMap() {
@@ -100,6 +102,7 @@ class UserModel {
       'fcmToken': fcmToken,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'initialPassword': initialPassword,
     };
   }
 
@@ -121,6 +124,7 @@ class UserModel {
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'].toString())
           : null,
+      initialPassword: map['initialPassword'] ?? map['password'],
     );
   }
 
@@ -139,6 +143,7 @@ class UserModel {
     String? fcmToken,
     bool? isActive,
     DateTime? createdAt,
+    String? initialPassword,
   }) {
     return UserModel(
       userId: userId ?? this.userId,
@@ -155,6 +160,7 @@ class UserModel {
       fcmToken: fcmToken ?? this.fcmToken,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      initialPassword: initialPassword ?? this.initialPassword,
     );
   }
 }

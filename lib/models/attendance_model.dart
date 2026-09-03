@@ -113,6 +113,7 @@ class AttendanceModel {
   final String? clockOutPhotoUrl;
   final AttendanceStatus status;
   final TimingStatus timingStatus;
+  final int lateMinutes;
   final String? approvedBy;
   final String? approvedByName;
   final DateTime? approvedAt;
@@ -144,6 +145,7 @@ class AttendanceModel {
     this.clockOutPhotoUrl,
     this.status = AttendanceStatus.pending,
     this.timingStatus = TimingStatus.onTime,
+    this.lateMinutes = 0,
     this.approvedBy,
     this.approvedByName,
     this.approvedAt,
@@ -160,6 +162,16 @@ class AttendanceModel {
     DateTime? createdAt,
     this.location,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  bool get isLate => timingStatus == TimingStatus.lateArrival;
+  bool get isGracePeriod => timingStatus == TimingStatus.gracePeriod;
+  bool get isOnTime => timingStatus == TimingStatus.onTime;
+
+  String get lateDisplayLabel {
+    if (isLate) return 'LATE - PENDING APPROVAL ($lateMinutes mins late)';
+    if (isGracePeriod) return 'GRACE PERIOD - PENDING';
+    return 'ON TIME - PENDING';
+  }
 
   Duration? get grossDuration {
     if (clockInTime == null) return null;
@@ -201,22 +213,30 @@ class AttendanceModel {
 
   bool get isOnBreak => activeBreak != null;
 
+  String get uid => employeeId;
+
   Map<String, dynamic> toMap() {
     return {
       'attendanceId': attendanceId,
+      'uid': employeeId,
+      'attendanceDate': date,
+      'date': date,
       'employeeId': employeeId,
       'employeeName': employeeName,
       'employeeCode': employeeCode,
       'employeeAvatar': employeeAvatar,
       'teamId': teamId,
       'teamName': teamName,
-      'date': date,
+      'clockIn': clockInTime?.toIso8601String(),
+      'clockOut': clockOutTime?.toIso8601String(),
       'clockInTime': clockInTime?.toIso8601String(),
       'clockOutTime': clockOutTime?.toIso8601String(),
       'clockInPhotoUrl': clockInPhotoUrl,
       'clockOutPhotoUrl': clockOutPhotoUrl,
       'status': status.code,
+      'attendanceType': timingStatus.code,
       'timingStatus': timingStatus.code,
+      'lateMinutes': lateMinutes,
       'approvedBy': approvedBy,
       'approvedByName': approvedByName,
       'approvedAt': approvedAt?.toIso8601String(),
@@ -227,10 +247,15 @@ class AttendanceModel {
       'breaks': breaks.map((b) => b.toMap()).toList(),
       'latitude': latitude,
       'longitude': longitude,
+      'clockInLocation': {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
       'isWithinGeofence': isWithinGeofence,
       'distanceFromOfficeMeters': distanceFromOfficeMeters,
       'isMissingClockOut': isMissingClockOut,
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
       'location': location,
     };
   }
@@ -241,25 +266,38 @@ class AttendanceModel {
         ? rawBreaks.map((b) => BreakRecord.fromMap(Map<String, dynamic>.from(b))).toList()
         : [];
 
+    double? parsedLat = (map['latitude'] as num?)?.toDouble();
+    double? parsedLng = (map['longitude'] as num?)?.toDouble();
+    if (parsedLat == null && map['clockInLocation'] is Map) {
+      parsedLat = (map['clockInLocation']['latitude'] as num?)?.toDouble();
+      parsedLng = (map['clockInLocation']['longitude'] as num?)?.toDouble();
+    }
+
+    final rawTiming = map['timingStatus'] ?? map['attendanceType'];
+
+    final rawClockIn = map['clockInTime'] ?? map['clockIn'];
+    final rawClockOut = map['clockOutTime'] ?? map['clockOut'];
+
     return AttendanceModel(
       attendanceId: id ?? map['attendanceId'] ?? '',
-      employeeId: map['employeeId'] ?? '',
+      employeeId: map['uid'] ?? map['employeeId'] ?? '',
       employeeName: map['employeeName'] ?? 'Employee',
       employeeCode: map['employeeCode'] ?? 'EMP-0000',
       employeeAvatar: map['employeeAvatar'],
       teamId: map['teamId'] ?? '',
       teamName: map['teamName'] ?? 'General',
-      date: map['date'] ?? '',
-      clockInTime: map['clockInTime'] != null
-          ? DateTime.tryParse(map['clockInTime'].toString())
+      date: map['date'] ?? map['attendanceDate'] ?? '',
+      clockInTime: rawClockIn != null
+          ? DateTime.tryParse(rawClockIn.toString())
           : null,
-      clockOutTime: map['clockOutTime'] != null
-          ? DateTime.tryParse(map['clockOutTime'].toString())
+      clockOutTime: rawClockOut != null
+          ? DateTime.tryParse(rawClockOut.toString())
           : null,
       clockInPhotoUrl: map['clockInPhotoUrl'],
       clockOutPhotoUrl: map['clockOutPhotoUrl'],
       status: AttendanceStatusExtension.fromString(map['status']),
-      timingStatus: TimingStatusExtension.fromString(map['timingStatus']),
+      timingStatus: TimingStatusExtension.fromString(rawTiming),
+      lateMinutes: (map['lateMinutes'] as num?)?.toInt() ?? 0,
       approvedBy: map['approvedBy'],
       approvedByName: map['approvedByName'],
       approvedAt: map['approvedAt'] != null
@@ -274,8 +312,8 @@ class AttendanceModel {
               : null),
       totalBreakMinutes: map['totalBreakMinutes'] ?? 0,
       breaks: parsedBreaks,
-      latitude: (map['latitude'] as num?)?.toDouble(),
-      longitude: (map['longitude'] as num?)?.toDouble(),
+      latitude: parsedLat,
+      longitude: parsedLng,
       isWithinGeofence: map['isWithinGeofence'] ?? true,
       distanceFromOfficeMeters: (map['distanceFromOfficeMeters'] as num?)?.toDouble() ?? 0.0,
       isMissingClockOut: map['isMissingClockOut'] ?? false,
@@ -301,6 +339,7 @@ class AttendanceModel {
     String? clockOutPhotoUrl,
     AttendanceStatus? status,
     TimingStatus? timingStatus,
+    int? lateMinutes,
     String? approvedBy,
     String? approvedByName,
     DateTime? approvedAt,
@@ -332,6 +371,7 @@ class AttendanceModel {
       clockOutPhotoUrl: clockOutPhotoUrl ?? this.clockOutPhotoUrl,
       status: status ?? this.status,
       timingStatus: timingStatus ?? this.timingStatus,
+      lateMinutes: lateMinutes ?? this.lateMinutes,
       approvedBy: approvedBy ?? this.approvedBy,
       approvedByName: approvedByName ?? this.approvedByName,
       approvedAt: approvedAt ?? this.approvedAt,

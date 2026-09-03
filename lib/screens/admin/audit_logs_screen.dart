@@ -141,10 +141,15 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${entry.actorName} (${entry.actorRole})',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                    Expanded(
+                      child: Text(
+                        '${entry.actorName} (${entry.actorRole})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(

@@ -55,6 +55,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
 
       if (success && mounted) {
         Navigator.pop(context, true);
+      } else if (mounted && attendance.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(attendance.errorMessage!),
+            backgroundColor: AppTheme.danger,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } else {
       final todayRec = attendance.getTodayAttendance(user.userId);
@@ -66,6 +74,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
         );
         if (success && mounted) {
           Navigator.pop(context, true);
+        } else if (mounted && attendance.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(attendance.errorMessage!),
+              backgroundColor: AppTheme.danger,
+              duration: const Duration(seconds: 4),
+            ),
+          );
         }
       }
     }

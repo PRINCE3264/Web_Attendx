@@ -8,6 +8,7 @@ import '../core/permissions/role_model.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/shared/ai_voice_assistant_sheet.dart';
 import '../screens/shared/custom_widgets.dart';
 
 class RoleBasedSidebar extends StatelessWidget {
@@ -78,7 +79,11 @@ class RoleBasedSidebar extends StatelessWidget {
                         if (!isPermanent) {
                           Navigator.of(context).pop(); // Close drawer on mobile
                         }
-                        onSelectMenu(item);
+                        if (item.destination == NavDestinationKey.aiAssistant) {
+                          AIVoiceAssistantSheet.show(context);
+                        } else {
+                          onSelectMenu(item);
+                        }
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
@@ -101,7 +106,23 @@ class RoleBasedSidebar extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (item.badgeCount != null && item.badgeCount! > 0)
+                            if (item.destination == NavDestinationKey.aiAssistant)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'AI',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            else if (item.badgeCount != null && item.badgeCount! > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(

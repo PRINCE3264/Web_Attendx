@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'config/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/attendance_provider.dart';
@@ -11,6 +14,7 @@ import 'providers/admin_provider.dart';
 import 'providers/notification_provider.dart';
 import 'screens/shared/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/firestore_service.dart';
 
 import 'firebase_options.dart';
 
@@ -20,8 +24,20 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // Sign in anonymously (useful for testing rules that require auth)
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+      debugPrint('✅ Signed in anonymously');
+    } catch (e) {
+      debugPrint('⚠️ Anonymous sign‑in failed: $e');
+    }
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    FirestoreService().ensureFirestoreConnected();
   } catch (e) {
-    debugPrint('Firebase initialized in local/offline fallback mode: $e');
+    debugPrint('Firebase initialization notice: $e');
   }
   runApp(const SmartAttendanceApp());
 }
@@ -53,6 +69,13 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> {
   }
 
   void _showInAppNotification(AppNotification notif) {
+    try {
+      SystemSound.play(SystemSoundType.click);
+      HapticFeedback.heavyImpact();
+    } catch (e) {
+      debugPrint('Notification chime error: $e');
+    }
+
     Color iconColor;
     IconData iconData;
 
@@ -97,14 +120,13 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> {
                       fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     notif.message,
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 12,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

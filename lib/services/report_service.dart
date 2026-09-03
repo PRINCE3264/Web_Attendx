@@ -122,9 +122,9 @@ class ReportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'SMART ATTENDANCE ENTERPRISE',
+                      'ENVISION BEYOND INDIA PVT LTD',
                       style: pw.TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.indigo900,
                       ),

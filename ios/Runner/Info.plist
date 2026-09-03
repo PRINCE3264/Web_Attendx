@@ -7,7 +7,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Attendance</string>
+	<string>AttendX</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AttendX requires location access to verify employee presence within the office geofence for attendance clock-in.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AttendX requires location access to verify attendance geofence accuracy.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AttendX requires camera access to capture selfie photos during attendance clock-in and clock-out.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AttendX requires microphone access for the AI voice assistant feature.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AttendX requires photo library access to allow uploading profile and attendance images.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

@@ -67,6 +67,12 @@ class EmployeeMenu {
       badgeCount: pendingNotifs > 0 ? pendingNotifs : null,
     ),
     const NavMenuItem(
+      title: 'AI Assistant',
+      icon: Icons.smart_toy_rounded,
+      destination: NavDestinationKey.aiAssistant,
+      route: '/employee/ai-assistant',
+    ),
+    const NavMenuItem(
       title: 'My Profile',
       icon: Icons.person_outline_rounded,
       destination: NavDestinationKey.myProfile,

@@ -62,9 +62,9 @@ class _PolicySettingsScreenState extends State<PolicySettingsScreen> {
       gracePeriodMinutes: int.tryParse(_graceController.text.trim()) ?? 15,
       minimumWorkingHours: double.tryParse(_minHoursController.text.trim()) ?? 8.0,
       maxBreakMinutes: int.tryParse(_maxBreakController.text.trim()) ?? 60,
-      officeLatitude: double.tryParse(_latController.text.trim()) ?? 28.6139,
-      officeLongitude: double.tryParse(_lngController.text.trim()) ?? 77.2090,
-      geofenceRadiusMeters: double.tryParse(_radiusController.text.trim()) ?? 300.0,
+      officeLatitude: double.tryParse(_latController.text.trim()) ?? 21.1986872,
+      officeLongitude: double.tryParse(_lngController.text.trim()) ?? 72.7965515,
+      geofenceRadiusMeters: double.tryParse(_radiusController.text.trim()) ?? 500.0,
       officeName: _officeNameController.text.trim().isEmpty ? 'HQ Office' : _officeNameController.text.trim(),
     );
 

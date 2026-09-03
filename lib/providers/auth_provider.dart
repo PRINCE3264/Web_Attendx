@@ -18,9 +18,9 @@ class AuthProvider extends ChangeNotifier {
     _init();
   }
 
-  void _init() {
-    _authService.initializeDefaultUser();
-    _currentUser = _authService.currentUser;
+  Future<void> _init() async {
+    _currentUser = await _authService.loadSavedSession();
+    notifyListeners();
     _authService.authStateChanges.listen((user) {
       _currentUser = user;
       notifyListeners();
@@ -50,13 +50,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginWithGoogle() async {
+  Future<bool> loginWithGoogle({
+    String? fallbackEmail,
+    String? fallbackName,
+    String? fallbackPhotoUrl,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _currentUser = await _authService.signInWithGoogle();
+      _currentUser = await _authService.signInWithGoogle(
+        fallbackEmail: fallbackEmail,
+        fallbackName: fallbackName,
+        fallbackPhotoUrl: fallbackPhotoUrl,
+      );
       _isLoading = false;
       notifyListeners();
       return true;
@@ -99,6 +107,37 @@ class AuthProvider extends ChangeNotifier {
         managerName: managerName,
         joiningDate: joiningDate,
       );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> registerAccount({
+    required String name,
+    required String email,
+    required String password,
+    required String department,
+    UserRole role = UserRole.employee,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final user = await _authService.registerAccount(
+        name: name,
+        email: email,
+        password: password,
+        department: department,
+        role: role,
+      );
+      _currentUser = user;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -159,13 +198,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> updateMyProfile({required String newName, String? newAvatarUrl}) async {
+  Future<bool> updateMyProfile({
+    required String newName,
+    String? newEmail,
+    String? newAvatarUrl,
+    String? newDepartment,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _authService.updateMyProfile(newName: newName, newAvatarUrl: newAvatarUrl);
+      await _authService.updateMyProfile(
+        newName: newName,
+        newEmail: newEmail,
+        newAvatarUrl: newAvatarUrl,
+        newDepartment: newDepartment,
+      );
       _currentUser = _authService.currentUser;
       _isLoading = false;
       notifyListeners();

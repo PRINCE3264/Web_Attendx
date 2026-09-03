@@ -9,26 +9,38 @@ class UserNotificationProvider extends ChangeNotifier {
   
   List<NotificationModel> _notifications = [];
   StreamSubscription? _notifSub;
+  StreamSubscription? _authSub;
 
   UserNotificationProvider() {
     _initStream();
   }
 
   void _initStream() {
-    _notifSub = _firestoreService.notificationsStream.listen((records) {
-      final user = AuthService().currentUser;
-      if (user != null) {
-        _notifications = records.where((n) => n.userId == user.userId).toList();
-      } else {
-        _notifications = [];
-      }
-      notifyListeners();
+    _refresh();
+
+    _notifSub = _firestoreService.notificationsStream.listen((_) {
+      _refresh();
     });
+
+    _authSub = AuthService().authStateChanges.listen((_) {
+      _refresh();
+    });
+  }
+
+  void _refresh() {
+    final user = AuthService().currentUser;
+    if (user != null) {
+      _notifications = _firestoreService.getNotificationsForUser(user.userId);
+    } else {
+      _notifications = [];
+    }
+    notifyListeners();
   }
 
   @override
   void dispose() {
     _notifSub?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 

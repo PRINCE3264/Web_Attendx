@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import '../shared/custom_widgets.dart';
 import 'all_employees_screen.dart';
 import 'report_generator_screen.dart';
 import 'create_announcement_sheet.dart';
+import '../manager/leave_approval_screen.dart';
 
 class HrDashboard extends StatelessWidget {
   const HrDashboard({super.key});
@@ -173,7 +175,7 @@ class HrDashboard extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AllEmployeesScreen()),
+                          MaterialPageRoute(builder: (_) => const AllEmployeesScreen(isEmbedded: false)),
                         );
                       },
                     ),
@@ -211,6 +213,12 @@ class HrDashboard extends StatelessWidget {
                       subtitle: 'Approved off',
                       icon: Icons.beach_access,
                       color: AppTheme.secondary,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LeaveApprovalScreen(isEmbedded: false)),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -223,9 +231,15 @@ class HrDashboard extends StatelessWidget {
                     child: StatCard(
                       title: 'Pending Reviews',
                       value: '$pendingCount',
-                      subtitle: 'Waiting TL',
+                      subtitle: 'Leave / Clock-in',
                       icon: Icons.hourglass_top,
                       color: const Color(0xFFF59E0B),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LeaveApprovalScreen(isEmbedded: false)),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -259,67 +273,157 @@ class HrDashboard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Department Attendance Breakdown',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Department Attendance Breakdown',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         const Icon(Icons.bar_chart, color: AppTheme.primary, size: 20),
                       ],
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
-                      height: 180,
+                      height: 200,
                       child: BarChart(
                         BarChartData(
                           alignment: BarChartAlignment.spaceAround,
-                          maxY: 100,
+                          maxY: 105,
                           barTouchData: BarTouchData(enabled: true),
                           titlesData: FlTitlesData(
                             show: true,
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
+                                reservedSize: 32,
                                 getTitlesWidget: (val, meta) {
+                                  String label = '';
                                   switch (val.toInt()) {
                                     case 0:
-                                      return const Text('Mobile', style: TextStyle(fontSize: 11));
+                                      label = 'Mobile';
+                                      break;
                                     case 1:
-                                      return const Text('Backend', style: TextStyle(fontSize: 11));
+                                      label = 'Backend';
+                                      break;
                                     case 2:
-                                      return const Text('UI/Design', style: TextStyle(fontSize: 11));
-                                    default:
-                                      return const Text('');
+                                      label = 'UI/Design';
+                                      break;
                                   }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      label,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  );
                                 },
                               ),
                             ),
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 32,
+                                reservedSize: 36,
                                 getTitlesWidget: (val, meta) => Text(
                                   '${val.toInt()}%',
-                                  style: const TextStyle(fontSize: 10),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
                                 ),
                               ),
                             ),
-                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 22,
+                                getTitlesWidget: (val, meta) {
+                                  String pct = '';
+                                  Color col = Colors.blue;
+                                  switch (val.toInt()) {
+                                    case 0:
+                                      pct = '92%';
+                                      col = const Color(0xFF2563EB);
+                                      break;
+                                    case 1:
+                                      pct = '86%';
+                                      col = const Color(0xFF0284C7);
+                                      break;
+                                    case 2:
+                                      pct = '96%';
+                                      col = const Color(0xFF6D28D9);
+                                      break;
+                                  }
+                                  return Text(
+                                    pct,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: col,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                           ),
-                          gridData: const FlGridData(show: true, drawVerticalLine: false),
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: 25,
+                            getDrawingHorizontalLine: (val) => FlLine(
+                              color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                              strokeWidth: 1,
+                              dashArray: [4, 4],
+                            ),
+                          ),
                           borderData: FlBorderData(show: false),
                           barGroups: [
                             BarChartGroupData(x: 0, barRods: [
-                              BarChartRodData(toY: 92, color: AppTheme.primary, width: 22, borderRadius: BorderRadius.circular(6)),
+                              BarChartRodData(
+                                toY: 92,
+                                width: 26,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                ),
+                              ),
                             ]),
                             BarChartGroupData(x: 1, barRods: [
-                              BarChartRodData(toY: 86, color: AppTheme.secondary, width: 22, borderRadius: BorderRadius.circular(6)),
+                              BarChartRodData(
+                                toY: 86,
+                                width: 26,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF06B6D4), Color(0xFF0284C7)],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                ),
+                              ),
                             ]),
                             BarChartGroupData(x: 2, barRods: [
-                              BarChartRodData(toY: 96, color: AppTheme.accent, width: 22, borderRadius: BorderRadius.circular(6)),
+                              BarChartRodData(
+                                toY: 96,
+                                width: 26,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                ),
+                              ),
                             ]),
                           ],
                         ),
@@ -341,17 +445,20 @@ class HrDashboard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.cardDark : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+              Material(
+                color: isDark ? AppTheme.cardDark : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.hardEdge,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
+                  child: Column(
+                    children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Container(
@@ -377,7 +484,7 @@ class HrDashboard extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ReportGeneratorScreen()),
+                          MaterialPageRoute(builder: (_) => const ReportGeneratorScreen(isEmbedded: false)),
                         );
                       },
                     ),
@@ -407,7 +514,37 @@ class HrDashboard extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AllEmployeesScreen()),
+                          MaterialPageRoute(builder: (_) => const AllEmployeesScreen(isEmbedded: false)),
+                        );
+                      },
+                    ),
+                    const Divider(height: 20),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.beach_access, color: Color(0xFFD97706)),
+                      ),
+                      title: Text(
+                        'Leave Requests & Authorizations',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Review, approve, or reject employee leave applications company-wide.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LeaveApprovalScreen(isEmbedded: false)),
                         );
                       },
                     ),
@@ -448,12 +585,13 @@ class HrDashboard extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAiInsightsCard(bool isDark) {
     return Container(

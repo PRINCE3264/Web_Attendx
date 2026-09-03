@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/team_model.dart';
@@ -141,19 +142,51 @@ class MockDataSeeder {
       minimumWorkingHours: 8.0,
       maxBreakMinutes: 60,
       isAutoClockOutEnabled: false,
-      officeLatitude: 28.6139,
-      officeLongitude: 77.2090,
-      geofenceRadiusMeters: 300.0,
-      officeName: 'HQ Enterprise Tech Park (Cyber Tower Floor 3)',
+      officeLatitude: 21.1986872,
+      officeLongitude: 72.7965515,
+      geofenceRadiusMeters: 500.0,
+      officeName: 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
     );
   }
 
   static List<LeaveBalanceModel> getSeedLeaveBalances() {
     return [
-      LeaveBalanceModel(employeeId: 'emp_01', casualTotal: 12, casualUsed: 2, sickTotal: 8, sickUsed: 1, earnedTotal: 15, earnedUsed: 3),
-      LeaveBalanceModel(employeeId: 'emp_02', casualTotal: 12, casualUsed: 1, sickTotal: 8, sickUsed: 0, earnedTotal: 15, earnedUsed: 1),
-      LeaveBalanceModel(employeeId: 'emp_03', casualTotal: 12, casualUsed: 4, sickTotal: 8, sickUsed: 2, earnedTotal: 15, earnedUsed: 0),
-      LeaveBalanceModel(employeeId: 'emp_04', casualTotal: 12, casualUsed: 0, sickTotal: 8, sickUsed: 1, earnedTotal: 15, earnedUsed: 2),
+      LeaveBalanceModel(
+        employeeId: 'emp_01',
+        casualTotal: 12,
+        casualUsed: 2,
+        sickTotal: 8,
+        sickUsed: 1,
+        earnedTotal: 15,
+        earnedUsed: 3,
+      ),
+      LeaveBalanceModel(
+        employeeId: 'emp_02',
+        casualTotal: 12,
+        casualUsed: 1,
+        sickTotal: 8,
+        sickUsed: 0,
+        earnedTotal: 15,
+        earnedUsed: 1,
+      ),
+      LeaveBalanceModel(
+        employeeId: 'emp_03',
+        casualTotal: 12,
+        casualUsed: 4,
+        sickTotal: 8,
+        sickUsed: 2,
+        earnedTotal: 15,
+        earnedUsed: 0,
+      ),
+      LeaveBalanceModel(
+        employeeId: 'emp_04',
+        casualTotal: 12,
+        casualUsed: 0,
+        sickTotal: 8,
+        sickUsed: 1,
+        earnedTotal: 15,
+        earnedUsed: 2,
+      ),
     ];
   }
 
@@ -205,8 +238,20 @@ class MockDataSeeder {
         employeeName: 'Rahul Sharma',
         employeeCode: 'EMP-1042',
         date: df.format(yesterday),
-        requestedClockIn: DateTime(yesterday.year, yesterday.month, yesterday.day, 9, 30),
-        requestedClockOut: DateTime(yesterday.year, yesterday.month, yesterday.day, 18, 30),
+        requestedClockIn: DateTime(
+          yesterday.year,
+          yesterday.month,
+          yesterday.day,
+          9,
+          30,
+        ),
+        requestedClockOut: DateTime(
+          yesterday.year,
+          yesterday.month,
+          yesterday.day,
+          18,
+          30,
+        ),
         reason: 'Office biometric scanner sync glitch & mobile network outage during clock out.',
         status: CorrectionStatus.pending,
       ),
@@ -319,18 +364,19 @@ class MockDataSeeder {
             durationMinutes: 15,
           ),
         ],
-        latitude: 28.6139,
-        longitude: 77.2090,
+        latitude: 21.1986872,
+        longitude: 72.7965515,
         isWithinGeofence: true,
         distanceFromOfficeMeters: 12.0,
-        location: 'HQ Office - Design Wing',
+        location: 'Green Atria, Surat Office',
       ),
     );
 
     // Generate past 30 days history for Rahul Sharma (emp_01)
     for (int i = 1; i <= 30; i++) {
       final pastDate = now.subtract(Duration(days: i));
-      if (pastDate.weekday == DateTime.saturday || pastDate.weekday == DateTime.sunday) {
+      if (pastDate.weekday == DateTime.saturday ||
+          pastDate.weekday == DateTime.sunday) {
         continue;
       }
 
@@ -346,13 +392,25 @@ class MockDataSeeder {
             teamId: 'team_mobile',
             teamName: 'Mobile App Team',
             date: dateStr,
-            clockInTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 10, 45),
+            clockInTime: DateTime(
+              pastDate.year,
+              pastDate.month,
+              pastDate.day,
+              10,
+              45,
+            ),
             clockInPhotoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=600',
             status: AttendanceStatus.rejected,
             timingStatus: TimingStatus.lateArrival,
             approvedBy: 'mgr_01',
             approvedByName: 'Vikram Mehta (TL)',
-            approvedAt: DateTime(pastDate.year, pastDate.month, pastDate.day, 11, 0),
+            approvedAt: DateTime(
+              pastDate.year,
+              pastDate.month,
+              pastDate.day,
+              11,
+              0,
+            ),
             rejectionReason: 'Blurry photo / Outside geofence radius',
           ),
         );
@@ -362,8 +420,20 @@ class MockDataSeeder {
         final outHour = 18;
         final outMin = (i * 4) % 30;
 
-        final clockIn = DateTime(pastDate.year, pastDate.month, pastDate.day, inHour, inMin);
-        final clockOut = DateTime(pastDate.year, pastDate.month, pastDate.day, outHour, outMin);
+        final clockIn = DateTime(
+          pastDate.year,
+          pastDate.month,
+          pastDate.day,
+          inHour,
+          inMin,
+        );
+        final clockOut = DateTime(
+          pastDate.year,
+          pastDate.month,
+          pastDate.day,
+          outHour,
+          outMin,
+        );
         final durationMin = clockOut.difference(clockIn).inMinutes;
 
         records.add(
@@ -379,33 +449,65 @@ class MockDataSeeder {
             clockOutTime: clockOut,
             clockInPhotoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=600',
             status: AttendanceStatus.completed,
-            timingStatus: inMin > 15 ? TimingStatus.gracePeriod : TimingStatus.onTime,
+            timingStatus: inMin > 15
+                ? TimingStatus.gracePeriod
+                : TimingStatus.onTime,
             approvedBy: 'mgr_01',
             approvedByName: 'Vikram Mehta (TL)',
-            approvedAt: DateTime(pastDate.year, pastDate.month, pastDate.day, 9, 30),
+            approvedAt: DateTime(
+              pastDate.year,
+              pastDate.month,
+              pastDate.day,
+              9,
+              30,
+            ),
             totalWorkMinutes: durationMin,
             totalBreakMinutes: 45,
             breaks: [
               BreakRecord(
                 breakId: 'brk_${i}_1',
                 type: BreakType.tea,
-                startTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 11, 0),
-                endTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 11, 15),
+                startTime: DateTime(
+                  pastDate.year,
+                  pastDate.month,
+                  pastDate.day,
+                  11,
+                  0,
+                ),
+                endTime: DateTime(
+                  pastDate.year,
+                  pastDate.month,
+                  pastDate.day,
+                  11,
+                  15,
+                ),
                 durationMinutes: 15,
               ),
               BreakRecord(
                 breakId: 'brk_${i}_2',
                 type: BreakType.lunch,
-                startTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 13, 30),
-                endTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 14, 0),
+                startTime: DateTime(
+                  pastDate.year,
+                  pastDate.month,
+                  pastDate.day,
+                  13,
+                  30,
+                ),
+                endTime: DateTime(
+                  pastDate.year,
+                  pastDate.month,
+                  pastDate.day,
+                  14,
+                  0,
+                ),
                 durationMinutes: 30,
               ),
             ],
-            latitude: 28.6139,
-            longitude: 77.2090,
+            latitude: 21.1986872,
+            longitude: 72.7965515,
             isWithinGeofence: true,
             distanceFromOfficeMeters: 18.0,
-            location: 'HQ Office - Floor 3',
+            location: 'Green Atria, Surat Office',
           ),
         );
       }

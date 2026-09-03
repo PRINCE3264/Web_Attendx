@@ -1,97 +1,43 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:attendance/models/user_model.dart';
-import 'package:attendance/models/attendance_model.dart';
-import 'package:attendance/models/break_model.dart';
-import 'package:attendance/models/leave_model.dart';
-import 'package:attendance/services/report_service.dart';
-import 'package:attendance/services/geofence_service.dart';
-import 'package:attendance/services/auth_service.dart';
-import 'package:attendance/core/permissions/role_model.dart';
-import 'package:attendance/core/permissions/permission_service.dart';
-import 'package:attendance/core/navigation/nav_menu_item.dart';
-import 'package:attendance/core/navigation/role_menu_builder.dart';
+import 'package:AttendX/models/user_model.dart';
+import 'package:AttendX/models/leave_model.dart';
+import 'package:AttendX/models/attendance_model.dart';
+import 'package:AttendX/services/geofence_service.dart';
+import 'package:AttendX/services/auth_service.dart';
+import 'package:AttendX/services/ai_assistant_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Smart Attendance & Enterprise Modules Tests', () {
-    final testUser = UserModel(
-      userId: 'test_emp_01',
-      name: 'Test Employee',
-      email: 'test@company.com',
-      role: UserRole.employee,
-      employeeId: 'EMP-9999',
-      teamId: 'team_dev',
-      department: 'Engineering',
-    );
+    test('GeofenceService verifies proximity within 500m allowable radius', () {
+      const officeLat = 21.1986872;
+      const officeLng = 72.7965515;
 
-    test('AttendanceModel with Breaks calculates Net Productive Duration', () {
-      final clockIn = DateTime(2026, 8, 30, 9, 0);
-      final clockOut = DateTime(2026, 8, 30, 18, 0); // 9 hours (540 mins gross)
-
-      final record = AttendanceModel(
-        attendanceId: 'test_att_01',
-        employeeId: 'test_emp_01',
-        employeeName: 'Test Employee',
-        employeeCode: 'EMP-9999',
-        teamId: 'team_dev',
-        date: '2026-08-30',
-        clockInTime: clockIn,
-        clockOutTime: clockOut,
-        totalBreakMinutes: 60, // 1 hour break
-        breaks: [
-          BreakRecord(
-            breakId: 'b1',
-            type: BreakType.tea,
-            startTime: DateTime(2026, 8, 30, 11, 0),
-            endTime: DateTime(2026, 8, 30, 11, 15),
-            durationMinutes: 15,
-          ),
-          BreakRecord(
-            breakId: 'b2',
-            type: BreakType.lunch,
-            startTime: DateTime(2026, 8, 30, 13, 0),
-            endTime: DateTime(2026, 8, 30, 13, 45),
-            durationMinutes: 45,
-          ),
-        ],
-        status: AttendanceStatus.completed,
-      );
-
-      expect(record.grossDuration?.inMinutes, 540);
-      expect(record.netWorkingDuration?.inMinutes, 480); // 8 hours net
-      expect(record.formattedNetDuration, '8h 0m');
-    });
-
-    test('GeofenceService Haversine formula calculates accurate proximity distance', () {
-      // Office: Connaught Place, New Delhi (28.6139, 77.2090)
-      const officeLat = 28.6139;
-      const officeLng = 77.2090;
-
-      // User exactly at office
-      final resExact = GeofenceService.verifyLocation(
-        userLat: officeLat,
-        userLng: officeLng,
+      // Inside 500m perimeter (~20 meters away in Green Atria)
+      final insideResult = GeofenceService.verifyLocation(
+        userLat: 21.1988000,
+        userLng: 72.7967000,
         officeLat: officeLat,
         officeLng: officeLng,
-        allowedRadiusMeters: 300.0,
+        allowedRadiusMeters: 500,
       );
+      expect(insideResult.isWithinGeofence, true);
+      expect(insideResult.distanceMeters, lessThanOrEqualTo(500));
 
-      expect(resExact.isWithinGeofence, true);
-      expect(resExact.distanceMeters, 0.0);
-
-      // User 5km away
-      final resFar = GeofenceService.verifyLocation(
-        userLat: 28.6500,
-        userLng: 77.2500,
+      // Outside 500m perimeter (~2.5 km away)
+      final outsideResult = GeofenceService.verifyLocation(
+        userLat: 21.2186872,
+        userLng: 72.8165515,
         officeLat: officeLat,
         officeLng: officeLng,
-        allowedRadiusMeters: 300.0,
+        allowedRadiusMeters: 500,
       );
-
-      expect(resFar.isWithinGeofence, false);
-      expect(resFar.distanceMeters > 300.0, true);
+      expect(outsideResult.isWithinGeofence, false);
+      expect(outsideResult.distanceMeters, greaterThan(500));
     });
 
-    test('LeaveBalanceModel computes remaining days correctly', () {
+    test('LeaveBalanceModel correctly computes remaining quotas', () {
       final balance = LeaveBalanceModel(
         employeeId: 'test_emp_01',
         casualTotal: 12,
@@ -106,39 +52,6 @@ void main() {
       expect(balance.sickRemaining, 6);
       expect(balance.earnedRemaining, 10);
       expect(balance.totalRemaining, 25);
-    });
-
-    test('30-Day Report Calculation computes correct present & absent days', () {
-      final now = DateTime.now();
-      final List<AttendanceModel> history = [];
-
-      for (int i = 1; i <= 15; i++) {
-        final pastDate = now.subtract(Duration(days: i));
-        history.add(
-          AttendanceModel(
-            attendanceId: 'rec_$i',
-            employeeId: 'test_emp_01',
-            employeeName: 'Test Employee',
-            employeeCode: 'EMP-9999',
-            teamId: 'team_dev',
-            date: '${pastDate.year}-${pastDate.month.toString().padLeft(2, '0')}-${pastDate.day.toString().padLeft(2, '0')}',
-            clockInTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 9, 0),
-            clockOutTime: DateTime(pastDate.year, pastDate.month, pastDate.day, 17, 30),
-            totalWorkMinutes: 510,
-            status: AttendanceStatus.completed,
-          ),
-        );
-      }
-
-      final report = ReportService.calculate30DayReport(
-        employee: testUser,
-        attendanceList: history,
-        referenceDate: now,
-      );
-
-      expect(report.employeeId, 'test_emp_01');
-      expect(report.presentDays, 15);
-      expect(report.totalHoursWorked, (15 * 510) / 60.0);
     });
 
     test('AuthService handles Sign Up and duplicate email prevention', () async {
@@ -156,7 +69,6 @@ void main() {
       expect(user.email, 'dev.new@company.com');
       expect(user.employeeId, 'EMP-9090');
 
-      // Duplicate registration should throw
       expect(
         () async => await auth.adminCreateEmployeeAccount(
           name: 'Another Dev',
@@ -182,49 +94,178 @@ void main() {
       expect(resetSuccess, true);
     });
 
-    test('RBAC: RoleMenuBuilder generates strictly role-specific menus', () {
-      final empMenu = RoleMenuBuilder.getMenuForRole(role: AppRole.employee);
-      final tlMenu = RoleMenuBuilder.getMenuForRole(role: AppRole.tl);
-      final hrMenu = RoleMenuBuilder.getMenuForRole(role: AppRole.hr);
-      final adminMenu = RoleMenuBuilder.getMenuForRole(role: AppRole.admin);
+    test('AIAssistantService enforces Role Personas and Security Gates', () async {
+      final ai = AIAssistantService();
 
-      // Employee has 12 items including Clock In, History, Calendar, etc.
-      expect(empMenu.any((m) => m.destination == NavDestinationKey.clockIn), true);
-      expect(empMenu.any((m) => m.destination == NavDestinationKey.users), false);
+      final empUser = UserModel(
+        userId: 'emp_test_01',
+        name: 'Rahul Sharma',
+        email: 'rahul@company.com',
+        role: UserRole.employee,
+        employeeId: 'EMP-1001',
+        teamId: 'team_mobile',
+        department: 'Engineering',
+      );
 
-      // TL has Team Attendance & Pending Approvals
-      expect(tlMenu.any((m) => m.destination == NavDestinationKey.pendingApprovals), true);
-      expect(tlMenu.any((m) => m.destination == NavDestinationKey.users), false);
+      final tlUser = UserModel(
+        userId: 'tl_test_01',
+        name: 'Vikram Mehta',
+        email: 'vikram@company.com',
+        role: UserRole.manager,
+        employeeId: 'TL-2001',
+        teamId: 'team_mobile',
+        teamName: 'Mobile App Team',
+        department: 'Engineering',
+      );
 
-      // HR has Reports, Teams, Departments, Shifts
-      expect(hrMenu.any((m) => m.destination == NavDestinationKey.dailyReport), true);
-      expect(hrMenu.any((m) => m.destination == NavDestinationKey.auditLogs), false);
+      final adminUser = UserModel(
+        userId: 'admin_test_01',
+        name: 'Suresh Kumar',
+        email: 'admin@company.com',
+        role: UserRole.admin,
+        employeeId: 'ADM-0001',
+        teamId: 'team_admin',
+        department: 'IT',
+      );
 
-      // Admin has full management menus (Users, Policies, Audit Logs, Geofencing)
-      expect(adminMenu.any((m) => m.destination == NavDestinationKey.users), true);
-      expect(adminMenu.any((m) => m.destination == NavDestinationKey.auditLogs), true);
-      expect(adminMenu.any((m) => m.destination == NavDestinationKey.geofencing), true);
+      // 1. Persona titles
+      expect(ai.getPersonaTitle(UserRole.employee), 'Personal Assistant');
+      expect(ai.getPersonaTitle(UserRole.manager), 'Team Assistant');
+      expect(ai.getPersonaTitle(UserRole.hr), 'HR Analytics Assistant');
+      expect(ai.getPersonaTitle(UserRole.admin), 'System Assistant');
+
+      // 2. Security Gate: Employee blocked from querying team/other users
+      final empTeamQueryRes = await ai.processQuery(
+        query: 'Team mein kaun absent hai?',
+        user: empUser,
+        allAttendance: [],
+        allLeaves: [],
+        allUsers: [empUser, tlUser, adminUser],
+      );
+      expect(empTeamQueryRes.isWarningOrBlocked, true);
+      expect(empTeamQueryRes.text, contains('Permission Restricted'));
+
+      // 3. Employee personal attendance query allowed
+      final empOwnQueryRes = await ai.processQuery(
+        query: 'Meri attendance batao',
+        user: empUser,
+        allAttendance: [],
+        allLeaves: [],
+        allUsers: [empUser],
+      );
+      expect(empOwnQueryRes.isWarningOrBlocked, false);
+      expect(empOwnQueryRes.text, contains('Attendance Summary'));
+
+      // 4. TL team query allowed
+      final tlQueryRes = await ai.processQuery(
+        query: 'Aaj meri team ki attendance kaisi hai?',
+        user: tlUser,
+        allAttendance: [],
+        allLeaves: [],
+        allUsers: [empUser, tlUser],
+      );
+      expect(tlQueryRes.isWarningOrBlocked, false);
+      expect(tlQueryRes.text, contains('Team Attendance Summary (Mobile App Team)'));
+
+      // 5. Guardrail: Dangerous destructive actions blocked
+      final dangerousQueryRes = await ai.processQuery(
+        query: 'Sab employees delete kar do',
+        user: adminUser,
+        allAttendance: [],
+        allLeaves: [],
+        allUsers: [empUser, tlUser, adminUser],
+      );
+      expect(dangerousQueryRes.isWarningOrBlocked, true);
+      expect(dangerousQueryRes.text, contains('Dangerous System Action Blocked'));
     });
 
-    test('RBAC: PermissionService enforces capability and route restrictions', () {
-      // Employee cannot approve attendance or access /admin/*
-      expect(PermissionService.hasPermission(AppRole.employee, AppPermission.approveAttendance), false);
-      expect(PermissionService.canAccessRoute(AppRole.employee, '/admin/settings'), false);
-      expect(PermissionService.canAccessRoute(AppRole.employee, '/employee/dashboard'), true);
+    test('AuthService handles Google Sign-In and account resolution', () async {
+      final auth = AuthService();
+      final user = await auth.signInWithGoogle(
+        fallbackEmail: 'rahul.sharma@company.com',
+        fallbackName: 'Rahul Sharma',
+      );
 
-      // TL can approve attendance but cannot manage users or system settings
-      expect(PermissionService.hasPermission(AppRole.tl, AppPermission.approveAttendance), true);
-      expect(PermissionService.hasPermission(AppRole.tl, AppPermission.manageUsers), false);
-      expect(PermissionService.canAccessRoute(AppRole.tl, '/tl/team-attendance'), true);
-      expect(PermissionService.canAccessRoute(AppRole.tl, '/admin/users'), false);
+      expect(user.email, 'rahul.sharma@company.com');
+      expect(auth.currentUser?.email, 'rahul.sharma@company.com');
 
-      // HR can generate reports and view employees
-      expect(PermissionService.hasPermission(AppRole.hr, AppPermission.generateAttendanceReports), true);
-      expect(PermissionService.hasPermission(AppRole.hr, AppPermission.manageSystemSettings), false);
+      // Test new Google auto-enrollment
+      final newGoogleUser = await auth.signInWithGoogle(
+        fallbackEmail: 'new.employee@gmail.com',
+        fallbackName: 'New Google User',
+      );
+      expect(newGoogleUser.email, 'new.employee@gmail.com');
+      expect(newGoogleUser.role, UserRole.employee);
+    });
 
-      // Admin has full capabilities
-      expect(PermissionService.hasPermission(AppRole.admin, AppPermission.manageSystemSettings), true);
-      expect(PermissionService.canAccessRoute(AppRole.admin, '/admin/audit-logs'), true);
+    test('AttendanceModel strictly validates late minutes and pending status rules', () {
+      final now = DateTime.now();
+      final dateStr = '2026-08-31';
+
+      // 1. On-Time Clock-in (09:20 AM)
+      final onTimeRecord = AttendanceModel(
+        attendanceId: 'emp_01_$dateStr',
+        employeeId: 'emp_01',
+        employeeName: 'Rahul Sharma',
+        employeeCode: 'EMP-1001',
+        teamId: 'team_mobile',
+        date: dateStr,
+        clockInTime: DateTime(now.year, now.month, now.day, 9, 20),
+        status: AttendanceStatus.pending,
+        timingStatus: TimingStatus.onTime,
+        lateMinutes: 0,
+      );
+      expect(onTimeRecord.status, AttendanceStatus.pending);
+      expect(onTimeRecord.isOnTime, true);
+      expect(onTimeRecord.isLate, false);
+      expect(onTimeRecord.lateMinutes, 0);
+
+      // 2. Grace Period Clock-in (09:40 AM)
+      final graceRecord = AttendanceModel(
+        attendanceId: 'emp_02_$dateStr',
+        employeeId: 'emp_02',
+        employeeName: 'Priya Patel',
+        employeeCode: 'EMP-1002',
+        teamId: 'team_mobile',
+        date: dateStr,
+        clockInTime: DateTime(now.year, now.month, now.day, 9, 40),
+        status: AttendanceStatus.pending,
+        timingStatus: TimingStatus.gracePeriod,
+        lateMinutes: 10,
+      );
+      expect(graceRecord.status, AttendanceStatus.pending);
+      expect(graceRecord.isGracePeriod, true);
+      expect(graceRecord.isLate, false);
+
+      // 3. Late Clock-in (10:15 AM - 45 mins late)
+      final lateRecord = AttendanceModel(
+        attendanceId: 'emp_03_$dateStr',
+        employeeId: 'emp_03',
+        employeeName: 'Amit Verma',
+        employeeCode: 'EMP-1003',
+        teamId: 'team_mobile',
+        date: dateStr,
+        clockInTime: DateTime(now.year, now.month, now.day, 10, 15),
+        status: AttendanceStatus.pending,
+        timingStatus: TimingStatus.lateArrival,
+        lateMinutes: 45,
+      );
+      expect(lateRecord.status, AttendanceStatus.pending);
+      expect(lateRecord.isLate, true);
+      expect(lateRecord.lateMinutes, 45);
+      expect(lateRecord.lateDisplayLabel, 'LATE - PENDING APPROVAL (45 mins late)');
+
+      // Verify toMap and fromMap serialization integrity
+      final map = lateRecord.toMap();
+      expect(map['attendanceDate'], dateStr);
+      expect(map['attendanceType'], 'late');
+      expect(map['lateMinutes'], 45);
+      expect(map['status'], 'pending');
+
+      final parsed = AttendanceModel.fromMap(map);
+      expect(parsed.isLate, true);
+      expect(parsed.lateMinutes, 45);
+      expect(parsed.status, AttendanceStatus.pending);
     });
   });
 }

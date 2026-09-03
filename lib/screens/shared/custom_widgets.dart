@@ -159,12 +159,17 @@ class StatCard extends StatelessWidget {
                   child: Icon(icon, color: color, size: 22),
                 ),
                 if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: color,
+                  Flexible(
+                    child: Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                      ),
                     ),
                   ),
               ],

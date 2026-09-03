@@ -19,8 +19,12 @@ class NotificationModel {
     required this.createdAt,
   });
 
+  String get uid => userId;
+
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
+      'uid': userId,
       'userId': userId,
       'announcementId': announcementId,
       'title': title,
@@ -34,7 +38,7 @@ class NotificationModel {
   factory NotificationModel.fromMap(Map<String, dynamic> map, String id) {
     return NotificationModel(
       id: id,
-      userId: map['userId'] ?? '',
+      userId: map['uid'] ?? map['userId'] ?? '',
       announcementId: map['announcementId'],
       title: map['title'] ?? '',
       message: map['message'] ?? '',

@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 import '../services/audit_service.dart';
 import '../services/notification_service.dart';
+import '../services/local_storage_service.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -27,70 +30,199 @@ class AuthService {
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
   UserModel? get currentUser => _currentUser;
 
+  Future<UserModel?> loadSavedSession() async {
+    try {
+      final saved = await LocalStorageService().loadSession();
+      if (saved != null) {
+        final fresh = FirestoreService().getUserById(saved.userId);
+        _currentUser = fresh ?? saved;
+        _authStateController.add(_currentUser);
+      }
+    } catch (e) {
+      debugPrint('Error loading saved session: $e');
+    }
+    return _currentUser;
+  }
+
+  Future<void> _updateSessionUser(UserModel? user) async {
+    _currentUser = user;
+    _authStateController.add(_currentUser);
+    await LocalStorageService().saveSession(user);
+  }
+
+  Future<void> ensureFirebaseAuthSession() async {
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+    } catch (e) {
+      debugPrint('Anonymous auth session fallback info: $e');
+    }
+  }
+
   Future<UserModel> signInWithEmailAndPassword(String email, String password) async {
+    final cleanEmail = email.toLowerCase().trim();
+    final enteredPass = password.trim();
+
+    bool isFirebaseAuthSuccess = false;
+
+    // 1. Authenticate with Firebase Authentication
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: cleanEmail,
+        password: enteredPass,
+      );
+      if (credential.user != null) {
+        isFirebaseAuthSuccess = true;
+      }
+    } catch (e) {
+      debugPrint('Firebase Auth sign in notice: $e');
+      await ensureFirebaseAuthSession();
+    }
+
+    // 2. Fetch User Profile from Firestore / local memory
     final users = FirestoreService().getAllUsers();
-    final user = users.firstWhere(
-      (u) => u.email.toLowerCase() == email.toLowerCase().trim(),
-      orElse: () => throw Exception('No account found with this email.'),
-    );
+    final userIndex = users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
+
+    if (userIndex == -1 && !isFirebaseAuthSuccess) {
+      throw Exception('No account found with email $cleanEmail. Please Create an Account first.');
+    }
+
+    UserModel user;
+    if (userIndex != -1) {
+      user = users[userIndex];
+    } else {
+      user = UserModel(
+        userId: FirebaseAuth.instance.currentUser?.uid ?? 'usr_${DateTime.now().millisecondsSinceEpoch}',
+        name: cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+        email: cleanEmail,
+        role: UserRole.employee,
+        employeeId: 'EMP-${1000 + users.length + 1}',
+        department: 'Engineering',
+        teamId: 'team_mobile',
+        teamName: 'Engineering & Development',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+      await FirestoreService().createEmployee(user, user);
+    }
+
+    // 3. Fallback password verification if Firebase Auth was skipped/offline
+    if (!isFirebaseAuthSuccess) {
+      final storedPass = _passwords[cleanEmail] ?? user.initialPassword ?? 'password123';
+      if (enteredPass != storedPass) {
+        throw Exception('Incorrect password. Please enter the password associated with your account.');
+      }
+    }
 
     if (!user.isActive) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
       throw Exception('This account has been disabled by Administrator.');
     }
 
-    _currentUser = user;
-    _authStateController.add(_currentUser);
+    await _updateSessionUser(user);
 
     AuditService().log(
       actor: user,
       actionType: 'LOGIN',
-      description: '${user.name} logged into system.',
+      description: '${user.name} logged into system ($cleanEmail).',
       targetEntityId: user.userId,
     );
 
     return user;
   }
 
-  Future<UserModel> signInWithGoogle() async {
+  Future<UserModel> signInWithGoogle({
+    String? fallbackEmail,
+    String? fallbackName,
+    String? fallbackPhotoUrl,
+  }) async {
     try {
-      await _ensureGoogleSignInInitialized();
-      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-      if (googleUser == null) {
-        throw Exception('Google sign-in was aborted.');
+      String? email;
+      String? displayName;
+      String? photoUrl;
+
+      if (fallbackEmail != null && fallbackEmail.isNotEmpty) {
+        email = fallbackEmail.toLowerCase().trim();
+        displayName = fallbackName;
+        photoUrl = fallbackPhotoUrl;
+      } else {
+        try {
+          await _ensureGoogleSignInInitialized();
+          final googleUser = await _googleSignIn.authenticate();
+          email = googleUser.email.toLowerCase().trim();
+          displayName = googleUser.displayName;
+          photoUrl = googleUser.photoUrl;
+        } catch (e) {
+          debugPrint('GoogleSignIn authenticate exception: $e');
+          final errStr = e.toString().toLowerCase();
+          if (errStr.contains('cancel') || errStr.contains('abort')) {
+            throw Exception('Google Sign-In was cancelled.');
+          }
+          rethrow;
+        }
       }
 
-      final email = googleUser.email.toLowerCase().trim();
+      if (email.isEmpty) {
+        throw Exception('Could not retrieve Google account email.');
+      }
+
       final users = FirestoreService().getAllUsers();
-      
-      // Strict role-based security: check if user exists in Firestore
       final userIndex = users.indexWhere((u) => u.email.toLowerCase() == email);
-      
-      if (userIndex == -1) {
-        // Not registered
-        await _googleSignIn.signOut();
-        throw Exception('Your account is not registered. Please contact Admin/HR.');
+
+      UserModel user;
+      if (userIndex != -1) {
+        user = users[userIndex];
+        if (!user.isActive) {
+          try {
+            await _googleSignIn.signOut();
+          } catch (_) {}
+          throw Exception('This account has been disabled by Administrator.');
+        }
+
+        // Auto-fetch and update user avatar from Google Account photo
+        if (photoUrl != null && photoUrl.isNotEmpty && user.avatarUrl != photoUrl) {
+          final updatedUser = user.copyWith(avatarUrl: photoUrl);
+          await FirestoreService().updateEmployee(updatedUser, user);
+          user = updatedUser;
+        }
+      } else {
+        // Auto-enroll new Google User as Employee with their Google Profile Picture
+        final newUser = UserModel(
+          userId: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+          name: (displayName != null && displayName.isNotEmpty)
+              ? displayName
+              : email.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          email: email,
+          role: UserRole.employee,
+          employeeId: 'EMP-${1000 + users.length + 1}',
+          department: 'Engineering',
+          teamId: 'unassigned',
+          teamName: 'Unassigned (Pending TL Allocation)',
+          avatarUrl: photoUrl,
+          isActive: true,
+          createdAt: DateTime.now(),
+        );
+        await FirestoreService().createEmployee(newUser, newUser);
+        user = newUser;
       }
 
-      final user = users[userIndex];
-
-      if (!user.isActive) {
-        await _googleSignIn.signOut();
-        throw Exception('This account has been disabled by Administrator.');
-      }
-
-      _currentUser = user;
-      _authStateController.add(_currentUser);
+      await _updateSessionUser(user);
 
       AuditService().log(
         actor: user,
         actionType: 'GOOGLE_LOGIN',
-        description: '${user.name} logged into system via Google.',
+        description: '${user.name} logged in via Google Authentication ($email).',
         targetEntityId: user.userId,
       );
 
       return user;
     } catch (e) {
-      await _googleSignIn.signOut();
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
       rethrow;
     }
   }
@@ -132,9 +264,10 @@ class AuthService {
       department: department.trim(),
       isActive: true,
       createdAt: joiningDate ?? DateTime.now(),
+      initialPassword: password.trim(),
     );
 
-    _passwords[cleanEmail] = password;
+    _passwords[cleanEmail] = password.trim();
 
     await FirestoreService().createEmployee(newUser, _currentUser ?? newUser);
 
@@ -155,9 +288,15 @@ class AuthService {
       orElse: () => throw Exception('No registered account found with email $cleanEmail.'),
     );
 
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: cleanEmail);
+    } catch (e) {
+      debugPrint('Firebase sendPasswordResetEmail info: $e');
+    }
+
     NotificationService().sendNotification(
-      title: 'Password Reset Code 🔑',
-      message: 'Password reset OTP code (849201) sent to ${user.email}.',
+      title: 'Password Reset Email Sent 📧',
+      message: 'Official password reset link sent to ${user.email} via Firebase Auth.',
       type: 'info',
     );
 
@@ -177,6 +316,15 @@ class AuthService {
 
     _passwords[cleanEmail] = newPassword;
 
+    try {
+      final authInst = FirebaseAuth.instance;
+      if (authInst.currentUser != null) {
+        await authInst.currentUser?.updatePassword(newPassword);
+      }
+    } catch (e) {
+      debugPrint('Firebase Auth password update info: $e');
+    }
+
     AuditService().log(
       actor: user,
       actionType: 'PASSWORD_RESET',
@@ -186,26 +334,32 @@ class AuthService {
 
     NotificationService().sendNotification(
       title: 'Password Changed Successfully 🔒',
-      message: 'Your password has been updated. Please sign in.',
+      message: 'Your password has been updated in Firebase & System. Please sign in.',
       type: 'info',
     );
 
     return true;
   }
 
-  Future<void> updateMyProfile({required String newName, String? newAvatarUrl}) async {
+  Future<void> updateMyProfile({
+    required String newName,
+    String? newEmail,
+    String? newAvatarUrl,
+    String? newDepartment,
+  }) async {
     if (_currentUser == null) return;
     
     final updatedUser = _currentUser!.copyWith(
       name: newName.trim(),
+      email: (newEmail != null && newEmail.trim().isNotEmpty) ? newEmail.trim() : _currentUser!.email,
       avatarUrl: newAvatarUrl,
+      department: (newDepartment != null && newDepartment.trim().isNotEmpty) ? newDepartment.trim() : _currentUser!.department,
     );
     
     // We update in Firestore
     await FirestoreService().updateEmployee(updatedUser, _currentUser!);
     
-    _currentUser = updatedUser;
-    _authStateController.add(_currentUser);
+    await _updateSessionUser(updatedUser);
 
     NotificationService().sendNotification(
       title: 'Profile Updated ✅',
@@ -215,20 +369,79 @@ class AuthService {
   }
 
   Future<void> switchUser(UserModel user) async {
-    _currentUser = user;
-    _authStateController.add(_currentUser);
+    await _updateSessionUser(user);
+  }
+
+  Future<UserModel> registerAccount({
+    required String name,
+    required String email,
+    required String password,
+    required String department,
+    UserRole role = UserRole.employee,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final users = FirestoreService().getAllUsers();
+
+    if (users.any((u) => u.email.toLowerCase() == cleanEmail)) {
+      throw Exception('An account with email $cleanEmail already exists.');
+    }
+
+    String? firebaseUid;
+    try {
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: cleanEmail,
+        password: password,
+      );
+      firebaseUid = credential.user?.uid;
+      await credential.user?.updateDisplayName(name);
+    } catch (e) {
+      debugPrint('Firebase Auth register info: $e');
+    }
+
+    final userId = firebaseUid ?? 'usr_${DateTime.now().millisecondsSinceEpoch}';
+    final empCode = 'EMP-${1000 + users.length + 1}';
+
+    final newUser = UserModel(
+      userId: userId,
+      name: name.trim(),
+      email: cleanEmail,
+      role: role,
+      employeeId: empCode,
+      department: department.trim().isNotEmpty ? department.trim() : 'Engineering',
+      teamId: 'unassigned',
+      teamName: 'Unassigned (Pending TL Allocation)',
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
+
+    _passwords[cleanEmail] = password;
+
+    await FirestoreService().createEmployee(newUser, newUser);
+
+    await _updateSessionUser(null);
+
+    AuditService().log(
+      actor: newUser,
+      actionType: 'REGISTER',
+      description: '${newUser.name} registered new account ($cleanEmail).',
+      targetEntityId: newUser.userId,
+    );
+
+    NotificationService().sendNotification(
+      title: 'Welcome to AttendX! 🎉',
+      message: 'Account created successfully for ${newUser.name}.',
+      type: 'info',
+    );
+
+    return newUser;
   }
 
   Future<void> signOut() async {
-    _currentUser = null;
-    _authStateController.add(null);
+    await _updateSessionUser(null);
   }
 
   void initializeDefaultUser() {
-    final users = FirestoreService().getAllUsers();
-    if (users.isNotEmpty && _currentUser == null) {
-      _currentUser = users.first; // Rahul Sharma (Employee)
-      _authStateController.add(_currentUser);
-    }
+    // Keep user unauthenticated on app open so Login Screen is presented first
+    _currentUser = null;
   }
 }

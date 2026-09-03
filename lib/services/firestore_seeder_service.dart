@@ -1,60 +1,87 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service to seed all 17 Firestore Collections directly from the Flutter app.
 class FirestoreSeederService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> seedAll17Collections({Function(String status)? onProgress}) async {
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        onProgress?.call('Authenticating with Firebase...');
+        await FirebaseAuth.instance.signInAnonymously().timeout(const Duration(seconds: 3));
+      }
+    } catch (e) {
+      debugPrint('Firebase Auth initialization note: $e');
+    }
+
     onProgress?.call('1/17 Seeding Departments...');
-    await _seedDepartments();
+    await _seedDepartments().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('2/17 Seeding Teams...');
-    await _seedTeams();
+    await _seedTeams().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('3/17 Seeding Office Locations...');
-    await _seedOfficeLocations();
+    await _seedOfficeLocations().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('4/17 Seeding Shifts...');
-    await _seedShifts();
+    await _seedShifts().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('5/17 Seeding Attendance Policies...');
-    await _seedPolicies();
+    await _seedPolicies().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('6/17 Seeding Leave Types...');
-    await _seedLeaveTypes();
+    await _seedLeaveTypes().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('7/17 Seeding Holidays...');
-    await _seedHolidays();
+    await _seedHolidays().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('8/17 Seeding Users...');
-    await _seedUsers();
+    await _seedUsers().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('9/17 Seeding Employees...');
-    await _seedEmployees();
+    await _seedEmployees().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('10/17 Seeding Attendance Records...');
-    await _seedAttendance();
+    await _seedAttendance().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('11/17 Seeding Approvals...');
-    await _seedApprovals();
+    await _seedApprovals().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('12/17 Seeding Corrections...');
-    await _seedCorrections();
+    await _seedCorrections().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('13/17 Seeding Leaves...');
-    await _seedLeaves();
+    await _seedLeaves().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('14/17 Seeding Notifications...');
-    await _seedNotifications();
+    await _seedNotifications().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('15/17 Seeding Reports...');
-    await _seedReports();
+    await _seedReports().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('16/17 Seeding Audit Logs...');
-    await _seedAuditLogs();
+    await _seedAuditLogs().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('17/17 Seeding App Settings...');
-    await _seedAppSettings();
+    await _seedAppSettings().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
 
     onProgress?.call('✅ All 17 Firestore Collections seeded successfully!');
   }
@@ -133,11 +160,11 @@ class FirestoreSeederService {
     final batch = _firestore.batch();
     final locs = [
       {
-        'locationId': 'loc_hq_delhi',
-        'name': 'AttendX HQ - Connaught Place',
-        'address': 'Block B, Inner Circle, Connaught Place, New Delhi 110001',
-        'geopoint': const GeoPoint(28.6139, 77.2090),
-        'geofenceRadiusMeters': 300,
+        'locationId': 'loc_hq_surat',
+        'name': 'AttendX HQ - Green Atria',
+        'address': 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
+        'geopoint': const GeoPoint(21.1986872, 72.7965515),
+        'geofenceRadiusMeters': 500,
         'wifiBSSIDs': ['00:14:22:01:23:45'],
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -147,7 +174,7 @@ class FirestoreSeederService {
         'name': 'Tech Hub - Koramangala',
         'address': '80 Feet Rd, 4th Block, Koramangala, Bengaluru 560034',
         'geopoint': const GeoPoint(12.9352, 77.6245),
-        'geofenceRadiusMeters': 250,
+        'geofenceRadiusMeters': 500,
         'wifiBSSIDs': [],
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -403,8 +430,8 @@ class FirestoreSeederService {
       'date': '2026-08-30',
       'clockInTime': DateTime.parse('2026-08-30T09:28:15Z'),
       'clockInPhotoUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-      'clockInLocation': const GeoPoint(28.6139, 77.2090),
-      'clockInAddress': 'Connaught Place, New Delhi',
+      'clockInLocation': const GeoPoint(21.1986872, 72.7965515),
+      'clockInAddress': 'Green Atria, Anand Mahal Rd, Adajan, Surat',
       'clockInDistanceMeters': 14.5,
       'isWithinGeofence': true,
       'timingStatus': 'on_time',
@@ -554,8 +581,8 @@ class FirestoreSeederService {
     final batch = _firestore.batch();
     final s = {
       'settingKey': 'general',
-      'companyName': 'AttendX Enterprise Global',
-      'supportEmail': 'hr-support@attendx.com',
+      'companyName': 'Envision Beyond India Pvt Ltd',
+      'supportEmail': 'hr@envisionbeyond.com',
       'autoEmailReportsTo': ['pooja.verma@attendx.com', 'rajesh.sharma@attendx.com'],
       'allowMockLocation': false,
       'enforceBiometrics': true,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -50,21 +51,6 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.bgDark : const Color(0xFFF8FAFC),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            builder: (_) => const EditProfileSheet(),
-          );
-        },
-        icon: const Icon(Icons.edit, color: Colors.white, size: 20),
-        label: Text('Edit Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: AppTheme.primary,
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
@@ -87,92 +73,135 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Column(
+              child: Stack(
                 children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        radius: 46,
-                        backgroundColor: roleColor.withValues(alpha: 0.15),
-                        backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                            ? NetworkImage(user.avatarUrl!)
-                            : null,
-                        child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                            ? Text(
-                                user.name.isNotEmpty
-                                    ? user.name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
-                                    : 'U',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.bold,
-                                  color: roleColor,
-                                ),
-                              )
-                            : null,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.success,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? AppTheme.cardDark : Colors.white,
-                            width: 2.5,
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                           ),
+                          builder: (_) => const EditProfileSheet(),
+                        );
+                      },
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.check, size: 14, color: Colors.white),
+                        child: const Icon(Icons.edit_square, color: AppTheme.primary, size: 20),
+                      ),
+                      tooltip: 'Edit Profile & Photo',
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            builder: (_) => const EditProfileSheet(),
+                          );
+                        },
+                        child: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            CircleAvatar(
+                              radius: 46,
+                              backgroundColor: roleColor.withValues(alpha: 0.15),
+                              backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
+                                  ? (user.avatarUrl!.startsWith('data:image')
+                                      ? MemoryImage(base64Decode(user.avatarUrl!.split(',').last)) as ImageProvider
+                                      : NetworkImage(user.avatarUrl!))
+                                  : null,
+                              child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                                  ? Text(
+                                      user.name.isNotEmpty
+                                          ? user.name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
+                                          : 'U',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.bold,
+                                        color: roleColor,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark ? AppTheme.cardDark : Colors.white,
+                                  width: 2.5,
+                                ),
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        user.name,
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppTheme.textMainLight,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.email,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: roleColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              user.role == UserRole.admin
+                                  ? Icons.admin_panel_settings
+                                  : (user.role == UserRole.manager
+                                      ? Icons.supervisor_account
+                                      : (user.role == UserRole.hr ? Icons.badge : Icons.person)),
+                              size: 16,
+                              color: roleColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${user.role.name} • ${user.department}',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: roleColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.name,
-                    style: GoogleFonts.outfit(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppTheme.textMainLight,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.email,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: roleColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: roleColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          user.role == UserRole.admin
-                              ? Icons.admin_panel_settings
-                              : (user.role == UserRole.manager
-                                  ? Icons.supervisor_account
-                                  : (user.role == UserRole.hr ? Icons.badge : Icons.person)),
-                          size: 16,
-                          color: roleColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${user.role.name} • ${user.department}',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: roleColor,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),
@@ -225,6 +254,13 @@ class ProfileScreen extends StatelessWidget {
               icon: Icons.badge_outlined,
               isDark: isDark,
               children: [
+                _buildInfoRow(
+                  label: 'Organization',
+                  value: 'Envision Beyond India Pvt Ltd',
+                  icon: Icons.domain,
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Employee ID',
                   value: user.employeeId,
@@ -486,13 +522,18 @@ class ProfileScreen extends StatelessWidget {
               color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
             ),
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : AppTheme.textMainLight,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppTheme.textMainLight,
+              ),
             ),
           ),
         ],

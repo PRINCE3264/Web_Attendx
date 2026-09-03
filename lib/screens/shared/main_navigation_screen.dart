@@ -90,7 +90,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
       ];
       navItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Clock & Today'),
-        BottomNavigationBarItem(icon: Icon(Icons.history_outlined), activeIcon: Icon(Icons.history), label: 'My History'),
+        BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'My Attendance'),
         BottomNavigationBarItem(icon: Icon(Icons.beach_access_outlined), activeIcon: Icon(Icons.beach_access), label: 'Leaves'),
         BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
       ];
@@ -180,9 +180,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         titleSpacing: 0,
         leading: Builder(
           builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu_rounded, size: 26),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-            tooltip: 'Open Navigation Drawer',
+            icon: Icon(
+              _customScreen != null ? Icons.arrow_back_rounded : Icons.menu_rounded,
+              size: 26,
+            ),
+            onPressed: () {
+              if (_customScreen != null) {
+                setState(() {
+                  _customScreen = null;
+                  _customScreenTitle = null;
+                });
+              } else {
+                Scaffold.of(ctx).openDrawer();
+              }
+            },
+            tooltip: _customScreen != null ? 'Back to Main Dashboard' : 'Open Navigation Drawer',
           ),
         ),
         title: Row(
