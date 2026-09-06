@@ -1,8 +1,179 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // ─── Helper Functions ────────────────────────────────────────────────────
+    // Functions must be at the database scope, NOT inside a match block
+    function isAuthenticated() {
+      return request.auth != null;
     }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isHR() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hr';
+    }
+
+    function isTL() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tl' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'team_lead');
+    }
+
+    function isAdminOrHR() {
+      return isAdmin() || isHR();
+    }
+
+    function isAdminOrHROrTL() {
+      return isAdmin() || isHR() || isTL();
+    }
+
+    // ─── 1. Users Collection ──────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR();
+      allow update: if isAdminOrHR() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // ─── 2. Employees Collection ──────────────────────────────────────────────
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdminOrHR();
+      allow delete: if isAdmin();
+    }
+
+    // ─── 3. Departments Collection ────────────────────────────────────────────
+    match /departments/{departmentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── 4. Teams Collection ─────────────────────────────────────────────────
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrHR();
+    }
+
+    // ─── 5. Office Locations Collection ──────────────────────────────────────
+    match /officeLocations/{locationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── 6. Shifts Collection ─────────────────────────────────────────────────
+    match /shifts/{shiftId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrHR();
+    }
+
+    // ─── 7. Attendance Policies Collection ───────────────────────────────────
+    match /attendancePolicies/{policyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── 8. Attendance Records Collection ────────────────────────────────────
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrHROrTL();
+      allow delete: if isAdmin();
+    }
+
+    // ─── 9. Attendance Approvals Collection ──────────────────────────────────
+    match /attendanceApprovals/{approvalId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHROrTL();
+      allow update, delete: if isAdminOrHROrTL();
+    }
+
+    // ─── 10. Attendance Corrections / Regularization ─────────────────────────
+    match /attendanceCorrections/{correctionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrHROrTL();
+      allow delete: if isAdmin();
+    }
+
+    // ─── 11. Leaves Collection ────────────────────────────────────────────────
+    match /leaves/{leaveId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrHROrTL();
+      allow delete: if isAdmin();
+    }
+
+    // ─── 12. Leave Types Collection ───────────────────────────────────────────
+    match /leaveTypes/{leaveTypeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrHR();
+    }
+
+    // ─── 13. Holidays Collection ──────────────────────────────────────────────
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrHR();
+    }
+
+    // ─── 14. Notifications Collection ─────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHROrTL();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── 15. Reports Collection ───────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if isAdminOrHR();
+      allow create: if isAdminOrHR();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── 16. Audit Logs — Append-Only, Immutable ──────────────────────────────
+    match /auditLogs/{logId} {
+      allow read: if isAdminOrHR();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // ─── 17. App Settings Collection ──────────────────────────────────────────
+    match /appSettings/{settingKey} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── 18. Announcements Collection ─────────────────────────────────────────
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdminOrHR();
+      allow delete: if isAdmin();
+    }
+
+    // ─── 19. Projects Collection ──────────────────────────────────────────────
+    // Admin: Full CRUD  |  TL / HR / Employee: Read Only
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── 20. Project Daily Reports Collection ─────────────────────────────────
+    match /projectReports/{reportId} {
+      allow read: if isAdminOrHROrTL();
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrHROrTL();
+      allow delete: if isAdmin();
+    }
+
+    // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
   }
 }

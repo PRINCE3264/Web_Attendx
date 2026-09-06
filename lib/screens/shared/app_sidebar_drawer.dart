@@ -9,18 +9,23 @@ import '../../providers/leave_provider.dart';
 import '../employee/break_tracking_sheet.dart';
 import '../employee/leave_management_screen.dart';
 import '../employee/attendance_history_screen.dart';
+import '../employee/submit_project_report_sheet.dart';
+import 'project_reports_screen.dart';
 import '../manager/manager_dashboard.dart';
 import '../manager/leave_approval_screen.dart';
 import '../hr/hr_dashboard.dart';
 import '../hr/report_generator_screen.dart';
 import '../hr/all_employees_screen.dart';
+import '../hr/all_attendance_screen.dart';
 import '../hr/add_employee_sheet.dart';
 import '../hr/create_announcement_sheet.dart';
 import '../admin/policy_settings_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/admin_panel_screen.dart';
+import '../admin/projects_management_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
+import 'system_settings_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
 import '../auth/login_screen.dart';
 
@@ -123,8 +128,36 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Leave Management',
                     isSelected: widget.currentIndex == 2,
                     badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                    badgeColor: const Color(0xFF8B5CF6),
+                    badgeColor: const Color(0xFF2563EB),
                     onTap: () => _navigateToScreen(const LeaveManagementScreen(), 'Leave Management', defaultTabIndex: 2),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.assignment_add,
+                    title: 'Daily Project Update',
+                    onTap: () {
+                      Navigator.pop(context);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const SubmitProjectReportSheet(),
+                      );
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.folder_special_outlined,
+                    title: 'Project Work Reports',
+                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: false), 'Project Work Reports'),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.folder_special_rounded,
+                    title: 'Company Projects',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.settings_outlined,
+                    title: 'System Settings',
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
                   ),
                 ],
 
@@ -143,7 +176,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Leave Requests',
                     isSelected: widget.currentIndex == 1,
                     badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                    badgeColor: const Color(0xFF8B5CF6),
+                    badgeColor: const Color(0xFF2563EB),
                     onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests', defaultTabIndex: 1),
                   ),
                   _buildNavItem(
@@ -151,6 +184,16 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Team Roster',
                     isSelected: widget.currentIndex == 2,
                     onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Team Roster', defaultTabIndex: 2),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.folder_special_rounded,
+                    title: 'Company Projects',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.settings_outlined,
+                    title: 'System Settings',
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
                   ),
                 ],
 
@@ -162,20 +205,32 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const AdminPanelScreen(), 'Admin Dashboard', defaultTabIndex: 0),
                   ),
+                  _buildNavItem(
+                    icon: Icons.folder_special_rounded,
+                    title: 'Project Management',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Project Master Directory'),
+                  ),
                   _buildExpandableSection(
-                    title: 'User Management',
-                    icon: Icons.manage_accounts_outlined,
+                    title: 'Employee Management',
+                    icon: Icons.badge_outlined,
                     children: [
-                      _buildSubItem('All Users', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                      _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'employee'), 'Employee Directory')),
                       _buildSubItem('Add Employee', onTap: () {
                         Navigator.pop(context);
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                          builder: (_) => const AddEmployeeSheet(),
+                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.employee),
                         );
                       }),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'TL Management',
+                    icon: Icons.supervisor_account_outlined,
+                    children: [
+                      _buildSubItem('All Team Leads (TL)', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'manager'), 'Team Lead Directory')),
                       _buildSubItem('Add TL', onTap: () {
                         Navigator.pop(context);
                         showModalBottomSheet(
@@ -185,6 +240,13 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                           builder: (_) => const AddEmployeeSheet(initialRole: UserRole.manager),
                         );
                       }),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'HR Management',
+                    icon: Icons.admin_panel_settings_outlined,
+                    children: [
+                      _buildSubItem('All HR Personnel', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'hr'), 'HR Directory')),
                       _buildSubItem('Add HR', onTap: () {
                         Navigator.pop(context);
                         showModalBottomSheet(
@@ -194,18 +256,23 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                           builder: (_) => const AddEmployeeSheet(initialRole: UserRole.hr),
                         );
                       }),
-                      _buildSubItem('Edit User', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Edit User')),
-                      _buildSubItem('Activate / Deactivate', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
-                      _buildSubItem('Assign TL', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
+                    ],
+                  ),
+                  _buildExpandableSection(
+                    title: 'Account Status',
+                    icon: Icons.manage_accounts_outlined,
+                    children: [
+                      _buildSubItem('All Users Directory', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'All Users Directory')),
+                      _buildSubItem('Suspended / Deactivated', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialStatusFilter: 'inactive'), 'Suspended Accounts')),
                     ],
                   ),
                   _buildExpandableSection(
                     title: 'Attendance',
                     icon: Icons.calendar_month_outlined,
                     children: [
-                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Attendance')),
-                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview')),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview')),
+                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
+                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview')),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: false), 'Monthly Attendance Calendar')),
                       _buildSubItem('Employee Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
                       _buildSubItem('Attendance Reports', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
                     ],
@@ -214,10 +281,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Leave Management',
                     icon: Icons.beach_access_outlined,
                     children: [
-                      _buildSubItem('All Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
-                      _buildSubItem('Pending', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
-                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
-                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('All Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'all'), 'Leave Requests')),
+                      _buildSubItem('Pending', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'pending'), 'Leave Requests')),
+                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'approved'), 'Leave Requests')),
+                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'rejected'), 'Leave Requests')),
                     ],
                   ),
                   _buildExpandableSection(
@@ -263,21 +330,20 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Reports',
                     icon: Icons.bar_chart_outlined,
                     children: [
-                      _buildSubItem('Attendance', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
-                      _buildSubItem('Employee', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
-                      _buildSubItem('Leave', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
-                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 3)),
+                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 3)),
                     ],
                   ),
                   _buildExpandableSection(
                     title: 'System Settings',
                     icon: Icons.settings_outlined,
                     children: [
-                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
-                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
-                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
-                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const PolicySettingsScreen(), 'Policy Engine', defaultTabIndex: 1)),
-                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(), 'Audit Logs', defaultTabIndex: 2)),
+                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: false), 'Roles & Permissions', defaultTabIndex: 1)),
+                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const AllEmployeesScreen(isEmbedded: false), 'Department Directory')),
+                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: false), 'Attendance Rules', defaultTabIndex: 1)),
+                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'App & System Settings')),
+                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: false), 'Audit Logs', defaultTabIndex: 2)),
                     ],
                   ),
                 ],
@@ -289,6 +355,11 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Dashboard',
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.folder_special_rounded,
+                    title: 'Company Projects',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
                   ),
                   _buildExpandableSection(
                     title: 'Employees',
@@ -304,16 +375,16 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                           builder: (_) => const AddEmployeeSheet(),
                         );
                       }),
-                      _buildSubItem('Active / Inactive', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
+                      _buildSubItem('Active / Inactive', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialStatusFilter: 'active'), 'Directory')),
                     ],
                   ),
                   _buildExpandableSection(
                     title: 'Attendance',
                     icon: Icons.calendar_month_outlined,
                     children: [
-                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
-                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0)),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0)),
+                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
+                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview', defaultTabIndex: 0)),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: false), 'Monthly Attendance Calendar')),
                       _buildSubItem('Attendance Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
                     ],
                   ),
@@ -321,9 +392,9 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Leave',
                     icon: Icons.beach_access_outlined,
                     children: [
-                      _buildSubItem('Leave Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
-                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
-                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests')),
+                      _buildSubItem('Leave Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'all'), 'Leave Requests')),
+                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'approved'), 'Leave Requests')),
+                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'rejected'), 'Leave Requests')),
                     ],
                   ),
                   _buildExpandableSection(
@@ -360,10 +431,15 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Reports',
                     icon: Icons.bar_chart_outlined,
                     children: [
-                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
-                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
-                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
+                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 2)),
+                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 2)),
+                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 2)),
                     ],
+                  ),
+                  _buildNavItem(
+                    icon: Icons.settings_outlined,
+                    title: 'System Settings',
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
                   ),
                 ],
 
@@ -372,7 +448,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   icon: Icons.smart_toy_rounded,
                   title: 'AI Chatbot',
                   badgeText: 'AI',
-                  badgeColor: const Color(0xFF6366F1),
+                  badgeColor: const Color(0xFF2563EB),
                   onTap: () {
                     Navigator.pop(context);
                     AIVoiceAssistantSheet.show(context);

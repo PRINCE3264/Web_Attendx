@@ -17,9 +17,7 @@ class LocalStorageService {
 
   Future<File?> _getFile(String filename) async {
     try {
-      if (_appDocDir == null) {
-        _appDocDir = await getApplicationDocumentsDirectory();
-      }
+      _appDocDir ??= await getApplicationDocumentsDirectory();
       return File('${_appDocDir!.path}/$filename');
     } catch (e) {
       return null;

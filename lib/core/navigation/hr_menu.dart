@@ -59,6 +59,18 @@ class HRMenu {
       requiredPermission: AppPermission.generateAttendanceReports,
     ),
     const NavMenuItem(
+      title: 'Project Work Reports',
+      icon: Icons.assignment_turned_in_outlined,
+      destination: NavDestinationKey.projectReports,
+      route: '/hr/project-reports',
+    ),
+    const NavMenuItem(
+      title: 'Company Projects',
+      icon: Icons.folder_special_rounded,
+      destination: NavDestinationKey.projectsManagement,
+      route: '/hr/projects',
+    ),
+    const NavMenuItem(
       title: 'Leave Management',
       icon: Icons.beach_access_rounded,
       destination: NavDestinationKey.leaveManagement,
@@ -112,9 +124,9 @@ class HRMenu {
       route: '/hr/profile',
     ),
     const NavMenuItem(
-      title: 'Settings',
-      icon: Icons.settings_outlined,
-      destination: NavDestinationKey.settings,
+      title: 'System Settings',
+      icon: Icons.settings_applications_rounded,
+      destination: NavDestinationKey.systemSettings,
       route: '/hr/settings',
     ),
     const NavMenuItem(

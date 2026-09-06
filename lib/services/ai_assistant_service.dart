@@ -183,7 +183,8 @@ class AIAssistantService {
     List<LeaveRequestModel> allLeaves,
     DateTime now,
   ) {
-    final myAttendance = allAttendance.where((a) => a.employeeId == user.userId).toList();
+    final userValidIds = {user.userId, user.employeeId, user.email.toLowerCase()};
+    final myAttendance = allAttendance.where((a) => userValidIds.contains(a.employeeId) || userValidIds.contains(a.employeeCode)).toList();
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
     final todayRecList = myAttendance.where((a) => a.date == todayStr).toList();
     final todayRec = todayRecList.isNotEmpty ? todayRecList.first : null;
@@ -192,21 +193,22 @@ class AIAssistantService {
     // 1. "Meri attendance batao" / Monthly Attendance Summary
     if (q.contains('attendance') || q.contains('summary') || q.contains('meri attendance') || q.contains('report')) {
       final currentMonthName = DateFormat('MMMM').format(now);
-      final presentCount = myAttendance.where((a) => a.status == AttendanceStatus.approved || a.status == AttendanceStatus.pending).length;
+      final presentCount = myAttendance.where((a) => a.status == AttendanceStatus.approved || a.status == AttendanceStatus.pending || a.status == AttendanceStatus.completed).length;
       final lateCount = myAttendance.where((a) => a.timingStatus == TimingStatus.lateArrival).length;
-      const totalWorkingDays = 24; // Standard working days in month
-      final leaveCount = allLeaves.where((l) => l.employeeId == user.userId && l.status == LeaveStatus.approved).length;
-      final absentCount = (totalWorkingDays - presentCount - leaveCount).clamp(0, totalWorkingDays);
-      final attendanceRate = ((presentCount / totalWorkingDays) * 100).toStringAsFixed(1);
+      final totalWorkingDaysSoFar = now.day > 0 ? now.day : 1;
+      final myLeaves = allLeaves.where((l) => userValidIds.contains(l.employeeId) || userValidIds.contains(l.employeeCode)).toList();
+      final leaveCount = myLeaves.where((l) => l.status == LeaveStatus.approved).fold(0, (sum, l) => sum + l.totalDays);
+      final absentCount = (totalWorkingDaysSoFar - presentCount - leaveCount).clamp(0, totalWorkingDaysSoFar);
+      final attendanceRate = totalWorkingDaysSoFar > 0 ? ((presentCount / totalWorkingDaysSoFar) * 100).toStringAsFixed(1) : '100.0';
 
       return AIResponse(
         text: '📊 **Your $currentMonthName Attendance Summary (${user.name}):**\n\n'
-            '• **Working Days:** $totalWorkingDays days\n'
+            '• **Working Days So Far:** $totalWorkingDaysSoFar days\n'
             '• **Present:** **$presentCount days** ($attendanceRate% attendance rate)\n'
             '• **Approved Leaves:** **$leaveCount days**\n'
             '• **Absents:** **$absentCount days**\n'
             '• **Late Clock-ins:** **$lateCount days**\n\n'
-            '💡 *Keep it up! Your attendance record is on track.*',
+            '💡 *Data synced live with Cloud Firestore database.*',
       );
     }
 
@@ -244,28 +246,21 @@ class AIAssistantService {
 
     // 3. "Leave balance" / "Kitni chutti bachi hai"
     if (q.contains('leave') || q.contains('chutti') || q.contains('vacation') || q.contains('balance')) {
-      final userLeaves = allLeaves.where((l) => l.employeeId == user.userId).toList();
+      final userLeaves = allLeaves.where((l) => userValidIds.contains(l.employeeId) || userValidIds.contains(l.employeeCode)).toList();
       final pendingLeaves = userLeaves.where((l) => l.status == LeaveStatus.pending).length;
       final approvedLeaves = userLeaves.where((l) => l.status == LeaveStatus.approved).length;
 
-      // Calculate quotas
-      const casualTotal = 12.0;
-      const sickTotal = 8.0;
-      const earnedTotal = 15.0;
-      final casualUsed = userLeaves.where((l) => l.leaveType == LeaveType.casual && l.status == LeaveStatus.approved).fold(0.0, (sum, l) => sum + l.totalDays);
-      final sickUsed = userLeaves.where((l) => l.leaveType == LeaveType.sick && l.status == LeaveStatus.approved).fold(0.0, (sum, l) => sum + l.totalDays);
-      final earnedUsed = userLeaves.where((l) => l.leaveType == LeaveType.earned && l.status == LeaveStatus.approved).fold(0.0, (sum, l) => sum + l.totalDays);
-
-      final casualRem = (casualTotal - casualUsed).clamp(0.0, casualTotal);
-      final sickRem = (sickTotal - sickUsed).clamp(0.0, sickTotal);
-      final earnedRem = (earnedTotal - earnedUsed).clamp(0.0, earnedTotal);
-      final totalRem = casualRem + sickRem + earnedRem;
+      final balance = FirestoreService().getLeaveBalance(user.userId);
+      final casualRem = balance.casualRemaining;
+      final sickRem = balance.sickRemaining;
+      final earnedRem = balance.earnedRemaining;
+      final totalRem = balance.totalRemaining;
 
       return AIResponse(
         text: '🏖️ **Your Live Leave Balance (${user.name}):**\n\n'
-            '• **Casual Leaves (CL):** **${casualRem.toStringAsFixed(0)} days** available (Used: ${casualUsed.toStringAsFixed(0)} / ${casualTotal.toStringAsFixed(0)})\n'
-            '• **Sick Leaves (SL):** **${sickRem.toStringAsFixed(0)} days** available (Used: ${sickUsed.toStringAsFixed(0)} / ${sickTotal.toStringAsFixed(0)})\n'
-            '• **Earned Leaves (EL):** **${earnedRem.toStringAsFixed(0)} days** available (Used: ${earnedUsed.toStringAsFixed(0)} / ${earnedTotal.toStringAsFixed(0)})\n'
+            '• **Casual Leaves (CL):** **${casualRem.toStringAsFixed(0)} days** available (Used: ${balance.casualUsed} / ${balance.casualTotal})\n'
+            '• **Sick Leaves (SL):** **${sickRem.toStringAsFixed(0)} days** available (Used: ${balance.sickUsed} / ${balance.sickTotal})\n'
+            '• **Earned Leaves (EL):** **${earnedRem.toStringAsFixed(0)} days** available (Used: ${balance.earnedUsed} / ${balance.earnedTotal})\n'
             '• **Total Leaves Remaining:** **${totalRem.toStringAsFixed(0)} days**\n'
             '• **Pending Leave Requests:** **$pendingLeaves** (Approved: $approvedLeaves)\n\n'
             'Tap the button below to apply for a new leave.',
@@ -420,18 +415,25 @@ class AIAssistantService {
     // 1. "Last 30 days ka attendance summary do" / Analytics
     if (q.contains('30 day') || q.contains('summary') || q.contains('overall') || q.contains('company attendance') || q.contains('analytics')) {
       final totalRecords = allAttendance.length;
-      final approvedRecords = allAttendance.where((a) => a.status == AttendanceStatus.approved).length;
+      final approvedRecords = allAttendance.where((a) => a.status == AttendanceStatus.approved || a.status == AttendanceStatus.completed).length;
       final lateRecords = allAttendance.where((a) => a.timingStatus == TimingStatus.lateArrival).length;
-      final overallRate = totalRecords > 0 ? ((approvedRecords / totalRecords) * 100).toStringAsFixed(1) : '93.4';
-      const below90Count = 18; // Analytics metric
+      final overallRate = totalRecords > 0 ? ((approvedRecords / totalRecords) * 100).toStringAsFixed(1) : '100.0';
+      
+      // Calculate real below 90% count
+      int below90Count = 0;
+      final empList = allUsers.where((u) => u.role == UserRole.employee).toList();
+      for (final emp in empList) {
+        final empAtt = allAttendance.where((a) => a.employeeId == emp.userId || a.employeeId == emp.employeeId || a.employeeCode == emp.employeeId).length;
+        if (empAtt < 15) below90Count++;
+      }
 
       return AIResponse(
         text: '📊 **Company-Wide 30-Day Attendance Analytics (HR Overview):**\n\n'
-            '• **Company Overall Attendance:** **$overallRate%** (Target: 95%)\n'
+            '• **Company Overall Attendance Rate:** **$overallRate%**\n'
             '• **Total Active Headcount:** **${allUsers.length} employees**\n'
-            '• **Total Logs Evaluated:** **$totalRecords records**\n'
+            '• **Total Attendance Logs:** **$totalRecords records**\n'
             '• **Late Arrival Trends:** **$lateRecords incidents** flagged\n'
-            '• **Employees Below 90% Attendance:** **$below90Count employees** flagged for review\n\n'
+            '• **Employees Below Target Attendance:** **$below90Count employees** flagged for review\n\n'
             'Use the Report Generator to export a full PDF/Excel breakdown.',
         actionType: AIActionType.generateReport,
         actionLabel: 'OPEN REPORT GENERATOR',
@@ -441,10 +443,12 @@ class AIAssistantService {
     // 2. "Report generate karo" / Export report
     if (q.contains('report') || q.contains('generate') || q.contains('download') || q.contains('export') || q.contains('csv') || q.contains('pdf')) {
       final currentMonthName = DateFormat('MMMM yyyy').format(now);
+      final depts = allUsers.map((u) => u.department).toSet().where((d) => d.isNotEmpty).join(', ');
       return AIResponse(
         text: '📑 **$currentMonthName Attendance & Payroll Report Ready!**\n\n'
-            '• **Scope:** All Departments (Engineering, Sales, Operations, HR)\n'
-            '• **Total Employees Included:** ${allUsers.length}\n'
+            '• **Scope:** Departments (${depts.isEmpty ? "Engineering, Operations, HR" : depts})\n'
+            '• **Total Active Employees Included:** ${allUsers.length}\n'
+            '• **Total Logs Compiled:** ${allAttendance.length} records\n'
             '• **Formats Available:** PDF Summary Report & CSV Raw Data\n\n'
             'Tap below to preview and download the report immediately.',
         actionType: AIActionType.generateReport,
@@ -454,15 +458,25 @@ class AIAssistantService {
 
     // 3. "Department comparison" / Department trends
     if (q.contains('dept') || q.contains('department') || q.contains('comparison') || q.contains('compare')) {
-      return AIResponse(
-        text: '🏢 **Department Attendance Comparison (Last 30 Days):**\n\n'
-            '• **Engineering & Tech:** **95.2%** (Highest Consistency 🏆)\n'
-            '• **Management & TLs:** **96.8%**\n'
-            '• **Sales & Field:** **89.4%** (Higher outside geofence alerts 📍)\n'
-            '• **Human Resources:** **98.1%**\n'
-            '• **Operations & Support:** **91.6%**\n\n'
-            '💡 *Sales team requires regularization checks due to client visits.*',
-      );
+      final deptGroups = <String, List<UserModel>>{};
+      for (final u in allUsers) {
+        final dept = u.department.isNotEmpty ? u.department : 'General';
+        deptGroups.putIfAbsent(dept, () => []).add(u);
+      }
+
+      final buffer = StringBuffer('🏢 **Department Attendance Comparison (Live Cloud Firestore Data):**\n\n');
+      for (final entry in deptGroups.entries) {
+        final deptUsers = entry.value;
+        final empIds = deptUsers.map((u) => u.userId).toSet()..addAll(deptUsers.map((u) => u.employeeId));
+        final deptAtt = allAttendance.where((a) => empIds.contains(a.employeeId) || empIds.contains(a.employeeCode)).toList();
+        final presentCount = deptAtt.where((a) => a.status == AttendanceStatus.approved || a.status == AttendanceStatus.completed || a.status == AttendanceStatus.pending).length;
+        final deptTotalLogs = deptAtt.length;
+        final rate = deptTotalLogs > 0 ? ((presentCount / deptTotalLogs) * 100).toStringAsFixed(1) : '100.0';
+        buffer.writeln('• **${entry.key}:** **$rate%** (${deptUsers.length} staff members, $presentCount active logs)');
+      }
+      buffer.writeln('\n💡 *Data dynamically calculated from Cloud Firestore.*');
+
+      return AIResponse(text: buffer.toString());
     }
 
     // 4. "Leave analysis" / Company leaves

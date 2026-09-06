@@ -17,71 +17,71 @@ class FirestoreSeederService {
     }
 
     onProgress?.call('1/17 Seeding Departments...');
-    await _seedDepartments().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedDepartments().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('2/17 Seeding Teams...');
-    await _seedTeams().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedTeams().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('3/17 Seeding Office Locations...');
-    await _seedOfficeLocations().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedOfficeLocations().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('4/17 Seeding Shifts...');
-    await _seedShifts().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedShifts().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('5/17 Seeding Attendance Policies...');
-    await _seedPolicies().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedPolicies().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('6/17 Seeding Leave Types...');
-    await _seedLeaveTypes().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedLeaveTypes().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('7/17 Seeding Holidays...');
-    await _seedHolidays().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedHolidays().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('8/17 Seeding Users...');
-    await _seedUsers().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedUsers().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('9/17 Seeding Employees...');
-    await _seedEmployees().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedEmployees().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('10/17 Seeding Attendance Records...');
-    await _seedAttendance().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedAttendance().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('11/17 Seeding Approvals...');
-    await _seedApprovals().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedApprovals().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('12/17 Seeding Corrections...');
-    await _seedCorrections().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedCorrections().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('13/17 Seeding Leaves...');
-    await _seedLeaves().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedLeaves().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('14/17 Seeding Notifications...');
-    await _seedNotifications().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedNotifications().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('15/17 Seeding Reports...');
-    await _seedReports().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedReports().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('16/17 Seeding Audit Logs...');
-    await _seedAuditLogs().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedAuditLogs().timeout(const Duration(seconds: 10));
     await Future.delayed(const Duration(milliseconds: 20));
 
     onProgress?.call('17/17 Seeding App Settings...');
-    await _seedAppSettings().timeout(const Duration(seconds: 4)).catchError((e) => debugPrint('Seeding error: $e'));
+    await _seedAppSettings().timeout(const Duration(seconds: 10));
 
     onProgress?.call('✅ All 17 Firestore Collections seeded successfully!');
   }

@@ -88,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
     String? managerId,
     String? managerName,
     DateTime? joiningDate,
+    String? phoneNumber,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -106,6 +107,7 @@ class AuthProvider extends ChangeNotifier {
         managerId: managerId,
         managerName: managerName,
         joiningDate: joiningDate,
+        phoneNumber: phoneNumber,
       );
       _isLoading = false;
       notifyListeners();

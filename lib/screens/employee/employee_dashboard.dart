@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../config/app_theme.dart';
+import '../../models/user_model.dart';
 import '../../models/attendance_model.dart';
 import '../../models/report_model.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/hr_provider.dart';
 import '../../services/report_service.dart';
 import '../../services/geofence_service.dart';
 import '../../services/firestore_service.dart';
@@ -18,6 +20,7 @@ import 'attendance_history_screen.dart';
 import 'break_tracking_sheet.dart';
 import 'leave_management_screen.dart';
 import 'correction_request_dialog.dart';
+import 'submit_project_report_sheet.dart';
 
 class EmployeeDashboard extends StatefulWidget {
   const EmployeeDashboard({super.key});
@@ -470,6 +473,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Daily Project Work Report Card
+                _buildDailyProjectReportSection(context, user, isDark),
 
                 const SizedBox(height: 24),
 
@@ -1222,14 +1230,14 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1250,7 +1258,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '🏆 Attendance Score',
+                    'Attendance Score',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1419,6 +1427,181 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyProjectReportSection(
+    BuildContext context,
+    UserModel user,
+    bool isDark,
+  ) {
+    final hrProv = context.watch<HrProvider>();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final userReports = hrProv.getReportsForEmployee(user.userId);
+    final todayReports = userReports.where((r) => r.date == todayStr).toList();
+    final hasReportToday = todayReports.isNotEmpty;
+    final latestReport = hasReportToday ? todayReports.first : null;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: hasReportToday
+              ? AppTheme.success.withValues(alpha: 0.4)
+              : (isDark ? AppTheme.borderDark : AppTheme.primary.withValues(alpha: 0.2)),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: hasReportToday
+                      ? AppTheme.successSoft
+                      : AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  hasReportToday ? Icons.task_alt_rounded : Icons.assignment_outlined,
+                  color: hasReportToday ? AppTheme.success : AppTheme.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasReportToday ? 'Daily Work Report Submitted' : 'Daily Project Work Report',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppTheme.textMainLight,
+                      ),
+                    ),
+                    Text(
+                      hasReportToday
+                          ? 'Assigned: ${latestReport?.projectName ?? user.assignedProjectName ?? "Project"}'
+                          : 'Assigned: ${user.assignedProjectName ?? "Mobile App Revamp"}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasReportToday)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successSoft,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    '${latestReport?.hoursSpent.toStringAsFixed(1)} hrs',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.success,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (hasReportToday && latestReport != null) ...[
+            Text(
+              latestReport.workSummary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (latestReport.screenshotUrls.isNotEmpty) ...[
+                  Icon(Icons.photo_library_outlined, size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${latestReport.screenshotUrls.length} Screenshots',
+                    style: GoogleFonts.inter(fontSize: 11, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                if (latestReport.videoUrls.isNotEmpty) ...[
+                  Icon(Icons.videocam_outlined, size: 14, color: AppTheme.accent),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${latestReport.videoUrls.length} Video Clip',
+                    style: GoogleFonts.inter(fontSize: 11, color: AppTheme.accent, fontWeight: FontWeight.w600),
+                  ),
+                ],
+                const Spacer(),
+                TextButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const SubmitProjectReportSheet(),
+                    );
+                  },
+                  child: const Text('Add / Submit Another', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ] else ...[
+            Text(
+              'Log your completed tasks, hours spent, and attach screenshot or video verification for manager review.',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const SubmitProjectReportSheet(),
+                );
+              },
+              icon: const Icon(Icons.note_add_outlined, size: 18),
+              label: const Text('SUBMIT TODAY\'S WORK REPORT'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -111,7 +111,7 @@ class NotificationService {
         playSound: true,
         enableVibration: true,
         icon: '@mipmap/ic_launcher',
-        color: Color(0xFF4F46E5),
+        color: Color(0xFF2563EB),
       );
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
@@ -149,11 +149,11 @@ class NotificationService {
         iconData = Icons.cancel;
         break;
       case 'report':
-        iconColor = const Color(0xFF8B5CF6);
+        iconColor = const Color(0xFF0EA5E9);
         iconData = Icons.assessment;
         break;
       default:
-        iconColor = const Color(0xFF4F46E5);
+        iconColor = const Color(0xFF2563EB);
         iconData = Icons.notifications;
     }
 

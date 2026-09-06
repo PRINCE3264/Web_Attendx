@@ -183,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
               email: 'anita.roy@company.com',
               roleLabel: 'HR Manager • People & Culture',
               avatarLetter: 'A',
-              avatarColor: const Color(0xFF7C3AED),
+              avatarColor: const Color(0xFF2563EB),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final res = await auth.loginWithGoogle(

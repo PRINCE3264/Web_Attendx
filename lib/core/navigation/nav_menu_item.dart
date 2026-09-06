@@ -4,6 +4,7 @@ import '../permissions/role_model.dart';
 enum NavDestinationKey {
   // Common
   dashboard,
+  projectReports,
   aiAssistant,
   myProfile,
   settings,
@@ -47,6 +48,7 @@ enum NavDestinationKey {
   attendancePolicies,
   auditLogs,
   systemSettings,
+  projectsManagement,
 }
 
 class NavMenuItem {

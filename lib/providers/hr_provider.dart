@@ -5,6 +5,8 @@ import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/report_model.dart';
 import '../models/leave_model.dart';
+import '../models/project_report_model.dart';
+import '../models/project_model.dart';
 import '../services/firestore_service.dart';
 import '../services/report_service.dart';
 
@@ -15,6 +17,8 @@ class HrProvider extends ChangeNotifier {
   List<AttendanceModel> _allAttendance = [];
   List<LeaveRequestModel> _allLeaves = [];
   List<MonthlyAttendanceReport> _cachedReports = [];
+  List<ProjectReportModel> _dailyProjectReports = [];
+  List<ProjectModel> _projects = [];
 
   bool _isGeneratingReport = false;
   String _selectedDepartmentFilter = 'All';
@@ -29,6 +33,8 @@ class HrProvider extends ChangeNotifier {
     _users = _firestoreService.getAllUsers();
     _allAttendance = _firestoreService.getAllAttendance();
     _allLeaves = _firestoreService.getAllLeaves();
+    _dailyProjectReports = _firestoreService.getAllProjectReports();
+    _projects = _firestoreService.getAllProjects();
 
     _firestoreService.usersStream.listen((users) {
       _users = users;
@@ -45,6 +51,59 @@ class HrProvider extends ChangeNotifier {
       _allLeaves = leaves;
       notifyListeners();
     });
+
+    _firestoreService.projectReportsStream.listen((reports) {
+      _dailyProjectReports = reports;
+      notifyListeners();
+    });
+
+    _firestoreService.projectsStream.listen((projects) {
+      _projects = projects;
+      notifyListeners();
+    });
+  }
+
+  List<ProjectModel> get projects => List.unmodifiable(_projects);
+  List<String> get projectsList => _projects.map((p) => p.projectName).toList();
+  List<ProjectReportModel> get dailyProjectReports => List.unmodifiable(_dailyProjectReports);
+
+  Future<void> createProject(ProjectModel project, UserModel actor) async {
+    await _firestoreService.createProject(project, actor);
+    notifyListeners();
+  }
+
+  Future<void> updateProject(ProjectModel project, UserModel actor) async {
+    await _firestoreService.updateProject(project, actor);
+    notifyListeners();
+  }
+
+  Future<void> deleteProject(String projectId, UserModel actor) async {
+    await _firestoreService.deleteProject(projectId, actor);
+    notifyListeners();
+  }
+
+  Future<void> assignProjectToEmployee(String userId, String projectName) async {
+    final projectId = 'proj_${projectName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
+    await _firestoreService.assignProjectToUser(
+      userId: userId,
+      projectId: projectId,
+      projectName: projectName,
+    );
+    notifyListeners();
+  }
+
+  Future<void> submitDailyReport(ProjectReportModel report) async {
+    await _firestoreService.submitProjectReport(report);
+    notifyListeners();
+  }
+
+  List<ProjectReportModel> getReportsForEmployee(String userId) {
+    return _dailyProjectReports.where((r) => r.employeeId == userId).toList();
+  }
+
+  List<ProjectReportModel> getReportsForProject(String projectName) {
+    if (projectName == 'All' || projectName.isEmpty) return _dailyProjectReports;
+    return _dailyProjectReports.where((r) => r.projectName.toLowerCase() == projectName.toLowerCase()).toList();
   }
 
   bool get isGeneratingReport => _isGeneratingReport;
@@ -68,8 +127,7 @@ class HrProvider extends ChangeNotifier {
   }
 
   List<UserModel> get filteredEmployees {
-    final employees = _users.where((u) => u.role == UserRole.employee).toList();
-    return employees.where((e) {
+    return _users.where((e) {
       final matchesDept = _selectedDepartmentFilter == 'All' ||
           e.department.toLowerCase() == _selectedDepartmentFilter.toLowerCase();
       final matchesSearch = _searchQuery.isEmpty ||
@@ -115,6 +173,109 @@ class HrProvider extends ChangeNotifier {
   double get companyAttendanceRate {
     if (totalEmployeesCount == 0) return 0.0;
     return (presentTodayCount / totalEmployeesCount * 100).clamp(0.0, 100.0);
+  }
+
+  // AI Insights & Dynamic Department Analytics
+  Map<String, double> get departmentAttendanceRates {
+    final employees = _users.where((u) => u.role == UserRole.employee).toList();
+    if (employees.isEmpty) {
+      return {'Mobile': 92.0, 'Backend': 86.0, 'UI/Design': 96.0};
+    }
+
+    final Map<String, List<UserModel>> deptMap = {};
+    for (final emp in employees) {
+      final dept = emp.department.isEmpty ? 'General' : emp.department;
+      deptMap.putIfAbsent(dept, () => []).add(emp);
+    }
+
+    final Map<String, double> result = {};
+    deptMap.forEach((dept, empList) {
+      double sumPct = 0;
+      for (final emp in empList) {
+        final empAttendance = _allAttendance.where((a) => a.employeeId == emp.userId).toList();
+        final report = ReportService.calculate30DayReport(employee: emp, attendanceList: empAttendance);
+        sumPct += report.attendancePercentage;
+      }
+      result[dept] = empList.isNotEmpty ? double.parse((sumPct / empList.length).toStringAsFixed(1)) : 0.0;
+    });
+
+    return result;
+  }
+
+  String get lowestDepartmentInsight {
+    final rates = departmentAttendanceRates;
+    if (rates.isEmpty) return 'Department Attendance: 100%';
+
+    String lowestDept = rates.keys.first;
+    double lowestRate = rates.values.first;
+
+    rates.forEach((dept, rate) {
+      if (rate < lowestRate) {
+        lowestRate = rate;
+        lowestDept = dept;
+      }
+    });
+
+    return '$lowestDept Dept: Attendance ${lowestRate.toStringAsFixed(1)}%';
+  }
+
+  String get mostLateEmployeeInsight {
+    final employees = _users.where((u) => u.role == UserRole.employee).toList();
+    if (employees.isEmpty) return 'Most late: None';
+
+    String topLateEmp = '';
+    int maxLate = 0;
+
+    for (final emp in employees) {
+      final lateCount = _allAttendance.where((a) =>
+          a.employeeId == emp.userId &&
+          (a.timingStatus == TimingStatus.lateArrival ||
+              (a.clockInTime != null && (a.clockInTime!.hour > 9 || (a.clockInTime!.hour == 9 && a.clockInTime!.minute > 30))))
+      ).length;
+
+      if (lateCount > maxLate) {
+        maxLate = lateCount;
+        topLateEmp = emp.name;
+      }
+    }
+
+    if (maxLate == 0) return 'Most late: None — 0 times';
+    return 'Most late: $topLateEmp — $maxLate times';
+  }
+
+  String get highestAttendanceEmployeeInsight {
+    final employees = _users.where((u) => u.role == UserRole.employee).toList();
+    if (employees.isEmpty) return 'Highest attendance: N/A';
+
+    String topEmp = '';
+    double maxPct = -1;
+
+    for (final emp in employees) {
+      final empAttendance = _allAttendance.where((a) => a.employeeId == emp.userId).toList();
+      final report = ReportService.calculate30DayReport(employee: emp, attendanceList: empAttendance);
+      if (report.attendancePercentage > maxPct) {
+        maxPct = report.attendancePercentage;
+        topEmp = emp.name;
+      }
+    }
+
+    if (topEmp.isEmpty || maxPct < 0) return 'Highest attendance: N/A';
+    return 'Highest attendance: $topEmp — ${maxPct.toStringAsFixed(0)}%';
+  }
+
+  int get employeesBelow75Count {
+    final employees = _users.where((u) => u.role == UserRole.employee).toList();
+    int count = 0;
+
+    for (final emp in employees) {
+      final empAttendance = _allAttendance.where((a) => a.employeeId == emp.userId).toList();
+      final report = ReportService.calculate30DayReport(employee: emp, attendanceList: empAttendance);
+      if (report.attendancePercentage < 75.0) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   // Generate Reports

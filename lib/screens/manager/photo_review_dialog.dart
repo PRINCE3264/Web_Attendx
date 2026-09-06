@@ -41,15 +41,20 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
     final timeFormatted = att.clockInTime != null
         ? DateFormat('hh:mm:ss a').format(att.clockInTime!)
         : 'Time not recorded';
+    final keyboardSpace = MediaQuery.of(context).viewInsets.bottom;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: 440,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        padding: EdgeInsets.only(bottom: keyboardSpace > 0 ? 12 : 0),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,7 +96,7 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 ],
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
               // Timing Status Banner
               Container(
@@ -155,7 +160,7 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Employee Info Row
               Container(
@@ -170,23 +175,23 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: 18,
                       child: ClipOval(
                         child: PhotoDisplayWidget(
                           photoUrl: att.employeeAvatar,
-                          size: 40,
-                          borderRadius: 20,
+                          size: 36,
+                          borderRadius: 18,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             att.employeeName,
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                           Text(
                             '${att.employeeCode} • ${att.teamName}',
@@ -203,17 +208,17 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // Photo Container
               Center(
                 child: Container(
-                  height: 260,
+                  height: 210,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.black,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.borderLight),
+                    border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
@@ -239,7 +244,7 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time, color: Colors.white70, size: 14),
+                                    const Icon(Icons.access_time, color: Colors.white70, size: 13),
                                     const SizedBox(width: 4),
                                     Text(
                                       timeFormatted,
@@ -249,10 +254,10 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                                 ),
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on, color: AppTheme.primaryLight, size: 14),
+                                    const Icon(Icons.location_on, color: AppTheme.primaryLight, size: 13),
                                     const SizedBox(width: 4),
                                     Text(
-                                      att.location ?? 'Office',
+                                      att.location ?? 'HQ Office',
                                       style: const TextStyle(color: Colors.white, fontSize: 11),
                                     ),
                                   ],
@@ -267,15 +272,18 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
               // Rejection reason input (if toggled)
               if (_showRejectInput) ...[
                 TextField(
                   controller: _reasonController,
-                  decoration: const InputDecoration(
+                  style: GoogleFonts.inter(fontSize: 13.5),
+                  decoration: InputDecoration(
                     labelText: 'Rejection Reason',
                     hintText: 'e.g., Selfie unclear, wrong location, etc.',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -286,33 +294,52 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() => _showRejectInput = true);
-                        },
-                        icon: const Icon(Icons.close, color: AppTheme.danger, size: 18),
-                        label: const Text(
-                          'Reject',
-                          style: TextStyle(color: AppTheme.danger),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.danger),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() => _showRejectInput = true);
+                          },
+                          icon: const Icon(Icons.close_rounded, color: AppTheme.danger, size: 18),
+                          label: Text(
+                            'Reject',
+                            style: GoogleFonts.outfit(
+                              color: AppTheme.danger,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.danger,
+                            side: const BorderSide(color: AppTheme.danger, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          widget.onApproved(att);
-                          Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.success,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            widget.onApproved(att);
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                          label: Text(
+                            'Approve',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.success,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                     ),
@@ -322,26 +349,49 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextButton(
-                        onPressed: () => setState(() => _showRejectInput = false),
-                        child: const Text('Cancel'),
+                      child: SizedBox(
+                        height: 48,
+                        child: TextButton(
+                          onPressed: () => setState(() => _showRejectInput = false),
+                          style: TextButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final reason = _reasonController.text.trim().isEmpty
-                              ? 'Verification photo was rejected by TL'
-                              : _reasonController.text.trim();
-                          widget.onRejected(att, reason);
-                          Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.send, size: 16),
-                        label: const Text('Confirm Reject'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.danger,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final reason = _reasonController.text.trim().isEmpty
+                                ? 'Verification photo was rejected by TL'
+                                : _reasonController.text.trim();
+                            widget.onRejected(att, reason);
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                          label: Text(
+                            'Confirm Reject',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.danger,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                     ),

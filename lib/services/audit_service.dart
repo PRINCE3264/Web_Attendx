@@ -30,20 +30,33 @@ class AuditService {
     try {
       final db = _db;
       if (db == null) return;
-      if (FirebaseAuth.instance.currentUser == null) return;
 
-      db.collection('auditLogs').snapshots().listen((snap) {
-        if (snap.docs.isNotEmpty) {
-          final items = snap.docs.map((d) => AuditLogModel.fromMap(d.data(), d.id)).toList();
-          items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-          _logs.clear();
-          _logs.addAll(items);
-          _auditStreamController.add(List.unmodifiable(_logs));
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        if (user != null) {
+          _startListening(db);
         }
-      }, onError: (e) => debugPrint('Live auditLogs sync info: $e'));
+      });
+      _startListening(db);
     } catch (e) {
       debugPrint('Firestore auditLogs listener setup error: $e');
     }
+  }
+
+  bool _isListening = false;
+
+  void _startListening(FirebaseFirestore db) {
+    if (_isListening) return;
+    _isListening = true;
+
+    db.collection('auditLogs').snapshots().listen((snap) {
+      if (snap.docs.isNotEmpty) {
+        final items = snap.docs.map((d) => AuditLogModel.fromMap(d.data(), d.id)).toList();
+        items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        _logs.clear();
+        _logs.addAll(items);
+        _auditStreamController.add(List.unmodifiable(_logs));
+      }
+    }, onError: (e) => debugPrint('Live auditLogs sync info: $e'));
   }
 
   void log({

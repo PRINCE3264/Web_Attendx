@@ -12,6 +12,7 @@ import 'all_employees_screen.dart';
 import 'report_generator_screen.dart';
 import 'create_announcement_sheet.dart';
 import '../manager/leave_approval_screen.dart';
+import '../shared/project_reports_screen.dart';
 
 class HrDashboard extends StatelessWidget {
   const HrDashboard({super.key});
@@ -96,14 +97,14 @@ class HrDashboard extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -158,7 +159,7 @@ class HrDashboard extends StatelessWidget {
               const SizedBox(height: 20),
 
               // AI Insights Card
-              _buildAiInsightsCard(isDark),
+              _buildAiInsightsCard(isDark, hr),
 
               const SizedBox(height: 20),
 
@@ -255,11 +256,45 @@ class HrDashboard extends StatelessWidget {
                 ],
               ),
 
+              const SizedBox(height: 14),
+
+              // Daily Project Work Reports Quick Banner
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProjectReportsScreen(isEmbedded: false)),
+                  );
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.cardDark : AppTheme.primarySoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.assignment_turned_in_outlined, color: AppTheme.primary, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Company Daily Project Work Reports (${hr.dailyProjectReports.length} Submitted)',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.primary),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Department Attendance Breakdown Bar Chart
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: isDark ? AppTheme.cardDark : Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -275,159 +310,149 @@ class HrDashboard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Department Attendance Breakdown',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            'Department Attendance',
                             style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.bar_chart, color: AppTheme.primary, size: 20),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.bar_chart_rounded, color: AppTheme.primary, size: 18),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 200,
-                      child: BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: 105,
-                          barTouchData: BarTouchData(enabled: true),
-                          titlesData: FlTitlesData(
-                            show: true,
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 32,
-                                getTitlesWidget: (val, meta) {
-                                  String label = '';
-                                  switch (val.toInt()) {
-                                    case 0:
-                                      label = 'Mobile';
-                                      break;
-                                    case 1:
-                                      label = 'Backend';
-                                      break;
-                                    case 2:
-                                      label = 'UI/Design';
-                                      break;
-                                  }
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      label,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 36,
-                                getTitlesWidget: (val, meta) => Text(
-                                  '${val.toInt()}%',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF94A3B8),
+                    const SizedBox(height: 20),
+                    Builder(
+                      builder: (context) {
+                        final deptRates = hr.departmentAttendanceRates;
+                        final deptList = deptRates.entries.toList();
+                        return SizedBox(
+                          height: 210,
+                          child: BarChart(
+                            BarChartData(
+                              alignment: BarChartAlignment.spaceAround,
+                              maxY: 115,
+                              barTouchData: BarTouchData(enabled: true),
+                              titlesData: FlTitlesData(
+                                show: true,
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 38,
+                                    getTitlesWidget: (val, meta) {
+                                      final idx = val.toInt();
+                                      if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
+                                      String rawName = deptList[idx].key;
+                                      String name = rawName;
+                                      if (rawName == 'Engineering & Technology') name = 'Eng & Tech';
+                                      if (rawName == 'Human Resources') name = 'HR';
+                                      if (rawName == 'Quality Assurance') name = 'QA';
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: SizedBox(
+                                          width: 75,
+                                          child: Text(
+                                            name,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 38,
+                                    interval: 50,
+                                    getTitlesWidget: (val, meta) {
+                                      if (val < 0 || val > 100) return const SizedBox.shrink();
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 4),
+                                        child: Text(
+                                          '${val.toInt()}%',
+                                          textAlign: TextAlign.right,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: const Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                topTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 22,
+                                    getTitlesWidget: (val, meta) {
+                                      final idx = val.toInt();
+                                      if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
+                                      return Text(
+                                        '${deptList[idx].value.toStringAsFixed(0)}%',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primary,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                               ),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 22,
-                                getTitlesWidget: (val, meta) {
-                                  String pct = '';
-                                  Color col = Colors.blue;
-                                  switch (val.toInt()) {
-                                    case 0:
-                                      pct = '92%';
-                                      col = const Color(0xFF2563EB);
-                                      break;
-                                    case 1:
-                                      pct = '86%';
-                                      col = const Color(0xFF0284C7);
-                                      break;
-                                    case 2:
-                                      pct = '96%';
-                                      col = const Color(0xFF6D28D9);
-                                      break;
-                                  }
-                                  return Text(
-                                    pct,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: col,
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                horizontalInterval: 50,
+                                getDrawingHorizontalLine: (val) => FlLine(
+                                  color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                                  strokeWidth: 1,
+                                  dashArray: [4, 4],
+                                ),
+                              ),
+                              borderData: FlBorderData(show: false),
+                              barGroups: List.generate(deptList.length, (idx) {
+                                final val = deptList[idx].value;
+                                return BarChartGroupData(
+                                  x: idx,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: val.clamp(0.0, 100.0),
+                                      width: 24,
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                      gradient: LinearGradient(
+                                        colors: idx % 3 == 0
+                                            ? const [Color(0xFF3B82F6), Color(0xFF1D4ED8)]
+                                            : (idx % 3 == 1
+                                                ? const [Color(0xFF06B6D4), Color(0xFF0284C7)]
+                                                : const [Color(0xFF2563EB), Color(0xFF1E40AF)]),
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                      ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: 25,
-                            getDrawingHorizontalLine: (val) => FlLine(
-                              color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
-                              strokeWidth: 1,
-                              dashArray: [4, 4],
+                                  ],
+                                );
+                              }),
                             ),
                           ),
-                          borderData: FlBorderData(show: false),
-                          barGroups: [
-                            BarChartGroupData(x: 0, barRods: [
-                              BarChartRodData(
-                                toY: 92,
-                                width: 26,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                ),
-                              ),
-                            ]),
-                            BarChartGroupData(x: 1, barRods: [
-                              BarChartRodData(
-                                toY: 86,
-                                width: 26,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF06B6D4), Color(0xFF0284C7)],
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                ),
-                              ),
-                            ]),
-                            BarChartGroupData(x: 2, barRods: [
-                              BarChartRodData(
-                                toY: 96,
-                                width: 26,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                ),
-                              ),
-                            ]),
-                          ],
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -593,7 +618,12 @@ class HrDashboard extends StatelessWidget {
   );
 }
 
-  Widget _buildAiInsightsCard(bool isDark) {
+  Widget _buildAiInsightsCard(bool isDark, HrProvider hr) {
+    final lowestDeptStr = hr.lowestDepartmentInsight;
+    final mostLateStr = hr.mostLateEmployeeInsight;
+    final highestAttendanceStr = hr.highestAttendanceEmployeeInsight;
+    final below75Count = hr.employeesBelow75Count;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -640,13 +670,18 @@ class HrDashboard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildInsightRow(Icons.trending_down, 'Development Team: Attendance ↓ 4.2%', isDark),
+          _buildInsightRow(Icons.trending_down, lowestDeptStr, isDark),
           const SizedBox(height: 10),
-          _buildInsightRow(Icons.watch_later, 'Most late: Rahul — 6 times', isDark),
+          _buildInsightRow(Icons.watch_later, mostLateStr, isDark),
           const SizedBox(height: 10),
-          _buildInsightRow(Icons.verified, 'Highest attendance: Priya — 98%', isDark),
+          _buildInsightRow(Icons.verified, highestAttendanceStr, isDark),
           const SizedBox(height: 10),
-          _buildInsightRow(Icons.warning_amber, '3 employees below 75%', isDark, isWarning: true),
+          _buildInsightRow(
+            Icons.warning_amber,
+            '$below75Count employee${below75Count == 1 ? '' : 's'} below 75%',
+            isDark,
+            isWarning: below75Count > 0,
+          ),
         ],
       ),
     );

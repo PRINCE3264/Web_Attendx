@@ -62,11 +62,14 @@ class UserModel {
   final String? managerId;
   final String? managerName;
   final String department;
+  final String? phoneNumber;
   final String? avatarUrl;
   final String? fcmToken;
   final bool isActive;
   final DateTime? createdAt;
   final String? initialPassword;
+  final String? assignedProjectId;
+  final String? assignedProjectName;
 
   UserModel({
     required this.userId,
@@ -79,11 +82,14 @@ class UserModel {
     this.managerId,
     this.managerName,
     required this.department,
+    this.phoneNumber,
     this.avatarUrl,
     this.fcmToken,
     this.isActive = true,
     this.createdAt,
     this.initialPassword,
+    this.assignedProjectId,
+    this.assignedProjectName,
   });
 
   Map<String, dynamic> toMap() {
@@ -98,11 +104,14 @@ class UserModel {
       'managerId': managerId,
       'managerName': managerName,
       'department': department,
+      'phoneNumber': phoneNumber,
       'avatarUrl': avatarUrl,
       'fcmToken': fcmToken,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'initialPassword': initialPassword,
+      'assignedProjectId': assignedProjectId,
+      'assignedProjectName': assignedProjectName,
     };
   }
 
@@ -118,6 +127,7 @@ class UserModel {
       managerId: map['managerId'],
       managerName: map['managerName'],
       department: map['department'] ?? 'General',
+      phoneNumber: map['phoneNumber'] ?? map['phone'],
       avatarUrl: map['avatarUrl'],
       fcmToken: map['fcmToken'],
       isActive: map['isActive'] ?? true,
@@ -125,6 +135,8 @@ class UserModel {
           ? DateTime.tryParse(map['createdAt'].toString())
           : null,
       initialPassword: map['initialPassword'] ?? map['password'],
+      assignedProjectId: map['assignedProjectId'],
+      assignedProjectName: map['assignedProjectName'],
     );
   }
 
@@ -139,11 +151,14 @@ class UserModel {
     String? managerId,
     String? managerName,
     String? department,
+    String? phoneNumber,
     String? avatarUrl,
     String? fcmToken,
     bool? isActive,
     DateTime? createdAt,
     String? initialPassword,
+    String? assignedProjectId,
+    String? assignedProjectName,
   }) {
     return UserModel(
       userId: userId ?? this.userId,
@@ -156,11 +171,14 @@ class UserModel {
       managerId: managerId ?? this.managerId,
       managerName: managerName ?? this.managerName,
       department: department ?? this.department,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       fcmToken: fcmToken ?? this.fcmToken,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       initialPassword: initialPassword ?? this.initialPassword,
+      assignedProjectId: assignedProjectId ?? this.assignedProjectId,
+      assignedProjectName: assignedProjectName ?? this.assignedProjectName,
     );
   }
 }

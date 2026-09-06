@@ -121,12 +121,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ],
                     ),
                     child: ClipOval(
-                      child: Image.asset(
-                        'web/favicon.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (ctx, err, stack) => Image.asset(
+                      child: Transform.scale(
+                        scale: 3.2,
+                        child: Image.asset(
                           'assets/logo.png',
                           fit: BoxFit.contain,
+                          errorBuilder: (ctx, err, stack) => Image.asset(
+                            'web/favicon.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ),

@@ -8,6 +8,7 @@ import '../models/leave_model.dart';
 import '../models/correction_model.dart';
 import '../models/policy_model.dart';
 import '../models/audit_log_model.dart';
+import '../models/project_model.dart';
 
 class MockDataSeeder {
   static List<UserModel> getSeedUsers() {
@@ -514,5 +515,114 @@ class MockDataSeeder {
     }
 
     return records;
+  }
+
+  static List<ProjectModel> getSeedProjects() {
+    return [
+      ProjectModel(
+        projectId: 'proj_fleet_management',
+        projectName: 'Fleet Management System',
+        description: 'GPS fleet tracking, vehicle logistics, fuel monitoring & dispatch management',
+        department: 'Logistics',
+        status: 'active',
+        startDate: DateTime(2026, 1, 10),
+        targetDate: DateTime(2026, 11, 15),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_01', 'emp_02'],
+        createdAt: DateTime(2026, 1, 10),
+      ),
+      ProjectModel(
+        projectId: 'proj_invoice_factory',
+        projectName: 'Invoice Factory Platform',
+        description: 'Automated GST & VAT invoice generation, billing engine & payment reconciliation',
+        department: 'Finance Tech',
+        status: 'active',
+        startDate: DateTime(2026, 3, 1),
+        targetDate: DateTime(2026, 10, 30),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_01', 'emp_04'],
+        createdAt: DateTime(2026, 3, 1),
+      ),
+      ProjectModel(
+        projectId: 'proj_support_system_erp',
+        projectName: 'Support System ERP',
+        description: 'Customer ticket dispatch, SLA escalation engine & support desk analytics',
+        department: 'Customer Support',
+        status: 'active',
+        startDate: DateTime(2026, 4, 1),
+        targetDate: DateTime(2026, 9, 30),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_04'],
+        createdAt: DateTime(2026, 4, 1),
+      ),
+      ProjectModel(
+        projectId: 'proj_global_air_uae',
+        projectName: 'Global Air ERP (UAE)',
+        description: 'Cross-border air freight logistics, customs clearance & UAE regulatory compliance',
+        department: 'Global Logistics',
+        status: 'active',
+        startDate: DateTime(2026, 1, 20),
+        targetDate: DateTime(2026, 12, 31),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_01', 'emp_03'],
+        createdAt: DateTime(2026, 1, 20),
+      ),
+      ProjectModel(
+        projectId: 'proj_enterprise_erp',
+        projectName: 'Enterprise ERP Suite',
+        description: 'Core organizational resource planning, HR payroll & attendance integration',
+        department: 'Enterprise Operations',
+        status: 'active',
+        startDate: DateTime(2026, 2, 1),
+        targetDate: DateTime(2026, 12, 15),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_03'],
+        createdAt: DateTime(2026, 2, 1),
+      ),
+      ProjectModel(
+        projectId: 'proj_iot_hardware_hub',
+        projectName: 'IoT Attendance Hardware Hub',
+        description: 'Biometric device SDK integration, face recognition sensors & IoT gateway',
+        department: 'Hardware Engineering',
+        status: 'planning',
+        startDate: DateTime(2026, 5, 1),
+        targetDate: DateTime(2026, 11, 30),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_02'],
+        createdAt: DateTime(2026, 5, 1),
+      ),
+      ProjectModel(
+        projectId: 'proj_mobile_app_revamp',
+        projectName: 'Mobile App Revamp',
+        description: 'Flutter architecture modernization & daily work reporting integration',
+        department: 'Engineering',
+        status: 'active',
+        startDate: DateTime(2026, 1, 15),
+        targetDate: DateTime(2026, 11, 30),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_01', 'emp_02', 'emp_04'],
+        createdAt: DateTime(2026, 1, 15),
+      ),
+      ProjectModel(
+        projectId: 'proj_ai_voice_assistant',
+        projectName: 'AI Voice Assistant',
+        description: 'Multilingual voice command assistant for automated clock-in & leaves',
+        department: 'AI & Research',
+        status: 'on_hold',
+        startDate: DateTime(2026, 3, 10),
+        targetDate: DateTime(2026, 10, 20),
+        assignedLeadId: 'mgr_01',
+        assignedLeadName: 'Vikram Mehta (TL)',
+        assignedEmployeeIds: ['emp_01', 'emp_03'],
+        createdAt: DateTime(2026, 3, 10),
+      ),
+    ];
   }
 }

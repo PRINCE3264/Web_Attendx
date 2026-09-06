@@ -59,6 +59,12 @@ class AdminMenu {
       requiredPermission: AppPermission.manageDepartments,
     ),
     const NavMenuItem(
+      title: 'Projects',
+      icon: Icons.folder_special_rounded,
+      destination: NavDestinationKey.projectsManagement,
+      route: '/admin/projects-management',
+    ),
+    const NavMenuItem(
       title: 'Attendance',
       icon: Icons.co_present_outlined,
       destination: NavDestinationKey.companyAttendance,
@@ -118,6 +124,12 @@ class AdminMenu {
       destination: NavDestinationKey.attendanceReports,
       route: '/admin/reports',
       requiredPermission: AppPermission.generateAttendanceReports,
+    ),
+    const NavMenuItem(
+      title: 'Project Work Reports',
+      icon: Icons.assignment_turned_in_outlined,
+      destination: NavDestinationKey.projectReports,
+      route: '/admin/project-reports',
     ),
     NavMenuItem(
       title: 'Notifications',

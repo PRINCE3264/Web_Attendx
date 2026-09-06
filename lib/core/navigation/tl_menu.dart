@@ -52,6 +52,18 @@ class TLMenu {
       route: '/tl/team-members',
       requiredPermission: AppPermission.viewTeamMembers,
     ),
+    const NavMenuItem(
+      title: 'Project Work Reports',
+      icon: Icons.assignment_turned_in_outlined,
+      destination: NavDestinationKey.projectReports,
+      route: '/tl/project-reports',
+    ),
+    const NavMenuItem(
+      title: 'Company Projects',
+      icon: Icons.folder_special_rounded,
+      destination: NavDestinationKey.projectsManagement,
+      route: '/tl/projects',
+    ),
     NavMenuItem(
       title: 'Notifications',
       icon: Icons.notifications_none_rounded,
@@ -72,9 +84,9 @@ class TLMenu {
       route: '/tl/profile',
     ),
     const NavMenuItem(
-      title: 'Settings',
-      icon: Icons.settings_outlined,
-      destination: NavDestinationKey.settings,
+      title: 'System Settings',
+      icon: Icons.settings_applications_rounded,
+      destination: NavDestinationKey.systemSettings,
       route: '/tl/settings',
     ),
     const NavMenuItem(

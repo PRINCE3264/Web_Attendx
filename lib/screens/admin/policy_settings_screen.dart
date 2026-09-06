@@ -80,10 +80,17 @@ class _PolicySettingsScreenState extends State<PolicySettingsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final canPop = Navigator.canPop(context);
     return Scaffold(
-      appBar: widget.isEmbedded
+      appBar: (widget.isEmbedded && !canPop)
           ? null
           : AppBar(
+              leading: canPop
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    )
+                  : null,
               title: Text(
                 'Attendance Policy Engine',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),

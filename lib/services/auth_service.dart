@@ -239,6 +239,7 @@ class AuthService {
     String? managerId,
     String? managerName,
     DateTime? joiningDate,
+    String? phoneNumber,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final users = FirestoreService().getAllUsers();
@@ -262,6 +263,7 @@ class AuthService {
       managerId: managerId,
       managerName: managerName,
       department: department.trim(),
+      phoneNumber: phoneNumber?.trim(),
       isActive: true,
       createdAt: joiningDate ?? DateTime.now(),
       initialPassword: password.trim(),

@@ -58,7 +58,7 @@ enum AppRole {
       case AppRole.tl:
         return const Color(0xFF0EA5E9); // Sky
       case AppRole.hr:
-        return const Color(0xFF8B5CF6); // Purple
+        return const Color(0xFF2563EB); // Royal Blue
       case AppRole.admin:
         return const Color(0xFFEF4444); // Red
     }

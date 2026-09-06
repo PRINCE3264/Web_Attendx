@@ -13,6 +13,7 @@ import '../../widgets/role_based_sidebar.dart';
 import '../admin/admin_panel_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/policy_settings_screen.dart';
+import '../admin/projects_management_screen.dart';
 import '../auth/login_screen.dart';
 import '../employee/attendance_history_screen.dart';
 import '../employee/camera_capture_screen.dart';
@@ -24,6 +25,8 @@ import '../hr/report_generator_screen.dart';
 import '../manager/leave_approval_screen.dart';
 import '../manager/manager_dashboard.dart';
 import 'ai_voice_assistant_sheet.dart';
+import 'project_reports_screen.dart';
+import 'system_settings_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -92,9 +95,12 @@ class _AppShellState extends State<AppShell> {
     AppRole role,
     bool isDesktop,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 680;
+
     return Container(
       height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16),
       color: Colors.white,
       child: Row(
         children: [
@@ -108,7 +114,7 @@ class _AppShellState extends State<AppShell> {
             ),
           const SizedBox(width: 4),
 
-          // Header Text: Welcome, {User Name} • Role: {Role}
+          // Header Text: Welcome, {User Name}
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -117,7 +123,7 @@ class _AppShellState extends State<AppShell> {
                 Text(
                   'Welcome, ${user.name}',
                   style: GoogleFonts.outfit(
-                    fontSize: 16,
+                    fontSize: isCompact ? 14.5 : 16,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textMainLight,
                   ),
@@ -127,52 +133,62 @@ class _AppShellState extends State<AppShell> {
                 Text(
                   'Role: ${role.displayName} • ${user.department}',
                   style: GoogleFonts.inter(
-                    fontSize: 11.5,
+                    fontSize: isCompact ? 10.5 : 11.5,
                     fontWeight: FontWeight.w500,
                     color: role.badgeColor,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
 
-          // Role Badge Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: role.badgeColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: role.badgeColor.withValues(alpha: 0.35)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(role.icon, size: 14, color: role.badgeColor),
-                const SizedBox(width: 6),
-                Text(
-                  role.displayName,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: role.badgeColor,
+          // Role Badge Pill (Show full pill on larger screens, compact icon badge on small screens)
+          if (!isCompact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: role.badgeColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: role.badgeColor.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(role.icon, size: 14, color: role.badgeColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    role.displayName,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: role.badgeColor,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(width: 10),
+          if (!isCompact) const SizedBox(width: 8),
 
-          // Instant Role Switcher (For Demo & Testing)
-          TextButton.icon(
-            onPressed: _showRoleSwitcherDialog,
-            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-            label: const Text('Switch Role', style: TextStyle(fontSize: 12)),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          // Instant Role Switcher Button
+          if (isCompact)
+            IconButton(
+              onPressed: _showRoleSwitcherDialog,
+              icon: const Icon(Icons.swap_horiz_rounded, size: 20, color: AppTheme.primary),
+              tooltip: 'Switch Role',
+            )
+          else
+            TextButton.icon(
+              onPressed: _showRoleSwitcherDialog,
+              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+              label: const Text('Switch Role', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              ),
             ),
-          ),
 
           // Notification Icon
           IconButton(
@@ -268,19 +284,28 @@ class _AppShellState extends State<AppShell> {
           child: const ReportGeneratorScreen(),
         );
 
+      case NavDestinationKey.projectReports:
+        return const ProjectReportsScreen(isEmbedded: true);
+
+      case NavDestinationKey.projectsManagement:
+        return const ProjectsManagementScreen(isEmbedded: true);
+
       // Admin
       case NavDestinationKey.users:
       case NavDestinationKey.managersTLs:
       case NavDestinationKey.hrManagement:
       case NavDestinationKey.officeLocations:
       case NavDestinationKey.geofencing:
-      case NavDestinationKey.systemSettings:
         return RouteGuard.protect(
           context: context,
           user: user,
           requiredPermission: AppPermission.manageUsers,
           child: const AdminPanelScreen(),
         );
+
+      case NavDestinationKey.systemSettings:
+      case NavDestinationKey.settings:
+        return const SystemSettingsScreen(isEmbedded: true);
 
       case NavDestinationKey.attendancePolicies:
         return RouteGuard.protect(
@@ -300,7 +325,6 @@ class _AppShellState extends State<AppShell> {
 
       case NavDestinationKey.notifications:
       case NavDestinationKey.myProfile:
-      case NavDestinationKey.settings:
       default:
         // Default to role primary dashboard
         switch (role) {

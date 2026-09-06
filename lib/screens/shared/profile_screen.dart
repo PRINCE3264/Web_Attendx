@@ -171,6 +171,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       Container(
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: roleColor.withValues(alpha: 0.12),
@@ -190,12 +191,16 @@ class ProfileScreen extends StatelessWidget {
                               color: roleColor,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              '${user.role.name} • ${user.department}',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: roleColor,
+                            Flexible(
+                              child: Text(
+                                '${user.role.name} • ${user.department}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: roleColor,
+                                ),
                               ),
                             ),
                           ],

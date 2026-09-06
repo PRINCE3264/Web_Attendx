@@ -9,6 +9,7 @@ import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
 import '../shared/custom_widgets.dart';
+import '../shared/project_reports_screen.dart';
 import 'photo_review_dialog.dart';
 import 'leave_approval_screen.dart';
 
@@ -187,20 +188,20 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const LeaveApprovalScreen()),
+                            MaterialPageRoute(builder: (_) => const LeaveApprovalScreen(isEmbedded: false)),
                           );
                         },
                         borderRadius: BorderRadius.circular(14),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.cardDarkAlt : Colors.purple.shade50,
+                            color: isDark ? AppTheme.cardDarkAlt : Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.purple.shade200),
+                            border: Border.all(color: Colors.blue.shade200),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.beach_access, color: Colors.purple, size: 20),
+                              const Icon(Icons.beach_access, color: Colors.blue, size: 20),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
@@ -208,7 +209,41 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                                   style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                               ),
-                              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.purple),
+                              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Daily Project Work Reports Quick Banner
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ProjectReportsScreen(isEmbedded: false)),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppTheme.cardDarkAlt : AppTheme.primarySoft,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.assignment_turned_in_outlined, color: AppTheme.primary, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Daily Project Work Reports Feed (Screenshots & Video Proof)',
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.primary),
                             ],
                           ),
                         ),
@@ -224,16 +259,19 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                               child: ElevatedButton.icon(
                                 onPressed: _handleBulkApprove,
                                 icon: const Icon(Icons.bolt, size: 18),
-                                label: Text('BULK APPROVE (${pendingList.length})'),
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('BULK APPROVE (${pendingList.length})'),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.success,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                                 ),
                               ),
                             ),
                           if (pendingList.isNotEmpty) const SizedBox(width: 10),
                           FilterChip(
-                            label: const Text('Late Only 🔴'),
+                            label: const Text('Late Only 🔴', style: TextStyle(fontSize: 12)),
                             selected: _filterOnlyLate,
                             onSelected: (val) => setState(() => _filterOnlyLate = val),
                           ),
@@ -249,34 +287,43 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                         unselectedLabelColor: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
                         indicatorColor: AppTheme.primary,
                         indicatorWeight: 3,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                         tabs: [
                           Tab(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('Pending Approvals'),
-                                if (pendingList.isNotEmpty) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.warning,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '${pendingList.length}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text('Pending Approvals', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  if (pendingList.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.warning,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${pendingList.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                          const Tab(text: "Today's Team Roster"),
+                          const Tab(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text("Today's Team Roster", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -556,7 +603,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -576,26 +623,37 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      rec.employeeName,
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                    Flexible(
+                      child: Text(
+                        rec.employeeName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       rec.timingStatus.label,
-                      style: const TextStyle(fontSize: 10),
+                      style: GoogleFonts.inter(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 2),
                 Text(
                   'In: ${rec.clockInTime != null ? DateFormat('hh:mm a').format(rec.clockInTime!) : "--"} • Break: ${rec.totalBreakMinutes}m • Net: ${rec.formattedNetDuration}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
@@ -604,6 +662,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
               ],
             ),
           ),
+          const SizedBox(width: 8),
           StatusBadge(status: rec.status, isCompact: true),
         ],
       ),

@@ -141,6 +141,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
     if (_previousRole != role) {
       _previousRole = role;
       _updateTabController(screens.length);
+      // Always reset to tab 0 on role change so HR lands on HR Overview, etc.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _tabController.index != 0) {
+          _tabController.animateTo(0);
+        }
+      });
     }
 
     Color roleColor;

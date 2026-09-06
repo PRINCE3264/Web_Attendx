@@ -48,18 +48,35 @@ class ReportService {
       }
     }
 
-    // Working days in 30 days excluding weekends (~22 working days)
+    // Calculate working days from account creation date (createdAt) or 30 days ago up to today
+    final effectiveStart = (employee.createdAt != null && employee.createdAt!.isAfter(periodStart))
+        ? employee.createdAt!
+        : periodStart;
+
     int workingDays = 0;
-    for (int d = 0; d < 30; d++) {
-      final day = periodStart.add(Duration(days: d));
+    final todayTruncated = DateTime(now.year, now.month, now.day);
+    for (DateTime day = DateTime(effectiveStart.year, effectiveStart.month, effectiveStart.day);
+        !day.isAfter(todayTruncated);
+        day = day.add(const Duration(days: 1))) {
       if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
         workingDays++;
       }
     }
-    if (workingDays == 0) workingDays = 22;
+    if (workingDays <= 0) workingDays = 1;
 
-    final absentDays = (workingDays - presentDays - pendingDays).clamp(0, workingDays);
-    final double attendancePercentage = (presentDays / workingDays * 100).clamp(0.0, 100.0);
+    final int absentDays;
+    if (relevantRecords.isEmpty) {
+      absentDays = 0;
+    } else {
+      absentDays = (workingDays - presentDays - pendingDays).clamp(0, workingDays);
+    }
+
+    final double attendancePercentage;
+    if (relevantRecords.isEmpty && presentDays == 0) {
+      attendancePercentage = 100.0;
+    } else {
+      attendancePercentage = ((presentDays / workingDays) * 100).clamp(0.0, 100.0);
+    }
     final double totalHours = totalMinutes / 60.0;
     final double averageDailyHours = presentDays > 0 ? totalHours / presentDays : 0.0;
 

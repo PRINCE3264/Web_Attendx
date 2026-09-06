@@ -413,7 +413,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF6366F1),
+                            color: Color(0xFF2563EB),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -534,7 +534,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
                               gradient: LinearGradient(
                                 colors: _isRecording
                                     ? [Colors.redAccent, Colors.red]
-                                    : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
+                                    : [const Color(0xFF2563EB), const Color(0xFF1D4ED8)],
                               ),
                               boxShadow: [
                                 if (_isRecording)
@@ -558,7 +558,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
 
                     // Send Button
                     Material(
-                      color: const Color(0xFF4F46E5),
+                      color: const Color(0xFF2563EB),
                       borderRadius: BorderRadius.circular(22),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(22),
@@ -607,7 +607,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
         roleIcon = Icons.groups;
         break;
       case UserRole.hr:
-        badgeColor = const Color(0xFF8B5CF6);
+        badgeColor = const Color(0xFF2563EB);
         roleIcon = Icons.bar_chart;
         break;
       case UserRole.admin:
@@ -635,12 +635,12 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
             height: 42,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
               ),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -756,7 +756,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
                 gradient: LinearGradient(
                   colors: message.isWarningOrBlocked
                       ? [Colors.orange.shade700, Colors.red.shade700]
-                      : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
+                      : [const Color(0xFF2563EB), const Color(0xFF1D4ED8)],
                 ),
                 shape: BoxShape.circle,
               ),
@@ -772,7 +772,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser
-                    ? const Color(0xFF4F46E5)
+                    ? const Color(0xFF2563EB)
                     : (message.isWarningOrBlocked
                         ? (isDark ? const Color(0xFF451A1A) : const Color(0xFFFEF2F2))
                         : (isDark ? const Color(0xFF1E293B) : Colors.white)),
@@ -820,7 +820,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
+                        backgroundColor: const Color(0xFF2563EB),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -868,13 +868,13 @@ class AIVoiceButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: const LinearGradient(
-              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.45),
+                color: const Color(0xFF2563EB).withValues(alpha: 0.45),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),

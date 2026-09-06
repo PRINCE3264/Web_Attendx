@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Brand Colors
-  static const Color primary = Color(0xFF4F46E5); // Indigo 600
-  static const Color primaryLight = Color(0xFF6366F1); // Indigo 500
-  static const Color primaryDark = Color(0xFF3730A3); // Indigo 800
-  static const Color primarySoft = Color(0xFFEEF2FF);
+  static const Color primary = Color(0xFF2563EB); // Royal Blue 600
+  static const Color primaryLight = Color(0xFF3B82F6); // Blue 500
+  static const Color primaryDark = Color(0xFF1D4ED8); // Blue 700
+  static const Color primarySoft = Color(0xFFEFF6FF); // Blue 50
 
   static const Color secondary = Color(0xFF0EA5E9); // Sky 500
-  static const Color accent = Color(0xFF8B5CF6); // Violet 500
+  static const Color accent = Color(0xFF1D4ED8); // Royal Blue 700
 
   // Status Colors
   static const Color success = Color(0xFF10B981); // Emerald 500

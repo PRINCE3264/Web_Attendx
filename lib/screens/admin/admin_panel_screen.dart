@@ -1,31 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../providers/admin_provider.dart';
+import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/hr_provider.dart';
 import '../../providers/leave_provider.dart';
 import '../../services/firestore_seeder_service.dart';
+import '../../services/report_service.dart';
 import '../shared/custom_widgets.dart';
 import '../manager/leave_approval_screen.dart';
 import '../hr/create_announcement_sheet.dart';
 
 class AdminPanelScreen extends StatefulWidget {
-  const AdminPanelScreen({super.key});
+  final String initialRoleFilter; // 'All', 'Employee', 'TL', 'HR', 'Admin'
+
+  const AdminPanelScreen({
+    super.key,
+    this.initialRoleFilter = 'All',
+  });
 
   @override
   State<AdminPanelScreen> createState() => _AdminPanelScreenState();
 }
 
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
+  late String _selectedRoleFilter;
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController(text: 'Password@123');
   final _empCodeController = TextEditingController();
   final _deptController = TextEditingController();
+  final _phoneController = TextEditingController();
   UserRole _newRole = UserRole.employee;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRoleFilter = widget.initialRoleFilter;
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminPanelScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRoleFilter != widget.initialRoleFilter) {
+      setState(() {
+        _selectedRoleFilter = widget.initialRoleFilter;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -34,6 +61,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     _passwordController.dispose();
     _empCodeController.dispose();
     _deptController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -185,29 +213,58 @@ service cloud.firestore {
     required UserRole role,
     String? managerName,
     String? department,
+    DateTime? joiningDate,
+    String? phoneNumber,
   }) {
-    bool obscurePassword = false;
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 8,
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
           title: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.success.withValues(alpha: 0.15),
+                  color: AppTheme.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                child: const Icon(
+                  Icons.verified_user_rounded,
+                  color: AppTheme.primary,
+                  size: 26,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Employee Enrolled! 🎉',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Employee Enrolled! 🎉',
+                      style: GoogleFonts.outfit(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textMainLight,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Account created successfully',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -217,27 +274,27 @@ service cloud.firestore {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Account created successfully! Share these login credentials with the employee so they can log in and start work immediately.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                Text(
+                  'Share these login credentials with the employee so they can log in and start work immediately.',
+                  style: GoogleFonts.inter(fontSize: 12.5, color: AppTheme.textMutedLight, height: 1.35),
                 ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    color: AppTheme.primarySoft.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.18)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCredentialRow('👤 Name', name),
-                      const Divider(height: 16),
-                      _buildCredentialRow('🆔 Employee ID', employeeId),
-                      const Divider(height: 16),
-                      _buildCredentialRow('📧 Login Email', email),
-                      const Divider(height: 16),
+                      _buildCredentialRow(Icons.person_rounded, 'NAME', name),
+                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                      _buildCredentialRow(Icons.badge_rounded, 'EMPLOYEE ID', employeeId),
+                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                      _buildCredentialRow(Icons.email_rounded, 'LOGIN EMAIL', email),
+                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -245,31 +302,65 @@ service cloud.firestore {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('🔑 Login Password', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.key_rounded, size: 14, color: AppTheme.primary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'LOGIN PASSWORD',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
                                 Text(
                                   obscurePassword ? '••••••••' : password,
-                                  style: GoogleFonts.firaCode(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                                  style: GoogleFonts.firaCode(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryDark,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
-                            icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off, size: 20, color: Colors.grey),
+                            icon: Icon(
+                              obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              size: 20,
+                              color: AppTheme.primary,
+                            ),
                             onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
                           ),
                         ],
                       ),
-                      const Divider(height: 16),
-                      _buildCredentialRow('💼 Role & Dept', '${role.name} • ${department ?? "General"}'),
+                      if (phoneNumber != null && phoneNumber.isNotEmpty) ...[
+                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                        _buildCredentialRow(Icons.phone_rounded, 'PHONE NUMBER', phoneNumber),
+                      ],
+                      if (joiningDate != null) ...[
+                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                        _buildCredentialRow(
+                          Icons.event_rounded,
+                          'JOINING DATE & TIME',
+                          DateFormat('dd MMM yyyy, hh:mm a').format(joiningDate),
+                        ),
+                      ],
+                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                      _buildCredentialRow(Icons.work_rounded, 'ROLE & DEPT', '${role.name.toUpperCase()} • ${department ?? "General"}'),
                       if (managerName != null) ...[
-                        const Divider(height: 16),
-                        _buildCredentialRow('👥 Assigned TL', managerName),
+                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
+                        _buildCredentialRow(Icons.supervisor_account_rounded, 'ASSIGNED TL', managerName),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 ElevatedButton.icon(
                   onPressed: () {
                     final text = '''
@@ -278,7 +369,7 @@ Name: $name
 Employee ID: $employeeId
 Role: ${role.name}
 Department: ${department ?? 'General'}
-
+${phoneNumber != null && phoneNumber.isNotEmpty ? 'Phone: $phoneNumber\n' : ''}${joiningDate != null ? 'Joining Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(joiningDate)}\n' : ''}
 📧 Login Email: $email
 🔑 Password: $password
 
@@ -288,15 +379,22 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('📋 Credentials copied to clipboard! Share with employee.'),
-                        backgroundColor: AppTheme.success,
+                        backgroundColor: AppTheme.primary,
                       ),
                     );
                   },
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('COPY LOGIN CREDENTIALS'),
+                  icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.white),
+                  label: Text(
+                    'COPY LOGIN CREDENTIALS',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5, color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
-                    minimumSize: const Size.fromHeight(44),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 2,
+                    shadowColor: AppTheme.primary.withValues(alpha: 0.4),
                   ),
                 ),
               ],
@@ -305,7 +403,14 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: Text(
+                'Done',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
             ),
           ],
         ),
@@ -313,15 +418,33 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
     );
   }
 
-  Widget _buildCredentialRow(String title, String value) {
+  Widget _buildCredentialRow(IconData icon, String title, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
+        Row(
+          children: [
+            Icon(icon, size: 14, color: AppTheme.primary),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+          style: GoogleFonts.outfit(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textMainLight,
+          ),
         ),
       ],
     );
@@ -331,8 +454,10 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
     final adminProv = context.read<AdminProvider>();
     final tls = adminProv.users.where((u) => u.role == UserRole.manager).toList();
     UserModel? selectedTL = tls.isNotEmpty ? tls.first : null;
+    String? selectedProject;
     bool obscurePass = true;
     bool isSaving = false;
+    DateTime joiningDateTime = DateTime.now();
     String? formError;
     final formKey = GlobalKey<FormState>();
 
@@ -429,6 +554,53 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: modalCtx,
+                        initialDate: joiningDateTime,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (pickedDate != null && modalCtx.mounted) {
+                        final pickedTime = await showTimePicker(
+                          context: modalCtx,
+                          initialTime: TimeOfDay.fromDateTime(joiningDateTime),
+                        );
+                        setModalState(() {
+                          joiningDateTime = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            pickedTime?.hour ?? joiningDateTime.hour,
+                            pickedTime?.minute ?? joiningDateTime.minute,
+                          );
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Joining Date & Time *',
+                        prefixIcon: Icon(Icons.calendar_today_rounded, color: AppTheme.primary),
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(
+                        DateFormat('dd MMM yyyy, hh:mm a').format(joiningDateTime),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
                     controller: _passwordController,
                     obscureText: obscurePass,
                     decoration: InputDecoration(
@@ -457,43 +629,55 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                     validator: (v) => (v == null || v.trim().length < 6) ? 'Password must be at least 6 chars' : null,
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<UserRole>(
-                          initialValue: _newRole,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Role',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                          ),
-                          items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.name, overflow: TextOverflow.ellipsis))).toList(),
-                          onChanged: (val) {
-                            if (val != null) setModalState(() => _newRole = val);
-                          },
-                        ),
-                      ),
-                      if (tls.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<UserModel>(
-                            initialValue: selectedTL,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Assigned TL',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                            ),
-                            items: tls.map((t) => DropdownMenuItem(value: t, child: Text(t.name, overflow: TextOverflow.ellipsis))).toList(),
-                            onChanged: (val) {
-                              if (val != null) setModalState(() => selectedTL = val);
-                            },
-                          ),
-                        ),
-                      ],
-                    ],
+                  DropdownButtonFormField<UserRole>(
+                    initialValue: _newRole,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Role *',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.name.toUpperCase(), overflow: TextOverflow.ellipsis))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => _newRole = val);
+                    },
                   ),
+                  if (_newRole == UserRole.employee && tls.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<UserModel>(
+                      initialValue: selectedTL,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned TL / Manager',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      hint: const Text('Select TL'),
+                      items: tls.map((t) => DropdownMenuItem(value: t, child: Text(t.name, overflow: TextOverflow.ellipsis))).toList(),
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedTL = val);
+                      },
+                    ),
+                  ],
+                  if (_newRole == UserRole.employee || _newRole == UserRole.manager) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedProject,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned Project',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.folder_special_outlined),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      hint: const Text('Select Project'),
+                      items: context.watch<HrProvider>().projectsList.map((proj) => DropdownMenuItem(
+                        value: proj,
+                        child: Text(proj, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (val) => setModalState(() => selectedProject = val),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
                     onPressed: isSaving
@@ -512,6 +696,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                             final password = _passwordController.text.trim();
                             final empId = _empCodeController.text.trim();
                             final dept = _deptController.text.trim().isEmpty ? 'Engineering' : _deptController.text.trim();
+                            final phone = _phoneController.text.trim();
 
                             final success = await auth.adminCreateEmployeeAccount(
                               name: name,
@@ -522,17 +707,31 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                               department: dept,
                               teamId: selectedTL?.teamId ?? 'team_general',
                               teamName: selectedTL?.teamName ?? 'General Team',
-                              managerId: selectedTL?.userId,
-                              managerName: selectedTL?.name,
+                              managerId: _newRole == UserRole.employee ? selectedTL?.userId : null,
+                              managerName: _newRole == UserRole.employee ? selectedTL?.name : null,
+                              joiningDate: joiningDateTime,
+                              phoneNumber: phone,
                             );
 
                             if (success && mounted) {
+                              if (selectedProject != null && selectedProject!.isNotEmpty) {
+                                final hrProv = context.read<HrProvider>();
+                                final allUsers = adminProv.users;
+                                try {
+                                  final createdUser = allUsers.firstWhere(
+                                    (u) => u.email.toLowerCase() == email.toLowerCase(),
+                                    orElse: () => allUsers.last,
+                                  );
+                                  await hrProv.assignProjectToEmployee(createdUser.userId, selectedProject!);
+                                } catch (_) {}
+                              }
                               if (ctx.mounted) Navigator.pop(ctx);
                               _nameController.clear();
                               _emailController.clear();
                               _empCodeController.clear();
                               _deptController.clear();
                               _passwordController.clear();
+                              _phoneController.clear();
 
                               if (mounted) {
                                 _showCredentialsDialog(
@@ -544,6 +743,8 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                                   role: _newRole,
                                   managerName: selectedTL?.name,
                                   department: dept,
+                                  joiningDate: joiningDateTime,
+                                  phoneNumber: phone.isNotEmpty ? phone : null,
                                 );
                               }
                             } else {
@@ -571,92 +772,734 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
     );
   }
 
-  String _selectedRoleFilter = 'All';
+
 
   void _openAssignTLModal(UserModel employee) {
+    final auth = context.read<AuthProvider>();
+    final currentUser = auth.currentUser;
+    if (currentUser == null) return;
+
     final adminProv = context.read<AdminProvider>();
     final tls = adminProv.users.where((u) => u.role == UserRole.manager).toList();
+
+    UserModel? selectedTL;
+    if (employee.managerId != null && employee.managerId != 'unassigned') {
+      try {
+        selectedTL = tls.firstWhere((m) => m.userId == employee.managerId);
+      } catch (_) {}
+    }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          top: 24,
-          left: 24,
-          right: 24,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.assignment_ind_rounded, color: AppTheme.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Assign Team Lead (TL)',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                            ),
+                            Text(
+                              'Assign ${employee.name} (${employee.employeeId}) to a manager.',
+                              style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (tls.isEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'No Team Leads / Managers available.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      'SELECT MANAGER / TL:',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary, letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: tls.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final m = tls[index];
+                          final isSelected = selectedTL?.userId == m.userId;
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                selectedTL = m;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.primary.withValues(alpha: 0.12)
+                                    : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? AppTheme.primary : Colors.transparent,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: isSelected ? AppTheme.primary : Colors.grey.shade400,
+                                    child: Text(
+                                      m.name.isNotEmpty ? m.name[0].toUpperCase() : 'M',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          m.name,
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            color: isSelected ? AppTheme.primary : (isDark ? Colors.white : Colors.black87),
+                                          ),
+                                        ),
+                                        Text(
+                                          '${m.department} • ${m.employeeId}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    color: isSelected ? AppTheme.primary : Colors.grey.shade400,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  ElevatedButton.icon(
+                    onPressed: selectedTL == null
+                        ? null
+                        : () async {
+                            Navigator.pop(ctx);
+                            final adminProv = context.read<AdminProvider>();
+                            final messenger = ScaffoldMessenger.of(context);
+                            final success = await adminProv.assignEmployeeToTL(
+                              employeeId: employee.userId,
+                              tlUser: selectedTL!,
+                              admin: currentUser,
+                            );
+
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    success
+                                        ? '✅ ${employee.name} assigned to TL ${selectedTL!.name}!'
+                                        : '❌ Failed to assign TL.',
+                                  ),
+                                  backgroundColor: success ? AppTheme.success : AppTheme.danger,
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('Confirm TL Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAssignProjectSheet(BuildContext context, UserModel employee) {
+    final hrProv = context.read<HrProvider>();
+    final projects = hrProv.projectsList;
+    String? selectedProject = employee.assignedProjectName;
+    if (selectedProject == null || !projects.contains(selectedProject)) {
+      selectedProject = projects.isNotEmpty ? projects.first : null;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.folder_special_rounded, color: AppTheme.accent, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Assign Active Project',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                            ),
+                            Text(
+                              'Assign ${employee.name} (${employee.employeeId}) to a project.',
+                              style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (projects.isEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'No projects available in workspace.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      'SELECT PROJECT:',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accent, letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: projects.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final proj = projects[index];
+                          final isSelected = selectedProject == proj;
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                selectedProject = proj;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.accent.withValues(alpha: 0.12)
+                                    : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? AppTheme.accent : Colors.transparent,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppTheme.accent : Colors.grey.shade400,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.folder_rounded, size: 14, color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      proj,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        color: isSelected ? AppTheme.accent : (isDark ? Colors.white : Colors.black87),
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    color: isSelected ? AppTheme.accent : Colors.grey.shade400,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  ElevatedButton.icon(
+                    onPressed: selectedProject == null
+                        ? null
+                        : () async {
+                            Navigator.pop(ctx);
+                            final hrProv = context.read<HrProvider>();
+                            final messenger = ScaffoldMessenger.of(context);
+                            await hrProv.assignProjectToEmployee(
+                              employee.userId,
+                              selectedProject!,
+                            );
+
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('✅ ${employee.name} assigned to "$selectedProject"!'),
+                                  backgroundColor: AppTheme.success,
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('Confirm Project Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmployeeCard(
+    BuildContext context,
+    UserModel emp,
+    dynamic report,
+    UserModel? currentUser,
+    AdminProvider adminProv,
+    bool isDark,
+  ) {
+    final isActive = emp.isActive;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isActive
+            ? (isDark ? AppTheme.cardDark : Colors.white)
+            : (isDark ? const Color(0xFF1E1E2E) : AppTheme.dangerSoft.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isActive
+              ? (isDark ? AppTheme.borderDark : AppTheme.primary.withValues(alpha: 0.15))
+              : AppTheme.danger.withValues(alpha: 0.35),
+          width: isActive ? 1.0 : 1.2,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Assign TL to ${employee.name}',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row: Avatar, Name, Role/Status Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  PhotoDisplayWidget(
+                    photoUrl: emp.avatarUrl,
+                    size: 48,
+                    borderRadius: 24,
+                  ),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: isActive ? AppTheme.success : AppTheme.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: isDark ? AppTheme.cardDark : Colors.white, width: 2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            emp.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppTheme.textMainLight,
+                            ),
+                          ),
+                        ),
+                        // Status Badge Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isActive ? AppTheme.successSoft : AppTheme.dangerSoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isActive ? AppTheme.success.withValues(alpha: 0.3) : AppTheme.danger.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isActive ? Icons.check_circle_rounded : Icons.block_rounded,
+                                size: 12,
+                                color: isActive ? AppTheme.success : AppTheme.danger,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isActive ? 'ACTIVE' : 'INACTIVE',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isActive ? AppTheme.success : AppTheme.danger,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${emp.employeeId} • ${emp.department} • ${emp.role.name.toUpperCase()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                      ),
+                    ),
+                    if (emp.role == UserRole.employee) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        'TL: ${emp.managerName ?? 'Unassigned'} • Proj: ${emp.assignedProjectName ?? 'Unassigned'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.secondary,
+                        ),
+                      ),
+                    ] else if (emp.role == UserRole.manager) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        'Proj: ${emp.assignedProjectName ?? 'Unassigned'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.secondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ),
+            ],
+          ),
+
+          // Admin/HR Action Bar Row
+          if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _buildCardActionButton(
+                  icon: Icons.edit_note_rounded,
+                  label: 'Edit',
+                  color: AppTheme.primary,
+                  onTap: () => _openEditEmployeeModal(emp),
+                ),
+                if (emp.role == UserRole.employee) ...[
+                  _buildCardActionButton(
+                    icon: Icons.supervisor_account_rounded,
+                    label: 'Assign TL',
+                    color: const Color(0xFF2563EB),
+                    onTap: () => _openAssignTLModal(emp),
+                  ),
+                ],
+                if (emp.role == UserRole.employee || emp.role == UserRole.manager) ...[
+                  _buildCardActionButton(
+                    icon: Icons.folder_special_rounded,
+                    label: 'Assign Proj',
+                    color: AppTheme.accent,
+                    onTap: () => _showAssignProjectSheet(context, emp),
+                  ),
+                ],
+                _buildCardActionButton(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete',
+                  color: AppTheme.danger,
+                  onTap: () => _confirmDeleteEmployee(emp),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Select which Team Lead (TL) is responsible for attendance approvals and team records for this employee.',
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            if (tls.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No TLs found. Please create or assign a user to the TL role first.'),
-              )
-            else
-              ...tls.map((tl) {
-                final isAssigned = employee.managerId == tl.userId;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    tileColor: isAssigned ? AppTheme.primary.withValues(alpha: 0.1) : null,
-                    leading: CircleAvatar(
-                      backgroundColor: AppTheme.secondary.withValues(alpha: 0.2),
-                      child: const Icon(Icons.supervisor_account, color: AppTheme.secondary, size: 20),
-                    ),
-                    title: Text(tl.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle: Text('${tl.employeeId} • Team: ${tl.teamName}', style: const TextStyle(fontSize: 12)),
-                    trailing: isAssigned
-                        ? const Icon(Icons.check_circle, color: AppTheme.success)
-                        : ElevatedButton(
-                            onPressed: () async {
-                              final admin = context.read<AuthProvider>().currentUser;
-                              if (admin == null) return;
-                              final nav = Navigator.of(ctx);
-                              await adminProv.assignEmployeeToTL(
-                                employeeId: employee.userId,
-                                tlUser: tl,
-                                admin: admin,
-                              );
-                              nav.pop();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${employee.name} assigned to TL ${tl.name}')),
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            ),
-                            child: const Text('Assign'),
-                          ),
-                  ),
-                );
-              }),
           ],
+
+          // Inactive Warning Banner (if deactivated)
+          if (!isActive) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.dangerSoft,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.danger.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_person_outlined, size: 16, color: AppTheme.danger),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Account suspended - Workspace & login access revoked.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const Divider(height: 24),
+
+          // Lower Section: Attendance Metrics & Admin Active Switch
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem('30-Day Rate', '${report.attendancePercentage.toStringAsFixed(1)}%'),
+              _buildStatItem('Days Present', '${report.presentDays}d'),
+              _buildStatItem('Late In', '${report.lateArrivals}x'),
+              _buildStatItem('Absent', '${report.absentDays}d'),
+              // Admin/HR Activation Toggle Switch
+              if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      isActive ? 'Deactivate' : 'Reactivate',
+                      style: GoogleFonts.inter(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 2),
+                    SizedBox(
+                      height: 24,
+                      child: Switch(
+                        value: isActive,
+                        activeThumbColor: AppTheme.success,
+                        onChanged: (val) {
+                          if (currentUser != null) {
+                            adminProv.toggleUserStatus(emp.userId, val, currentUser);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCardActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -899,6 +1742,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final adminProv = context.watch<AdminProvider>();
+    final attendanceProv = context.watch<AttendanceProvider>();
     final admin = auth.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
@@ -907,6 +1751,8 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
       users = users.where((u) => u.role == UserRole.employee).toList();
     } else if (_selectedRoleFilter == 'TL') {
       users = users.where((u) => u.role == UserRole.manager).toList();
+    } else if (_selectedRoleFilter == 'HR') {
+      users = users.where((u) => u.role == UserRole.hr).toList();
     } else if (_selectedRoleFilter == 'Admin') {
       users = users.where((u) => u.role == UserRole.admin).toList();
     }
@@ -988,7 +1834,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                        side: const BorderSide(color: Color(0xFF6366F1)),
+                        side: const BorderSide(color: Color(0xFF2563EB)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
@@ -1128,12 +1974,12 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.campaign_rounded,
-                            color: Color(0xFF6366F1),
+                            color: Color(0xFF2563EB),
                             size: 20,
                           ),
                         ),
@@ -1174,7 +2020,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: ['All', 'Employee', 'TL', 'Admin'].map((filter) {
+                  children: ['All', 'Employee', 'TL', 'HR', 'Admin'].map((filter) {
                     final isSelected = _selectedRoleFilter == filter;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -1199,102 +2045,18 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
               const SizedBox(height: 12),
 
               ...users.map((u) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppTheme.cardDark : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            child: ClipOval(
-                              child: PhotoDisplayWidget(
-                                photoUrl: u.avatarUrl,
-                                size: 40,
-                                borderRadius: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(u.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text('${u.employeeId} • ${u.role.name} • ${u.department}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: u.isActive,
-                            activeThumbColor: AppTheme.success,
-                            onChanged: admin == null ? null : (val) => adminProv.toggleUserStatus(u.userId, val, admin),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 20),
-                      Row(
-                        children: [
-                          if (u.role == UserRole.employee) ...[
-                            Expanded(
-                              child: Text(
-                                'TL: ${u.managerName ?? "Not Assigned"}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: u.managerName != null ? AppTheme.secondary : Colors.grey,
-                                ),
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => _openAssignTLModal(u),
-                              icon: const Icon(Icons.assignment_ind, size: 14),
-                              label: const Text('Change TL', style: TextStyle(fontSize: 11)),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ] else ...[
-                            const Spacer(),
-                          ],
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primary),
-                                tooltip: 'Edit Employee',
-                                onPressed: () => _openEditEmployeeModal(u),
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(6),
-                              ),
-                              if (admin != null && admin.userId != u.userId) ...[
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.danger),
-                                  tooltip: 'Delete Employee',
-                                  onPressed: () => _confirmDeleteEmployee(u),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(6),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                final report = ReportService.calculate30DayReport(
+                  employee: u,
+                  attendanceList: attendanceProv.getEmployeeHistory(u.userId),
+                );
+
+                return _buildEmployeeCard(
+                  context,
+                  u,
+                  report,
+                  admin,
+                  adminProv,
+                  isDark,
                 );
               }),
             ],

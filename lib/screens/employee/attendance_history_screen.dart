@@ -6,15 +6,23 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../config/app_theme.dart';
 import '../../models/attendance_model.dart';
 import '../../models/leave_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/hr_provider.dart';
 import '../../providers/leave_provider.dart';
 import '../shared/custom_widgets.dart';
 import 'correction_request_dialog.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
   final bool isEmbedded;
-  const AttendanceHistoryScreen({super.key, this.isEmbedded = true});
+  final String? targetUserId;
+
+  const AttendanceHistoryScreen({
+    super.key,
+    this.isEmbedded = true,
+    this.targetUserId,
+  });
 
   @override
   State<AttendanceHistoryScreen> createState() => _AttendanceHistoryScreenState();
@@ -25,6 +33,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDate;
   String _selectedStatusFilter = 'All';
+  String? _selectedEmployeeId;
 
   @override
   void initState() {
@@ -78,6 +87,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     final auth = context.watch<AuthProvider>();
     final attendance = context.watch<AttendanceProvider>();
     final leaveProv = context.watch<LeaveProvider>();
+    final hr = context.watch<HrProvider>();
     final user = auth.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final now = DateTime.now();
@@ -86,10 +96,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       return const Scaffold(body: Center(child: Text('User session not found')));
     }
 
-    // STRICT PRIVACY GUARANTEE: Employee can view ONLY their own records
-    final allUserHistory = attendance.getEmployeeHistory(user.userId);
-    final allUserLeaves = leaveProv.getLeavesForEmployee(user.userId);
-    final todayAttendance = attendance.getTodayAttendance(user.userId);
+    final activeUserId = _selectedEmployeeId ?? widget.targetUserId ?? user.userId;
+    final allUserHistory = attendance.getEmployeeHistory(activeUserId);
+    final allUserLeaves = leaveProv.getLeavesForEmployee(activeUserId);
+    final todayAttendance = attendance.getTodayAttendance(activeUserId);
 
     // Map history by date string 'yyyy-MM-dd'
     final historyMap = <String, AttendanceModel>{};
@@ -184,7 +194,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                       onPressed: () => Navigator.pop(context),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      tooltip: 'Back to Dashboard',
+                      tooltip: 'Back',
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -193,7 +203,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'My Attendance',
+                          user.role == UserRole.employee ? 'My Attendance' : 'Monthly Attendance',
                           style: GoogleFonts.outfit(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -201,7 +211,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           ),
                         ),
                         Text(
-                          'Personal Monthly Attendance & Calendar',
+                          user.role == UserRole.employee
+                              ? 'Personal Monthly Attendance & Calendar'
+                              : 'Monthly Attendance Calendar & Logs',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
@@ -226,7 +238,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            user.name,
+                            user.role == UserRole.employee ? user.name : 'Monthly View',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
@@ -241,6 +253,64 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                   ),
                 ],
               ),
+
+              // Employee Selector Dropdown for Admin/HR/Manager
+              if (user.role != UserRole.employee && hr.filteredEmployees.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.cardDark : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: hr.filteredEmployees.any((e) => e.userId == activeUserId)
+                          ? activeUserId
+                          : hr.filteredEmployees.first.userId,
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primary),
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      items: hr.filteredEmployees.map((emp) {
+                        return DropdownMenuItem<String>(
+                          value: emp.userId,
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+                                child: Text(
+                                  emp.name.isNotEmpty ? emp.name[0].toUpperCase() : 'E',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '${emp.name} — ${emp.department} (${emp.employeeId})',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedEmployeeId = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 16),
 
@@ -375,7 +445,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        Expanded(child: _buildMetricTile('Leave', '$leaveCount', const Color(0xFF8B5CF6), isDark)),
+                        Expanded(child: _buildMetricTile('Leave', '$leaveCount', const Color(0xFF0EA5E9), isDark)),
                         Expanded(child: _buildMetricTile('Pending', '$pendingCount', const Color(0xFFEAB308), isDark)),
                         Expanded(child: _buildMetricTile('Rejected', '$rejectedCount', const Color(0xFFDC2626), isDark)),
                       ],
@@ -491,8 +561,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
                           if (hasApprovedLeave && !isWeekend) {
                             badgeText = 'LV';
-                            badgeBg = const Color(0xFFEDE9FE);
-                            badgeFg = const Color(0xFF6D28D9);
+                            badgeBg = const Color(0xFFDBEAFE);
+                            badgeFg = const Color(0xFF1D4ED8);
                           } else if (rec != null) {
                             if (rec.status == AttendanceStatus.pending) {
                               badgeText = 'Pnd';
@@ -560,7 +630,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           _buildLegendChip('P = Present', const Color(0xFF15803D), const Color(0xFFDCFCE7)),
                           _buildLegendChip('A = Absent', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
                           _buildLegendChip('L = Late', const Color(0xFFD97706), const Color(0xFFFEF3C7)),
-                          _buildLegendChip('LV = Leave', const Color(0xFF6D28D9), const Color(0xFFEDE9FE)),
+                          _buildLegendChip('LV = Leave', const Color(0xFF1D4ED8), const Color(0xFFDBEAFE)),
                           _buildLegendChip('Pnd = Pending', const Color(0xFFB45309), const Color(0xFFFEF3C7)),
                           _buildLegendChip('Rjk = Rejected', const Color(0xFF991B1B), const Color(0xFFFEE2E2)),
                         ],

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/hr_provider.dart';
 import '../../services/firestore_service.dart';
 
 class AddEmployeeSheet extends StatefulWidget {
@@ -25,6 +26,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
   final _departmentController = TextEditingController();
 
   UserModel? _selectedTL;
+  String? _selectedProject;
   DateTime _joiningDate = DateTime.now();
   late UserRole _selectedRole;
   bool _obscurePassword = true;
@@ -59,12 +61,9 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedTL == null && _selectedRole == UserRole.employee) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an assigned TL.')));
-      return;
-    }
 
     final auth = context.read<AuthProvider>();
+    final hrProv = context.read<HrProvider>();
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -84,6 +83,17 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     );
 
     if (success && mounted) {
+      if (_selectedProject != null && _selectedProject!.isNotEmpty) {
+        final allUsers = FirestoreService().getAllUsers();
+        try {
+          final createdUser = allUsers.firstWhere(
+            (u) => u.email.toLowerCase() == email.toLowerCase(),
+            orElse: () => allUsers.last,
+          );
+          await hrProv.assignProjectToEmployee(createdUser.userId, _selectedProject!);
+        } catch (_) {}
+      }
+
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -215,14 +225,35 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                 ),
                 const SizedBox(height: 12),
               ],
-              DropdownButtonFormField<UserModel>(
-                initialValue: _selectedTL,
-                decoration: const InputDecoration(labelText: 'TL / Manager', border: OutlineInputBorder()),
-                hint: const Text('Select TL'),
-                items: managers.map((m) => DropdownMenuItem(value: m, child: Text(m.name))).toList(),
-                onChanged: (v) => setState(() => _selectedTL = v),
-              ),
-              const SizedBox(height: 12),
+              if (_selectedRole == UserRole.employee) ...[
+                DropdownButtonFormField<UserModel>(
+                  initialValue: _selectedTL,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'TL / Manager', border: OutlineInputBorder()),
+                  hint: const Text('Select TL'),
+                  items: managers.map((m) => DropdownMenuItem(value: m, child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                  onChanged: (v) => setState(() => _selectedTL = v),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (_selectedRole == UserRole.employee || _selectedRole == UserRole.manager) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedProject,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Assigned Project',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.folder_special_outlined),
+                  ),
+                  hint: const Text('Select Project'),
+                  items: context.watch<HrProvider>().projectsList.map((proj) => DropdownMenuItem(
+                    value: proj,
+                    child: Text(proj, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: (v) => setState(() => _selectedProject = v),
+                ),
+                const SizedBox(height: 12),
+              ],
               InkWell(
                 onTap: _pickJoiningDate,
                 child: InputDecorator(

@@ -29,10 +29,17 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
           l.description.toLowerCase().contains(q);
     }).toList();
 
+    final canPop = Navigator.canPop(context);
     return Scaffold(
-      appBar: widget.isEmbedded
+      appBar: (widget.isEmbedded && !canPop)
           ? null
           : AppBar(
+              leading: canPop
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    )
+                  : null,
               title: Text(
                 'Security & Audit Trail Log',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),

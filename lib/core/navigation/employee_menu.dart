@@ -46,6 +46,18 @@ class EmployeeMenu {
       requiredPermission: AppPermission.viewOwnCalendar,
     ),
     const NavMenuItem(
+      title: 'Project Work Reports',
+      icon: Icons.assignment_turned_in_outlined,
+      destination: NavDestinationKey.projectReports,
+      route: '/employee/project-reports',
+    ),
+    const NavMenuItem(
+      title: 'Company Projects',
+      icon: Icons.folder_special_rounded,
+      destination: NavDestinationKey.projectsManagement,
+      route: '/employee/projects',
+    ),
+    const NavMenuItem(
       title: 'Leave',
       icon: Icons.beach_access_rounded,
       destination: NavDestinationKey.leave,
@@ -79,9 +91,9 @@ class EmployeeMenu {
       route: '/employee/profile',
     ),
     const NavMenuItem(
-      title: 'Settings',
-      icon: Icons.settings_outlined,
-      destination: NavDestinationKey.settings,
+      title: 'System Settings',
+      icon: Icons.settings_applications_rounded,
+      destination: NavDestinationKey.systemSettings,
       route: '/employee/settings',
     ),
     const NavMenuItem(
