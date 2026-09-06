@@ -181,4 +181,45 @@ class LocalStorageService {
       return null;
     }
   }
+
+  // --- Notifications Persistence ---
+  // Keeps the latest 50 notifications so they survive app restarts.
+  static const int _maxSavedNotifications = 50;
+
+  Future<void> saveNotifications(List<Map<String, dynamic>> notifications) async {
+    try {
+      final file = await _getFile('attendx_notifications.json');
+      if (file == null) return;
+      // Cap to the latest _maxSavedNotifications entries
+      final capped = notifications.length > _maxSavedNotifications
+          ? notifications.sublist(0, _maxSavedNotifications)
+          : notifications;
+      await file.writeAsString(jsonEncode(capped));
+    } catch (e) {
+      debugPrint('Error saving notifications to local storage: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> loadNotifications() async {
+    try {
+      final file = await _getFile('attendx_notifications.json');
+      if (file == null || !await file.exists()) return null;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      final List<dynamic> jsonList = jsonDecode(content);
+      return jsonList.cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error loading notifications from local storage: $e');
+      return null;
+    }
+  }
+
+  Future<void> clearNotifications() async {
+    try {
+      final file = await _getFile('attendx_notifications.json');
+      if (file != null && await file.exists()) await file.delete();
+    } catch (e) {
+      debugPrint('Error clearing notifications from local storage: $e');
+    }
+  }
 }

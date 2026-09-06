@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'local_storage_service.dart';
 
 class AppNotification {
   final String id;
@@ -17,6 +18,24 @@ class AppNotification {
     required this.type,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'message': message,
+        'type': type,
+        'timestamp': timestamp.toIso8601String(),
+      };
+
+  factory AppNotification.fromMap(Map<String, dynamic> map) => AppNotification(
+        id: map['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        title: map['title'] as String? ?? '',
+        message: map['message'] as String? ?? '',
+        type: map['type'] as String? ?? 'info',
+        timestamp: map['timestamp'] != null
+            ? DateTime.tryParse(map['timestamp'] as String) ?? DateTime.now()
+            : DateTime.now(),
+      );
 }
 
 class NotificationService {
@@ -28,6 +47,7 @@ class NotificationService {
 
   NotificationService._internal() {
     _initLocalNotifications();
+    _loadPersistedHistory();
   }
 
   Future<void> _initLocalNotifications() async {
@@ -65,6 +85,29 @@ class NotificationService {
     }
   }
 
+  /// Load previously persisted notifications from disk on startup
+  Future<void> _loadPersistedHistory() async {
+    try {
+      final saved = await LocalStorageService().loadNotifications();
+      if (saved != null && saved.isNotEmpty) {
+        final loaded = saved.map((m) => AppNotification.fromMap(m)).toList();
+        _history.addAll(loaded);
+      }
+    } catch (e) {
+      debugPrint('Error loading persisted notifications: $e');
+    }
+  }
+
+  /// Persist current history to disk
+  Future<void> _persistHistory() async {
+    try {
+      final maps = _history.map((n) => n.toMap()).toList();
+      await LocalStorageService().saveNotifications(maps);
+    } catch (e) {
+      debugPrint('Error persisting notifications: $e');
+    }
+  }
+
   final _notificationController = StreamController<AppNotification>.broadcast();
   Stream<AppNotification> get notificationStream => _notificationController.stream;
 
@@ -97,7 +140,16 @@ class NotificationService {
     _history.insert(0, notification);
     _notificationController.add(notification);
 
+    // Persist immediately so notifications survive app close
+    _persistHistory();
+
     _showSystemNotification(notification);
+  }
+
+  /// Clear all in-app notifications and remove from disk
+  Future<void> clearAll() async {
+    _history.clear();
+    await LocalStorageService().clearNotifications();
   }
 
   Future<void> _showSystemNotification(AppNotification notification) async {
