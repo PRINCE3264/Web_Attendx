@@ -16,6 +16,7 @@ import 'providers/theme_provider.dart';
 import 'screens/shared/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firestore_service.dart';
+import 'services/auth_service.dart';
 
 import 'firebase_options.dart';
 
