@@ -294,7 +294,7 @@ class FirestoreService {
             final isHrOrAdmin = currentUserRole == UserRole.hr ||
                 currentUserRole == UserRole.admin;
             for (final u in items) {
-              if (u.createdAt.isAfter(streamStartTime) && !existingIds.contains(u.userId) && isHrOrAdmin) {
+              if (u.createdAt != null && u.createdAt!.isAfter(streamStartTime) && !existingIds.contains(u.userId) && isHrOrAdmin) {
                 NotificationService().sendNotification(
                   title: '🆕 New Employee Joined: ${u.name}',
                   message:
