@@ -278,14 +278,14 @@ class FirestoreService {
     _seedFirestoreIfEmpty();
 
     try {
-      // Users live stream from Firestore
+      bool isFirstUsersSync = true;
       db.collection('users').snapshots().listen((snap) {
         if (snap.docs.isNotEmpty) {
           final items = snap.docs
               .map((d) => UserModel.fromMap(d.data(), d.id))
               .toList();
 
-          if (_users.isNotEmpty) {
+          if (!isFirstUsersSync && _users.isNotEmpty) {
             final existingIds = _users.map((u) => u.userId).toSet();
             // Only notify HR and Admin about new employee joins
             final currentUserRole = AuthService().currentUser?.role;
@@ -302,12 +302,14 @@ class FirestoreService {
               }
             }
           }
+          isFirstUsersSync = false;
 
           _users.clear();
           _users.addAll(items);
           _usersStreamController.add(List.unmodifiable(_users));
           LocalStorageService().saveUsers(_users);
         } else {
+          isFirstUsersSync = false;
           _users.clear();
           _usersStreamController.add(List.unmodifiable(_users));
           LocalStorageService().saveUsers(_users);
@@ -435,6 +437,7 @@ class FirestoreService {
           }, onError: (e) => debugPrint('Live policy sync info: $e'));
 
       // Announcements live stream from Firestore
+      bool isFirstAnnouncementsSync = true;
       db.collection('announcements').snapshots().listen((snap) {
         if (snap.docs.isNotEmpty) {
           final items = snap.docs
@@ -442,7 +445,7 @@ class FirestoreService {
               .toList();
           items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          if (_announcements.isNotEmpty) {
+          if (!isFirstAnnouncementsSync && _announcements.isNotEmpty) {
             final existingIds = _announcements.map((a) => a.id).toSet();
             for (final ann in items) {
               if (!existingIds.contains(ann.id)) {
@@ -458,17 +461,20 @@ class FirestoreService {
               }
             }
           }
+          isFirstAnnouncementsSync = false;
 
           _announcements.clear();
           _announcements.addAll(items);
           _announcementsStreamController.add(List.unmodifiable(_announcements));
         } else {
+          isFirstAnnouncementsSync = false;
           _announcements.clear();
           _announcementsStreamController.add(List.unmodifiable(_announcements));
         }
       }, onError: (e) => debugPrint('Live announcements sync info: $e'));
 
       // Notifications live stream from Firestore
+      bool isFirstNotificationsSync = true;
       db.collection('notifications').snapshots().listen((snap) {
         if (snap.docs.isNotEmpty) {
           final items = snap.docs
@@ -476,7 +482,7 @@ class FirestoreService {
               .toList();
           items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          if (_notifications.isNotEmpty) {
+          if (!isFirstNotificationsSync && _notifications.isNotEmpty) {
             final existingIds = _notifications.map((n) => n.id).toSet();
             for (final notif in items) {
               if (!existingIds.contains(notif.id)) {
@@ -490,6 +496,7 @@ class FirestoreService {
               }
             }
           }
+          isFirstNotificationsSync = false;
 
           final Map<String, NotificationModel> map = {for (final n in _notifications) n.id: n};
           for (final item in items) {
@@ -500,6 +507,8 @@ class FirestoreService {
           _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _notificationsStreamController.add(List.unmodifiable(_notifications));
           LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
+        } else {
+          isFirstNotificationsSync = false;
         }
       }, onError: (e) => debugPrint('Live notifications sync info: $e'));
 
