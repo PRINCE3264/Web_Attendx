@@ -1444,6 +1444,17 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     final hasReportToday = todayReports.isNotEmpty;
     final latestReport = hasReportToday ? todayReports.first : null;
 
+    final matchedProjects = hrProv.projects.where((p) =>
+      (user.assignedProjectId != null && p.projectId == user.assignedProjectId) ||
+      (user.assignedProjectName != null && p.projectName.toLowerCase() == user.assignedProjectName!.toLowerCase()) ||
+      p.assignedEmployeeIds.contains(user.userId) ||
+      p.assignedEmployeeIds.contains(user.employeeId)
+    ).toList();
+    final activeProjectName = user.assignedProjectName ??
+        (matchedProjects.isNotEmpty
+            ? matchedProjects.first.projectName
+            : (latestReport?.projectName ?? "Unassigned Project"));
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1496,9 +1507,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                       ),
                     ),
                     Text(
-                      hasReportToday
-                          ? 'Assigned: ${latestReport?.projectName ?? user.assignedProjectName ?? "Project"}'
-                          : 'Assigned: ${user.assignedProjectName ?? "Mobile App Revamp"}',
+                      'Assigned: $activeProjectName',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppTheme.secondary,

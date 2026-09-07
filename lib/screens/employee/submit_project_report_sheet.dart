@@ -170,7 +170,10 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
         projectSet.add(proj.projectName);
       } else {
         if (proj.projectId == user?.assignedProjectId ||
+            (user?.assignedProjectName != null &&
+                proj.projectName.toLowerCase() == user?.assignedProjectName?.toLowerCase()) ||
             proj.assignedEmployeeIds.contains(user?.userId) ||
+            (user?.employeeId != null && proj.assignedEmployeeIds.contains(user?.employeeId)) ||
             proj.assignedLeadId == user?.userId ||
             proj.assignedLeadId == user?.employeeId) {
           projectSet.add(proj.projectName);

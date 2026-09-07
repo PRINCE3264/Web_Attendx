@@ -39,9 +39,13 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
       if (currentUser != null && (currentUser.role == UserRole.employee || currentUser.role == UserRole.manager)) {
         final isAssigned =
             proj.projectId == currentUser.assignedProjectId ||
+            (currentUser.assignedProjectName != null &&
+                currentUser.assignedProjectName!.isNotEmpty &&
+                proj.projectName.toLowerCase() == currentUser.assignedProjectName!.toLowerCase()) ||
             proj.assignedEmployeeIds.contains(currentUser.userId) ||
+            proj.assignedEmployeeIds.contains(currentUser.employeeId) ||
             proj.assignedLeadId == currentUser.userId ||
-            proj.assignedLeadId == currentUser.employeeId; // Just in case legacy IDs are used
+            proj.assignedLeadId == currentUser.employeeId;
         if (!isAssigned) return false;
       }
 
@@ -1201,6 +1205,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 targetDate: targetDate,
                                 assignedLeadId: selectedLeadId,
                                 assignedLeadName: selectedLeadName,
+                                assignedEmployeeIds: existingProject?.assignedEmployeeIds ?? [],
                                 createdAt:
                                     existingProject?.createdAt ??
                                     DateTime.now(),

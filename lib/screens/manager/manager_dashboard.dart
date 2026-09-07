@@ -381,11 +381,18 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
               Builder(
                 builder: (context) {
                   final hrProv = context.watch<HrProvider>();
-                  final myTeamMembers = hrProv.allEmployees.where((e) =>
-                      e.managerId == user.userId ||
-                      (e.managerId != null && e.managerId == user.employeeId) ||
-                      (user.teamId.isNotEmpty && user.teamId != 'unassigned' && e.teamId == user.teamId)
-                  ).toList();
+                  final myTeamMembers = hrProv.allEmployees.where((e) {
+                    if (e.userId == user.userId || (user.employeeId.isNotEmpty && e.employeeId == user.employeeId)) {
+                      return false;
+                    }
+                    return e.managerId == user.userId ||
+                        (user.employeeId.isNotEmpty && e.managerId == user.employeeId) ||
+                        (user.name.isNotEmpty && e.managerId == user.name) ||
+                        (user.email.isNotEmpty && e.managerId == user.email) ||
+                        (e.managerName != null && e.managerName!.isNotEmpty &&
+                            (e.managerName == user.name || e.managerName == user.userId || e.managerName == user.employeeId)) ||
+                        (user.teamId.isNotEmpty && user.teamId != 'unassigned' && e.teamId == user.teamId);
+                  }).toList();
 
                   return ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

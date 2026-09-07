@@ -886,7 +886,7 @@ class FirestoreService {
     required UserModel tlUser,
     required UserModel actor,
   }) async {
-    final index = _users.indexWhere((u) => u.userId == employeeId);
+    final index = _users.indexWhere((u) => u.userId == employeeId || u.employeeId == employeeId);
     if (index != -1) {
       final old = _users[index];
       final updated = old.copyWith(
@@ -901,8 +901,16 @@ class FirestoreService {
       try {
         await _db
             ?.collection('users')
-            .doc(employeeId)
+            .doc(old.userId)
             .set(updated.toMap(), SetOptions(merge: true));
+        if (old.employeeId.isNotEmpty) {
+          await _db?.collection('employees').doc(old.employeeId).set({
+            'managerId': tlUser.userId,
+            'managerName': tlUser.name,
+            'teamId': tlUser.teamId,
+            'teamName': tlUser.teamName,
+          }, SetOptions(merge: true));
+        }
       } catch (e) {
         debugPrint('Firestore assign TL error: $e');
       }
@@ -1052,26 +1060,37 @@ class FirestoreService {
 
   Set<String> getEmployeeIdsForTL(String tlId) {
     final tlUser = _users.firstWhere(
-      (u) => u.userId == tlId,
+      (u) => u.userId == tlId || u.employeeId == tlId,
       orElse: () => _users.firstWhere(
         (u) => u.role == UserRole.manager,
         orElse: () => _users.first,
       ),
     );
-    return _users
-        .where(
-          (u) =>
-              u.userId == tlId ||
-              u.managerId == tlId ||
-              (tlUser.employeeId.isNotEmpty && u.managerId == tlUser.employeeId) ||
-              (tlUser.teamId.isNotEmpty &&
-                  tlUser.teamId != 'unassigned' &&
-                  u.teamId == tlUser.teamId &&
-                  u.managerId != null &&
-                  u.managerId!.isNotEmpty),
-        )
-        .map((u) => u.userId)
-        .toSet();
+
+    final Set<String> empIds = {};
+    for (final u in _users) {
+      if (u.userId == tlUser.userId ||
+          (tlUser.employeeId.isNotEmpty && u.employeeId == tlUser.employeeId)) {
+        continue;
+      }
+      final isAssigned =
+          u.managerId == tlId ||
+          u.managerId == tlUser.userId ||
+          (tlUser.employeeId.isNotEmpty && u.managerId == tlUser.employeeId) ||
+          (tlUser.name.isNotEmpty && u.managerId == tlUser.name) ||
+          (tlUser.teamId.isNotEmpty &&
+              tlUser.teamId != 'unassigned' &&
+              u.teamId == tlUser.teamId);
+
+      if (isAssigned) {
+        empIds.add(u.userId);
+        if (u.employeeId.isNotEmpty) {
+          empIds.add(u.employeeId);
+        }
+      }
+    }
+
+    return empIds;
   }
 
   List<AttendanceModel> getAttendanceForTL(String tlId) {
@@ -2102,30 +2121,54 @@ class FirestoreService {
     required String projectId,
     required String projectName,
   }) async {
-    final idx = _users.indexWhere((u) => u.userId == userId);
+    final idx = _users.indexWhere((u) => u.userId == userId || u.employeeId == userId);
     if (idx != -1) {
-      final updated = _users[idx].copyWith(
+      final oldUser = _users[idx];
+      final updated = oldUser.copyWith(
         assignedProjectId: projectId,
         assignedProjectName: projectName,
       );
       _users[idx] = updated;
       _usersStreamController.add(List.unmodifiable(_users));
 
+      // Update in-memory _projects assignedEmployeeIds
+      final projIdx = _projects.indexWhere((p) =>
+          p.projectId == projectId ||
+          p.projectName.toLowerCase() == projectName.toLowerCase());
+      if (projIdx != -1) {
+        final proj = _projects[projIdx];
+        final newIds = Set<String>.from(proj.assignedEmployeeIds)
+          ..add(updated.userId);
+        if (updated.employeeId.isNotEmpty) {
+          newIds.add(updated.employeeId);
+        }
+        _projects[projIdx] = proj.copyWith(
+          assignedEmployeeIds: newIds.toList(),
+        );
+        _projectsStreamController.add(List.unmodifiable(_projects));
+      }
+
       try {
-        await _db?.collection('users').doc(userId).set({
+        await _db?.collection('users').doc(updated.userId).set({
           'assignedProjectId': projectId,
           'assignedProjectName': projectName,
         }, SetOptions(merge: true));
 
-        await _db?.collection('employees').doc(updated.employeeId).set({
-          'assignedProjectId': projectId,
-          'assignedProjectName': projectName,
-        }, SetOptions(merge: true));
+        if (updated.employeeId.isNotEmpty) {
+          await _db?.collection('employees').doc(updated.employeeId).set({
+            'assignedProjectId': projectId,
+            'assignedProjectName': projectName,
+          }, SetOptions(merge: true));
+        }
 
-        // Add user to the project's assignedEmployeeIds
-        await _db?.collection('projects').doc(projectId).update({
-          'assignedEmployeeIds': FieldValue.arrayUnion([userId])
-        });
+        if (projIdx != -1) {
+          final targetProjId = _projects[projIdx].projectId;
+          await _db?.collection('projects').doc(targetProjId).update({
+            'assignedEmployeeIds': FieldValue.arrayUnion(
+              [updated.userId, if (updated.employeeId.isNotEmpty) updated.employeeId],
+            )
+          });
+        }
       } catch (e) {
         debugPrint('Firestore assign project error: $e');
       }
@@ -2140,8 +2183,38 @@ class FirestoreService {
     }
   }
 
+  void _syncAssignedProjectToUsers(ProjectModel project) {
+    for (int i = 0; i < _users.length; i++) {
+      final u = _users[i];
+      final isAssigned = project.assignedEmployeeIds.contains(u.userId) ||
+          (u.employeeId.isNotEmpty && project.assignedEmployeeIds.contains(u.employeeId)) ||
+          project.assignedLeadId == u.userId ||
+          (u.employeeId.isNotEmpty && project.assignedLeadId == u.employeeId);
+      if (isAssigned) {
+        _users[i] = u.copyWith(
+          assignedProjectId: project.projectId,
+          assignedProjectName: project.projectName,
+        );
+        try {
+          _db?.collection('users').doc(u.userId).set({
+            'assignedProjectId': project.projectId,
+            'assignedProjectName': project.projectName,
+          }, SetOptions(merge: true));
+          if (u.employeeId.isNotEmpty) {
+            _db?.collection('employees').doc(u.employeeId).set({
+              'assignedProjectId': project.projectId,
+              'assignedProjectName': project.projectName,
+            }, SetOptions(merge: true));
+          }
+        } catch (_) {}
+      }
+    }
+    _usersStreamController.add(List.unmodifiable(_users));
+  }
+
   Future<ProjectModel> createProject(ProjectModel newProject, UserModel actor) async {
     _projects.add(newProject);
+    _syncAssignedProjectToUsers(newProject);
     _projectsStreamController.add(List.unmodifiable(_projects));
 
     try {
@@ -2170,6 +2243,7 @@ class FirestoreService {
     final idx = _projects.indexWhere((p) => p.projectId == updatedProject.projectId);
     if (idx != -1) {
       _projects[idx] = updatedProject;
+      _syncAssignedProjectToUsers(updatedProject);
       _projectsStreamController.add(List.unmodifiable(_projects));
 
       try {

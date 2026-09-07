@@ -67,12 +67,21 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
         ? hr.filteredEmployees
               .where(
                 (e) =>
-                    e.managerId == currentUser.userId ||
-                    (e.managerId != null &&
-                        e.managerId == currentUser.employeeId) ||
-                    (currentUser.teamId.isNotEmpty &&
-                        currentUser.teamId != 'unassigned' &&
-                        e.teamId == currentUser.teamId),
+                    e.userId != currentUser.userId &&
+                    e.employeeId != currentUser.employeeId &&
+                    (e.managerId == currentUser.userId ||
+                        (e.managerId != null &&
+                            e.managerId == currentUser.employeeId) ||
+                        (e.managerId != null &&
+                            e.managerId == currentUser.name) ||
+                        (e.managerName != null &&
+                            e.managerName!.isNotEmpty &&
+                            (e.managerName == currentUser.name ||
+                                e.managerName == currentUser.userId ||
+                                e.managerName == currentUser.employeeId)) ||
+                        (currentUser.teamId.isNotEmpty &&
+                            currentUser.teamId != 'unassigned' &&
+                            e.teamId == currentUser.teamId)),
               )
               .toList()
         : <UserModel>[];
@@ -1062,12 +1071,18 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     final projects = hrProv.projects
         .where((p) {
           if (currentUser?.role == UserRole.admin ||
-              currentUser?.role == UserRole.hr)
+              currentUser?.role == UserRole.hr) {
             return true;
+          }
           return p.assignedLeadId == currentUser?.userId ||
               p.assignedLeadId == currentUser?.employeeId ||
               p.projectId == currentUser?.assignedProjectId ||
-              p.assignedEmployeeIds.contains(currentUser?.userId);
+              (currentUser?.assignedProjectName != null &&
+                  p.projectName.toLowerCase() ==
+                      currentUser?.assignedProjectName?.toLowerCase()) ||
+              p.assignedEmployeeIds.contains(currentUser?.userId) ||
+              (currentUser?.employeeId != null &&
+                  p.assignedEmployeeIds.contains(currentUser?.employeeId));
         })
         .map((p) => p.projectName)
         .toList();
