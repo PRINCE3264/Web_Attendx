@@ -36,11 +36,34 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
     // Filter by TL if logged in as TL
     if (currentUser?.role == UserRole.manager && currentUser != null) {
       final teamEmpIds = hrProv.allEmployees
-          .where((e) => e.managerId == currentUser.userId || (e.managerId != null && e.managerId == currentUser.employeeId))
+          .where((e) {
+            final assignedByManagerId =
+                e.managerId == currentUser.userId ||
+                (currentUser.employeeId.isNotEmpty && e.managerId == currentUser.employeeId) ||
+                (currentUser.name.isNotEmpty && e.managerId == currentUser.name) ||
+                (currentUser.email.isNotEmpty && e.managerId == currentUser.email);
+            final assignedByManagerName =
+                e.managerName != null &&
+                e.managerName!.isNotEmpty &&
+                e.managerName!.trim().toLowerCase() == currentUser.name.trim().toLowerCase();
+            final sameTeam = e.teamId.isNotEmpty && e.teamId == currentUser.teamId;
+            return assignedByManagerId || assignedByManagerName || sameTeam;
+          })
           .map((e) => e.userId)
           .toSet();
       teamEmpIds.add(currentUser.userId);
-      reports = reports.where((r) => teamEmpIds.contains(r.employeeId)).toList();
+      if (currentUser.employeeId.isNotEmpty) {
+        teamEmpIds.add(currentUser.employeeId);
+      }
+      final filtered = reports.where((r) =>
+        teamEmpIds.contains(r.employeeId) ||
+        teamEmpIds.contains(r.employeeName) ||
+        r.employeeId.startsWith('emp_') ||
+        teamEmpIds.isEmpty
+      ).toList();
+      if (filtered.isNotEmpty) {
+        reports = filtered;
+      }
     } else if (currentUser?.role == UserRole.employee && currentUser != null) {
       // Filter for Employee to only see their own reports
       reports = reports.where((r) => r.employeeId == currentUser.userId).toList();
@@ -252,6 +275,9 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
   }
 
   Widget _buildReportCard(BuildContext context, ProjectReportModel report, bool isDark) {
+    final auth = context.watch<AuthProvider>();
+    final hrProv = context.watch<HrProvider>();
+    final currentUser = auth.currentUser;
     final submittedTimeStr = DateFormat('dd MMM yyyy, hh:mm a').format(report.submittedAt);
 
     return Container(
@@ -305,25 +331,70 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
                   ],
                 ),
               ),
-              // Hours & Project Pill
+              // Hours & Project Pill & Delete Action
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primarySoft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      '${report.hoursSpent.toStringAsFixed(1)} hrs',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          '${report.hoursSpent.toStringAsFixed(1)} hrs',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+                        const SizedBox(width: 2),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.danger, size: 18),
+                          tooltip: 'Delete Report from DB',
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (dlgCtx) => AlertDialog(
+                                title: const Text('Delete Work Report?'),
+                                content: Text('Delete daily work report for "${report.projectName}" submitted by ${report.employeeName} permanently from Firebase Firestore DB?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dlgCtx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      Navigator.pop(dlgCtx);
+                                      await hrProv.deleteProjectReport(report.reportId, currentUser!);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('🗑️ Work Report permanently deleted from DB.'),
+                                            backgroundColor: AppTheme.danger,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+                                    child: const Text('Delete from DB'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

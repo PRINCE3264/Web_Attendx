@@ -776,7 +776,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFD97706)),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Late Clock-In (${rec.lateMinutes} mins late)',
+                                    'Late Clock-In (${rec.lateMinutes.toHoursAndMinutes} late)',
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -912,7 +912,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       if (todayRec.status == AttendanceStatus.pending) {
         if (todayRec.isLate) {
           title = 'Late Clock-In (Pending TL Approval)';
-          subtitle = 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.lateMinutes} mins late). Awaiting TL review.';
+          subtitle = 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.lateMinutes.toHoursAndMinutes} late). Awaiting TL review.';
           color = const Color(0xFFDC2626);
           bgColor = const Color(0xFFFEF2F2);
           icon = Icons.warning_amber_rounded;

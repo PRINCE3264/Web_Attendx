@@ -867,9 +867,11 @@ class AIVoiceButton extends StatefulWidget {
 }
 
 class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProviderStateMixin {
+  static Offset? _savedPosition;
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
   late Animation<double> _pulseScaleAnimation;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -896,83 +898,149 @@ class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => AIVoiceAssistantSheet.show(context),
-      child: Tooltip(
-        message: 'Open AI Assistant',
-        child: AnimatedBuilder(
-          animation: _glowController,
-          builder: (context, child) {
-            final glowVal = _glowAnimation.value;
-            final scaleVal = _pulseScaleAnimation.value;
+    final screenSize = MediaQuery.of(context).size;
+    final padding = MediaQuery.of(context).padding;
 
-            return Transform.scale(
-              scale: scaleVal,
-              child: SizedBox(
-                width: 68,
-                height: 68,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Subtle Pulsing Glow Ring
-                    Container(
-                      width: 52 + (glowVal * 4),
-                      height: 52 + (glowVal * 4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.08 * glowVal),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6).withValues(alpha: 0.15 + (glowVal * 0.15)),
-                            blurRadius: 8 + (glowVal * 4),
-                            spreadRadius: 1 + (glowVal * 2),
-                          ),
-                        ],
-                      ),
-                    ),
+    if (_savedPosition != null) {
+      if (_savedPosition!.dx < 0 ||
+          _savedPosition!.dy < 0 ||
+          _savedPosition!.dx > screenSize.width - 20 ||
+          _savedPosition!.dy > screenSize.height - 20) {
+        _savedPosition = null;
+      }
+    }
 
-                    // Inner Core Glowing Floating Button
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.5 + (glowVal * 0.4)),
-                          width: 1.8,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF1D4ED8).withValues(alpha: 0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          'assets/ai.png',
-                          width: 30,
-                          height: 30,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.smart_toy_rounded,
-                            color: Colors.white.withValues(alpha: 0.92 + (glowVal * 0.08)),
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    final double? leftPos = _savedPosition?.dx;
+    final double? topPos = _savedPosition?.dy;
+    final double? rightPos = _savedPosition == null ? 16.0 : null;
+    final double? bottomPos = _savedPosition == null ? 110.0 : null;
+
+    return Positioned(
+      left: leftPos,
+      top: topPos,
+      right: rightPos,
+      bottom: bottomPos,
+      child: GestureDetector(
+        onPanStart: (details) {
+          final RenderBox? box = context.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final globalPos = box.localToGlobal(Offset.zero);
+            setState(() {
+              _savedPosition = globalPos;
+              _isDragging = true;
+            });
+          }
+        },
+        onPanUpdate: (details) {
+          setState(() {
+            if (_savedPosition == null) {
+              final RenderBox? box = context.findRenderObject() as RenderBox?;
+              if (box != null) {
+                _savedPosition = box.localToGlobal(Offset.zero);
+              } else {
+                _savedPosition = Offset(
+                  (screenSize.width - 76.0).clamp(10.0, 1000.0),
+                  (screenSize.height - 150.0).clamp(50.0, 2000.0),
+                );
+              }
+            }
+            final newX = (_savedPosition!.dx + details.delta.dx).clamp(
+              10.0,
+              screenSize.width > 70 ? screenSize.width - 70.0 : 300.0,
             );
-          },
+            final newY = (_savedPosition!.dy + details.delta.dy).clamp(
+              padding.top + 10.0,
+              screenSize.height > 120 ? screenSize.height - 120.0 : 600.0,
+            );
+            _savedPosition = Offset(newX, newY);
+          });
+        },
+        onPanEnd: (_) {
+          setState(() {
+            _isDragging = false;
+          });
+        },
+        onTap: () {
+          if (!_isDragging) {
+            AIVoiceAssistantSheet.show(context);
+          }
+        },
+        child: Tooltip(
+          message: 'Drag anywhere on screen or tap to open AI Assistant',
+          child: AnimatedBuilder(
+            animation: _glowController,
+            builder: (context, child) {
+              final glowVal = _glowAnimation.value;
+              final scaleVal = _pulseScaleAnimation.value;
+
+              return Transform.scale(
+                scale: _isDragging ? 1.15 : scaleVal,
+                child: SizedBox(
+                  width: 68,
+                  height: 68,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Subtle Pulsing Glow Ring
+                      Container(
+                        width: 52 + (glowVal * 4),
+                        height: 52 + (glowVal * 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF2563EB).withValues(alpha: _isDragging ? 0.25 : 0.08 * glowVal),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withValues(alpha: _isDragging ? 0.4 : 0.15 + (glowVal * 0.15)),
+                              blurRadius: _isDragging ? 14 : 8 + (glowVal * 4),
+                              spreadRadius: _isDragging ? 4 : 1 + (glowVal * 2),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Inner Core Glowing Floating Button
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5 + (glowVal * 0.4)),
+                            width: 1.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF1D4ED8).withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/ai.png',
+                            width: 30,
+                            height: 30,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.smart_toy_rounded,
+                              color: Colors.white.withValues(alpha: 0.92 + (glowVal * 0.08)),
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

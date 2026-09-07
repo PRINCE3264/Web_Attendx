@@ -228,11 +228,11 @@ class LeaveBalanceModel {
   LeaveBalanceModel({
     required this.employeeId,
     this.casualTotal = 12,
-    this.casualUsed = 2,
+    this.casualUsed = 0,
     this.sickTotal = 8,
-    this.sickUsed = 1,
+    this.sickUsed = 0,
     this.earnedTotal = 15,
-    this.earnedUsed = 3,
+    this.earnedUsed = 0,
   });
 
   int get casualRemaining => casualTotal - casualUsed;

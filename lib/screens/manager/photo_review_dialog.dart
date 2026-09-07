@@ -142,7 +142,7 @@ class _PhotoReviewDialogState extends State<PhotoReviewDialog> {
                           ),
                           Text(
                             att.isLate
-                                ? 'Late by ${att.lateMinutes} mins (Office start: 09:30 AM | Grace ends: 09:45 AM)'
+                                ? 'Late by ${att.lateMinutes.toHoursAndMinutes} (Office start: 09:30 AM | Grace ends: 09:45 AM)'
                                 : (att.isGracePeriod
                                     ? 'Clocked in during 15-min grace window ($timeFormatted)'
                                     : 'Clocked in on time at $timeFormatted'),

@@ -22,56 +22,71 @@ class NotificationsScreen extends StatelessWidget {
         backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Row(
-          children: [
-            Text(
-              'Notifications',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: isDark ? Colors.white : AppTheme.textMainLight,
-              ),
-            ),
-            if (notifProvider.unreadCount > 0) ...[
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+        titleSpacing: 16,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Notifications',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  color: isDark ? Colors.white : AppTheme.textMainLight,
                 ),
-                child: Text(
-                  '${notifProvider.unreadCount} NEW',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
-                    letterSpacing: 0.5,
+              ),
+              if (notifProvider.unreadCount > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${notifProvider.unreadCount} NEW',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
         actions: [
           if (notifProvider.unreadCount > 0)
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: TextButton.icon(
-                onPressed: () => notifProvider.markAllAsRead(),
-                icon: const Icon(Icons.done_all_rounded, size: 16, color: AppTheme.primary),
-                label: Text(
-                  'Mark all read',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: AppTheme.primary,
+              child: InkWell(
+                onTap: () => notifProvider.markAllAsRead(),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.done_all_rounded, size: 15, color: AppTheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Mark read',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

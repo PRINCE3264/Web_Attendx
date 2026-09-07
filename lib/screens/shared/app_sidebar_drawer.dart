@@ -9,10 +9,12 @@ import '../../providers/leave_provider.dart';
 import '../employee/break_tracking_sheet.dart';
 import '../employee/leave_management_screen.dart';
 import '../employee/attendance_history_screen.dart';
+import '../employee/employee_dashboard.dart';
 import '../employee/submit_project_report_sheet.dart';
 import 'project_reports_screen.dart';
 import '../manager/manager_dashboard.dart';
 import '../manager/leave_approval_screen.dart';
+import '../manager/tl_team_attendance_screen.dart';
 import '../hr/hr_dashboard.dart';
 import '../hr/report_generator_screen.dart';
 import '../hr/all_employees_screen.dart';
@@ -164,26 +166,42 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                 // 2. TL (Team Lead) Navigation Items
                 if (user?.role == UserRole.manager) ...[
                   _buildNavItem(
+                    icon: Icons.touch_app_rounded,
+                    title: 'My Clock-In & Self',
+                    isSelected: widget.currentIndex == 0,
+                    onTap: () => _navigateToScreen(const EmployeeDashboard(), 'My Clock-In & Self', defaultTabIndex: 0),
+                  ),
+                  _buildNavItem(
                     icon: Icons.grid_view_rounded,
                     title: 'Approvals & Team',
-                    isSelected: widget.currentIndex == 0,
+                    isSelected: widget.currentIndex == 1,
                     badgeText: pendingApprovals > 0 ? '$pendingApprovals' : null,
                     badgeColor: AppTheme.warning,
-                    onTap: () => _navigateToScreen(const ManagerDashboard(), 'Approvals & Team', defaultTabIndex: 0),
+                    onTap: () => _navigateToScreen(const ManagerDashboard(), 'Approvals & Team', defaultTabIndex: 1),
                   ),
                   _buildNavItem(
                     icon: Icons.beach_access_rounded,
                     title: 'Leave Requests',
-                    isSelected: widget.currentIndex == 1,
+                    isSelected: widget.currentIndex == 2,
                     badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
                     badgeColor: const Color(0xFF2563EB),
-                    onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests', defaultTabIndex: 1),
+                    onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests', defaultTabIndex: 2),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.how_to_reg_rounded,
+                    title: 'Team Attendance',
+                    onTap: () => _navigateToScreen(const TlTeamAttendanceScreen(), 'Team Attendance'),
                   ),
                   _buildNavItem(
                     icon: Icons.groups_rounded,
                     title: 'Team Roster',
-                    isSelected: widget.currentIndex == 2,
-                    onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Team Roster', defaultTabIndex: 2),
+                    isSelected: widget.currentIndex == 3,
+                    onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Team Roster', defaultTabIndex: 3),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.assignment_turned_in_outlined,
+                    title: 'Team Work Report',
+                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Team Work Report'),
                   ),
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
@@ -330,6 +348,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Reports',
                     icon: Icons.bar_chart_outlined,
                     children: [
+                      _buildSubItem('Daily Project Work Reports', onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Daily Project Work Reports')),
                       _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 3)),
                       _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 3)),
                       _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 3)),
@@ -431,6 +450,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'Reports',
                     icon: Icons.bar_chart_outlined,
                     children: [
+                      _buildSubItem('Daily Project Work Reports', onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Daily Project Work Reports')),
                       _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 2)),
                       _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 2)),
                       _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 2)),
@@ -457,12 +477,12 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                 _buildNavItem(
                   icon: Icons.person_outline_rounded,
                   title: 'My Profile',
-                  isSelected: (widget.currentIndex == 3 && user?.role != UserRole.admin) ||
-                      (widget.currentIndex == 4 && user?.role == UserRole.admin),
+                  isSelected: (widget.currentIndex == 3 && user?.role == UserRole.employee) ||
+                      (widget.currentIndex == 4 && (user?.role == UserRole.admin || user?.role == UserRole.manager)),
                   onTap: () {
                     final role = user?.role;
                     int profileIndex = 3;
-                    if (role == UserRole.admin) profileIndex = 4;
+                    if (role == UserRole.admin || role == UserRole.manager) profileIndex = 4;
                     _navigateToScreen(const ProfileScreen(), 'Profile', defaultTabIndex: profileIndex);
                   },
                 ),
@@ -789,7 +809,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(
           children: [
             Container(
@@ -800,12 +820,16 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                 shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: isDark ? Colors.white70 : Colors.black87,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

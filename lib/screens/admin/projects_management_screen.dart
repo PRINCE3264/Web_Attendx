@@ -152,31 +152,33 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: (currentUser?.role == UserRole.manager ? Colors.green : Colors.blue).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.blue.withValues(alpha: 0.3),
+                      color: (currentUser?.role == UserRole.manager ? Colors.green : Colors.blue).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.lock_outline_rounded,
+                      Icon(
+                        currentUser?.role == UserRole.manager
+                            ? Icons.group_add_rounded
+                            : Icons.lock_outline_rounded,
                         size: 14,
-                        color: Colors.blue,
+                        color: currentUser?.role == UserRole.manager ? Colors.green : Colors.blue,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         currentUser?.role == UserRole.manager
-                            ? 'TL · View Only'
+                            ? 'TL · Team Assign Enabled'
                             : currentUser?.role == UserRole.hr
                             ? 'HR · View Only'
                             : 'Employee · View Only',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: currentUser?.role == UserRole.manager ? Colors.green : Colors.blue,
                         ),
                       ),
                     ],
@@ -186,30 +188,38 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Read-Only Banner for non-Admin roles
+          // Read-Only / TL Info Banner
           if (!isAdmin)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.08),
+                color: (currentUser?.role == UserRole.manager ? Colors.green : Colors.blue).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: (currentUser?.role == UserRole.manager ? Colors.green : Colors.blue).withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
+                  Icon(
+                    currentUser?.role == UserRole.manager
+                        ? Icons.group_add_rounded
+                        : Icons.info_outline_rounded,
                     size: 16,
-                    color: Colors.blue,
+                    color: currentUser?.role == UserRole.manager ? Colors.green : Colors.blue,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'You have read-only access to the Project Directory. Contact Admin to make changes.',
+                      currentUser?.role == UserRole.manager
+                          ? 'As Team Lead (TL), click "Assign Team" on any project card to assign or update team member allocations.'
+                          : 'You have read-only access to the Project Directory. Contact Admin to make changes.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFF90CAF9) : const Color(0xFF1565C0),
+                        color: currentUser?.role == UserRole.manager
+                            ? (isDark ? const Color(0xFFA5D6A7) : const Color(0xFF2E7D32))
+                            : (isDark ? const Color(0xFF90CAF9) : const Color(0xFF1565C0)),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -871,6 +881,44 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                       ],
                     ),
                   ),
+
+                  // Assign Team Members Button for TL & Admin
+                  if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.manager)
+                    InkWell(
+                      onTap: () => _openAssignMembersSheet(
+                        context,
+                        hrProvider,
+                        currentUser,
+                        project,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.person_add_alt_1_rounded,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Assign Team',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -920,6 +968,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       builder: (bottomSheetContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -931,6 +982,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                 bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
               ),
               child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF212121) : Colors.white,
                   borderRadius: const BorderRadius.vertical(
@@ -1032,6 +1086,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                             // Status Dropdown
                             Expanded(
                               child: DropdownButtonFormField<String>(
+                                isExpanded: true,
                                 initialValue: selectedStatus,
                                 decoration: InputDecoration(
                                   labelText: 'Status',
@@ -1043,19 +1098,19 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 items: const [
                                   DropdownMenuItem(
                                     value: 'active',
-                                    child: Text('Active'),
+                                    child: Text('Active', overflow: TextOverflow.ellipsis),
                                   ),
                                   DropdownMenuItem(
                                     value: 'completed',
-                                    child: Text('Completed'),
+                                    child: Text('Completed', overflow: TextOverflow.ellipsis),
                                   ),
                                   DropdownMenuItem(
                                     value: 'on_hold',
-                                    child: Text('On Hold'),
+                                    child: Text('On Hold', overflow: TextOverflow.ellipsis),
                                   ),
                                   DropdownMenuItem(
                                     value: 'planning',
-                                    child: Text('Planning'),
+                                    child: Text('Planning', overflow: TextOverflow.ellipsis),
                                   ),
                                 ],
                                 onChanged: (val) {
@@ -1071,6 +1126,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
 
                         // Assigned Project Lead Dropdown
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue:
                               selectedLeadId.isNotEmpty &&
                                   allUsers.any(
@@ -1092,6 +1148,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                               value: u.userId,
                               child: Text(
                                 '${u.name} (${u.role.name.toUpperCase()})',
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -1321,6 +1378,278 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
               child: const Text('Delete'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _openAssignMembersSheet(
+    BuildContext context,
+    HrProvider hrProvider,
+    UserModel? currentUser,
+    ProjectModel project,
+  ) {
+    final allUsers = hrProvider.allEmployees;
+    final isTL = currentUser?.role == UserRole.manager;
+
+    List<UserModel> candidates;
+    if (isTL && currentUser != null) {
+      final teamMembers = allUsers.where((e) {
+        final assignedByManagerId =
+            e.managerId == currentUser.userId ||
+            (currentUser.employeeId.isNotEmpty && e.managerId == currentUser.employeeId) ||
+            (currentUser.name.isNotEmpty && e.managerId == currentUser.name) ||
+            (currentUser.email.isNotEmpty && e.managerId == currentUser.email);
+        final assignedByManagerName =
+            e.managerName != null &&
+            e.managerName!.isNotEmpty &&
+            e.managerName!.trim().toLowerCase() == currentUser.name.trim().toLowerCase();
+        final sameTeam = e.teamId.isNotEmpty && e.teamId == currentUser.teamId;
+        return assignedByManagerId || assignedByManagerName || sameTeam;
+      }).toList();
+
+      if (teamMembers.isNotEmpty) {
+        candidates = teamMembers;
+      } else {
+        candidates = allUsers.where((e) => e.role == UserRole.employee).toList();
+      }
+    } else {
+      candidates = allUsers.where((e) => e.role == UserRole.employee || e.role == UserRole.manager).toList();
+    }
+
+    final Set<String> selectedEmployeeIds = Set<String>.from(project.assignedEmployeeIds);
+    String memberSearch = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final theme = Theme.of(ctx);
+            final isDark = theme.brightness == Brightness.dark;
+
+            final filteredCandidates = candidates.where((c) {
+              final q = memberSearch.toLowerCase().trim();
+              if (q.isEmpty) return true;
+              return c.name.toLowerCase().contains(q) ||
+                  c.employeeId.toLowerCase().contains(q) ||
+                  c.department.toLowerCase().contains(q);
+            }).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF212121) : Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF616161)
+                              : const Color(0xFFE0E0E0),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.group_add_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Assign Team Members',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Project: ${project.projectName} (${selectedEmployeeIds.length} Assigned)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      onChanged: (val) => setModalState(() => memberSearch = val),
+                      decoration: InputDecoration(
+                        hintText: 'Search team member by name or ID...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      child: filteredCandidates.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No matching team members found.',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white54 : Colors.black54,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filteredCandidates.length,
+                              itemBuilder: (ctx, idx) {
+                                final emp = filteredCandidates[idx];
+                                final isAssigned = selectedEmployeeIds.contains(emp.userId) ||
+                                    (emp.employeeId.isNotEmpty && selectedEmployeeIds.contains(emp.employeeId));
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isAssigned
+                                        ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                                        : (isDark ? const Color(0xFF303030) : const Color(0xFFFAFAFA)),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isAssigned
+                                          ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                                          : (isDark ? Colors.white10 : const Color(0xFFEEEEEE)),
+                                    ),
+                                  ),
+                                  child: CheckboxListTile(
+                                    value: isAssigned,
+                                    activeColor: theme.colorScheme.primary,
+                                    title: Text(
+                                      emp.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'ID: ${emp.employeeId} • ${emp.department} • Assigned: ${emp.assignedProjectName ?? 'Unassigned'}',
+                                      style: const TextStyle(fontSize: 11.5),
+                                    ),
+                                    secondary: CircleAvatar(
+                                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                      child: Text(
+                                        emp.name.isNotEmpty ? emp.name[0].toUpperCase() : 'E',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      setModalState(() {
+                                        if (val == true) {
+                                          selectedEmployeeIds.add(emp.userId);
+                                          if (emp.employeeId.isNotEmpty) {
+                                            selectedEmployeeIds.add(emp.employeeId);
+                                          }
+                                        } else {
+                                          selectedEmployeeIds.remove(emp.userId);
+                                          selectedEmployeeIds.remove(emp.employeeId);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final updatedProject = project.copyWith(
+                            assignedEmployeeIds: selectedEmployeeIds.toList(),
+                          );
+
+                          if (currentUser != null) {
+                            await hrProvider.updateProject(updatedProject, currentUser);
+
+                            for (final empId in selectedEmployeeIds) {
+                              await hrProvider.assignProjectToEmployee(empId, project.projectName);
+                            }
+                          }
+
+                          if (context.mounted) {
+                            Navigator.pop(bottomSheetContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Team member assignments updated for "${project.projectName}"!',
+                                ),
+                                backgroundColor: const Color(0xFF388E3C),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 20),
+                        label: Text(
+                          'SAVE TEAM ASSIGNMENTS (${selectedEmployeeIds.length})',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );

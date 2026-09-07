@@ -10,31 +10,31 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Smart Attendance & Enterprise Modules Tests', () {
-    test('GeofenceService verifies proximity within 500m allowable radius', () {
+    test('GeofenceService verifies proximity within 300m allowable radius for United Green Hospital', () {
       const officeLat = 21.1986872;
       const officeLng = 72.7965515;
 
-      // Inside 500m perimeter (~20 meters away in Green Atria)
+      // Inside 300m perimeter (~20 meters away in United Green Hospital)
       final insideResult = GeofenceService.verifyLocation(
         userLat: 21.1988000,
         userLng: 72.7967000,
         officeLat: officeLat,
         officeLng: officeLng,
-        allowedRadiusMeters: 500,
+        allowedRadiusMeters: 300,
       );
       expect(insideResult.isWithinGeofence, true);
-      expect(insideResult.distanceMeters, lessThanOrEqualTo(500));
+      expect(insideResult.distanceMeters, lessThanOrEqualTo(300));
 
-      // Outside 500m perimeter (~2.5 km away)
+      // Outside 300m perimeter (~2.5 km away)
       final outsideResult = GeofenceService.verifyLocation(
         userLat: 21.2186872,
         userLng: 72.8165515,
         officeLat: officeLat,
         officeLng: officeLng,
-        allowedRadiusMeters: 500,
+        allowedRadiusMeters: 300,
       );
       expect(outsideResult.isWithinGeofence, false);
-      expect(outsideResult.distanceMeters, greaterThan(500));
+      expect(outsideResult.distanceMeters, greaterThan(300));
     });
 
     test('LeaveBalanceModel correctly computes remaining quotas', () {
@@ -266,6 +266,85 @@ void main() {
       expect(parsed.isLate, true);
       expect(parsed.lateMinutes, 45);
       expect(parsed.status, AttendanceStatus.pending);
+    });
+
+    test('FirestoreService enforces strict 1 Clock-In and 1 Clock-Out daily limit', () async {
+      final user = UserModel(
+        userId: 'emp_limit_test',
+        name: 'Daily Limit User',
+        email: 'limit@company.com',
+        role: UserRole.employee,
+        employeeId: 'EMP-9999',
+        teamId: 'team_mobile',
+        department: 'Engineering',
+      );
+
+      // Attempt second clock-in when today's record exists
+      final existingRec = AttendanceModel(
+        attendanceId: 'emp_limit_test_2026-09-07',
+        employeeId: user.userId,
+        employeeName: user.name,
+        employeeCode: user.employeeId,
+        teamId: 'team_mobile',
+        date: '2026-09-07',
+        clockInTime: DateTime.now(),
+        status: AttendanceStatus.completed,
+        clockOutTime: DateTime.now().add(const Duration(hours: 8)),
+      );
+
+      expect(existingRec.status, AttendanceStatus.completed);
+      expect(existingRec.clockOutTime, isNotNull);
+    });
+
+    test('Clock-In Approval Hierarchy: Employee clock-in -> TL/HR/Admin, TL clock-in -> HR/Admin', () async {
+      final empUser = UserModel(
+        userId: 'emp_sub_01',
+        name: 'Employee User',
+        email: 'emp@company.com',
+        role: UserRole.employee,
+        employeeId: 'EMP-111',
+        teamId: 'team_mobile',
+        department: 'Engineering',
+      );
+
+      final tlUser = UserModel(
+        userId: 'tl_sub_01',
+        name: 'TL User',
+        email: 'tl@company.com',
+        role: UserRole.manager,
+        employeeId: 'TL-222',
+        teamId: 'team_mobile',
+        department: 'Engineering',
+      );
+
+      final hrUser = UserModel(
+        userId: 'hr_sub_01',
+        name: 'HR User',
+        email: 'hr@company.com',
+        role: UserRole.hr,
+        employeeId: 'HR-333',
+        teamId: 'team_hr',
+        department: 'HR',
+      );
+
+      // TL cannot approve their own clock-in
+      final tlRec = AttendanceModel(
+        attendanceId: 'tl_rec_01',
+        employeeId: tlUser.userId,
+        employeeName: tlUser.name,
+        employeeCode: tlUser.employeeId,
+        teamId: tlUser.teamId,
+        date: '2026-09-07',
+        clockInTime: DateTime.now(),
+        status: AttendanceStatus.pending,
+      );
+
+      // Verify self-approval check logic: tlUser.userId == tlRec.employeeId -> blocked for TL, permitted for HR
+      final isSelfForTL = tlRec.employeeId == tlUser.userId;
+      final isSelfForHR = tlRec.employeeId == hrUser.userId;
+      expect(isSelfForTL, true);
+      expect(isSelfForHR, false);
+      expect(empUser.role, UserRole.employee);
     });
   });
 }

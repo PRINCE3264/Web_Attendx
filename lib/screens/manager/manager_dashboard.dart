@@ -382,16 +382,24 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                 builder: (context) {
                   final hrProv = context.watch<HrProvider>();
                   final myTeamMembers = hrProv.allEmployees.where((e) {
-                    if (e.userId == user.userId || (user.employeeId.isNotEmpty && e.employeeId == user.employeeId)) {
+                    // Exclude the TL themselves
+                    if (e.userId == user.userId ||
+                        (user.employeeId.isNotEmpty && e.employeeId == user.employeeId)) {
                       return false;
                     }
-                    return e.managerId == user.userId ||
+                    // Only include employees explicitly assigned to this TL
+                    // Match by managerId (stored as userId, employeeId, name, or email)
+                    final assignedByManagerId =
+                        e.managerId == user.userId ||
                         (user.employeeId.isNotEmpty && e.managerId == user.employeeId) ||
                         (user.name.isNotEmpty && e.managerId == user.name) ||
-                        (user.email.isNotEmpty && e.managerId == user.email) ||
-                        (e.managerName != null && e.managerName!.isNotEmpty &&
-                            (e.managerName == user.name || e.managerName == user.userId || e.managerName == user.employeeId)) ||
-                        (user.teamId.isNotEmpty && user.teamId != 'unassigned' && e.teamId == user.teamId);
+                        (user.email.isNotEmpty && e.managerId == user.email);
+                    // Match by managerName stored on the employee record
+                    final assignedByManagerName =
+                        e.managerName != null &&
+                        e.managerName!.isNotEmpty &&
+                        e.managerName!.trim().toLowerCase() == user.name.trim().toLowerCase();
+                    return assignedByManagerId || assignedByManagerName;
                   }).toList();
 
                   return ListView(
@@ -665,7 +673,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Late by ${rec.lateMinutes} minutes (Office Start: 09:30 AM | Grace ends: 09:45 AM)',
+                      'Late by ${rec.lateMinutes.toHoursAndMinutes} (Office Start: 09:30 AM | Grace ends: 09:45 AM)',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,

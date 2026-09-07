@@ -10,6 +10,7 @@ import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 import '../../providers/leave_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/firestore_seeder_service.dart';
 import '../../services/report_service.dart';
 import '../shared/custom_widgets.dart';
@@ -221,149 +222,156 @@ service cloud.firestore {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppTheme.cardDark : Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 8,
-          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          contentPadding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.verified_user_rounded,
-                  color: AppTheme.primary,
-                  size: 26,
-                ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppTheme.cardDark : Colors.white,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.verified_user_rounded,
+                      color: AppTheme.primary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Employee Enrolled! 🎉',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textMainLight,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Account created successfully',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              content: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Employee Enrolled! 🎉',
-                      style: GoogleFonts.outfit(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textMainLight,
-                      ),
+                      'Share these login credentials with the employee so they can log in and start work immediately.',
+                      style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMutedLight, height: 1.3),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Account created successfully',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primarySoft.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.18)),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Share these login credentials with the employee so they can log in and start work immediately.',
-                  style: GoogleFonts.inter(fontSize: 12.5, color: AppTheme.textMutedLight, height: 1.35),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primarySoft.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.18)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildCredentialRow(Icons.person_rounded, 'NAME', name),
-                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                      _buildCredentialRow(Icons.badge_rounded, 'EMPLOYEE ID', employeeId),
-                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                      _buildCredentialRow(Icons.email_rounded, 'LOGIN EMAIL', email),
-                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          _buildCredentialRow(Icons.person_rounded, 'NAME', name),
+                          Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                          _buildCredentialRow(Icons.badge_rounded, 'EMPLOYEE ID', employeeId),
+                          Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                          _buildCredentialRow(Icons.email_rounded, 'LOGIN EMAIL', email),
+                          Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.key_rounded, size: 14, color: AppTheme.primary),
-                                    const SizedBox(width: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.key_rounded, size: 13, color: AppTheme.primary),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'LOGIN PASSWORD',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 9.5,
+                                            color: AppTheme.primary,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
                                     Text(
-                                      'LOGIN PASSWORD',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        color: AppTheme.primary,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.5,
+                                      obscurePassword ? '••••••••' : password,
+                                      style: GoogleFonts.firaCode(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryDark,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  obscurePassword ? '••••••••' : password,
-                                  style: GoogleFonts.firaCode(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryDark,
-                                  ),
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                icon: Icon(
+                                  obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  size: 19,
+                                  color: AppTheme.primary,
                                 ),
-                              ],
-                            ),
+                                onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
+                              ),
+                            ],
                           ),
-                          IconButton(
-                            icon: Icon(
-                              obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              size: 20,
-                              color: AppTheme.primary,
+                          if (phoneNumber != null && phoneNumber.isNotEmpty) ...[
+                            Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                            _buildCredentialRow(Icons.phone_rounded, 'PHONE NUMBER', phoneNumber),
+                          ],
+                          if (joiningDate != null) ...[
+                            Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                            _buildCredentialRow(
+                              Icons.event_rounded,
+                              'JOINING DATE & TIME',
+                              DateFormat('dd MMM yyyy, hh:mm a').format(joiningDate),
                             ),
-                            onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
-                          ),
+                          ],
+                          Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                          _buildCredentialRow(Icons.work_rounded, 'ROLE & DEPT', '${role.name.toUpperCase()} • ${department ?? "General"}'),
+                          if (managerName != null) ...[
+                            Divider(height: 14, color: AppTheme.primary.withValues(alpha: 0.12)),
+                            _buildCredentialRow(Icons.supervisor_account_rounded, 'ASSIGNED TL', managerName),
+                          ],
                         ],
                       ),
-                      if (phoneNumber != null && phoneNumber.isNotEmpty) ...[
-                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                        _buildCredentialRow(Icons.phone_rounded, 'PHONE NUMBER', phoneNumber),
-                      ],
-                      if (joiningDate != null) ...[
-                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                        _buildCredentialRow(
-                          Icons.event_rounded,
-                          'JOINING DATE & TIME',
-                          DateFormat('dd MMM yyyy, hh:mm a').format(joiningDate),
-                        ),
-                      ],
-                      Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                      _buildCredentialRow(Icons.work_rounded, 'ROLE & DEPT', '${role.name.toUpperCase()} • ${department ?? "General"}'),
-                      if (managerName != null) ...[
-                        Divider(height: 20, color: AppTheme.primary.withValues(alpha: 0.12)),
-                        _buildCredentialRow(Icons.supervisor_account_rounded, 'ASSIGNED TL', managerName),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    final text = '''
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        final text = '''
 🌟 AttendX Login Credentials 🌟
 Name: $name
 Employee ID: $employeeId
@@ -375,44 +383,46 @@ ${phoneNumber != null && phoneNumber.isNotEmpty ? 'Phone: $phoneNumber\n' : ''}$
 
 Use this Email and Password to log into AttendX and start your shifts & attendance.
 ''';
-                    Clipboard.setData(ClipboardData(text: text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('📋 Credentials copied to clipboard! Share with employee.'),
-                        backgroundColor: AppTheme.primary,
+                        Clipboard.setData(ClipboardData(text: text));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('📋 Credentials copied to clipboard! Share with employee.'),
+                            backgroundColor: AppTheme.primary,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 17, color: Colors.white),
+                      label: Text(
+                        'COPY LOGIN CREDENTIALS',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 12.5, letterSpacing: 0.5, color: Colors.white),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.white),
-                  label: Text(
-                    'COPY LOGIN CREDENTIALS',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5, color: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 2,
+                        shadowColor: AppTheme.primary.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(46),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 2,
-                    shadowColor: AppTheme.primary.withValues(alpha: 0.4),
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              child: Text(
-                'Done',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1340,18 +1350,21 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
           ),
 
           // Admin/HR Action Bar Row
-          if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+          if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[ 
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                _buildCardActionButton(
-                  icon: Icons.edit_note_rounded,
-                  label: 'Edit',
-                  color: AppTheme.primary,
-                  onTap: () => _openEditEmployeeModal(emp),
-                ),
+                // Edit button — Admin only (has password access inside)
+                if (currentUser?.role == UserRole.admin) ...[ 
+                  _buildCardActionButton(
+                    icon: Icons.edit_note_rounded,
+                    label: 'Edit',
+                    color: AppTheme.primary,
+                    onTap: () => _openEditEmployeeModal(emp),
+                  ),
+                ],
                 if (emp.role == UserRole.employee) ...[
                   _buildCardActionButton(
                     icon: Icons.supervisor_account_rounded,
@@ -1510,7 +1523,11 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
     final emailController = TextEditingController(text: targetUser.email);
     final empIdController = TextEditingController(text: targetUser.employeeId);
     final deptController = TextEditingController(text: targetUser.department);
+    final newPasswordController = TextEditingController();
     UserRole selectedRole = targetUser.role;
+    bool obscureCurrentPass = true;
+    bool obscureNewPass = true;
+    bool isSavingPassword = false;
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
@@ -1656,6 +1673,237 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                               ),
                             );
                           }
+                        },
+                      ),
+
+                      // ── Password Management Section (Admin only) ──────────────
+                      Consumer<AuthProvider>(
+                        builder: (ctx2, authProv, _) {
+                          final admin = authProv.currentUser;
+                          if (admin?.role != UserRole.admin) return const SizedBox.shrink();
+                          final currentPass = targetUser.initialPassword ?? '(not set)';
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 24),
+                              Divider(color: AppTheme.primary.withValues(alpha: 0.18), thickness: 1),
+                              const SizedBox(height: 14),
+
+                              // Section Header
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    child: const Icon(Icons.lock_person_rounded, size: 17, color: Color(0xFFDC2626)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Password Management',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.2)),
+                                    ),
+                                    child: Text(
+                                      'ADMIN ONLY',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFDC2626),
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+
+                              // Current Password Display Card
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.22)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDC2626).withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.key_rounded, size: 15, color: Color(0xFFDC2626)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'CURRENT PASSWORD',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFFDC2626),
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            obscureCurrentPass ? '•  •  •  •  •  •  •  •' : currentPass,
+                                            style: GoogleFonts.firaCode(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF991B1B),
+                                              letterSpacing: obscureCurrentPass ? 2 : 0,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(20),
+                                        onTap: () => setModalState(() => obscureCurrentPass = !obscureCurrentPass),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Icon(
+                                            obscureCurrentPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                            size: 20,
+                                            color: const Color(0xFFDC2626),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // New Password Field
+                              TextFormField(
+                                controller: newPasswordController,
+                                obscureText: obscureNewPass,
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: 'Set New Password',
+                                  hintText: 'Min 6 characters',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.8),
+                                  ),
+                                  prefixIcon: const Icon(Icons.lock_reset_rounded, color: Color(0xFFDC2626), size: 20),
+                                  suffixIcon: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => setModalState(() => obscureNewPass = !obscureNewPass),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: Icon(
+                                          obscureNewPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                          color: const Color(0xFFDC2626),
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  labelStyle: const TextStyle(color: Color(0xFFDC2626)),
+                                ),
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Change Password Button
+                              ElevatedButton.icon(
+                                icon: isSavingPassword
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.lock_reset_rounded, size: 18),
+                                label: Text(
+                                  isSavingPassword ? 'Changing Password...' : '🔑  Change Password',
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 15),
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  foregroundColor: Colors.white,
+                                  elevation: 2,
+                                  shadowColor: const Color(0xFFDC2626).withValues(alpha: 0.4),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: isSavingPassword
+                                    ? null
+                                    : () async {
+                                        final newPass = newPasswordController.text.trim();
+                                        if (newPass.length < 6) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('⚠️ Password must be at least 6 characters.'),
+                                              backgroundColor: Color(0xFFDC2626),
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                        setModalState(() => isSavingPassword = true);
+                                        try {
+                                          await AuthService().adminChangePassword(
+                                            targetUser: targetUser,
+                                            newPassword: newPass,
+                                            actor: admin!,
+                                          );
+                                          newPasswordController.clear();
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('🔑 Password for ${targetUser.name} changed!'),
+                                                backgroundColor: AppTheme.success,
+                                              ),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('❌ $e'),
+                                                backgroundColor: AppTheme.danger,
+                                              ),
+                                            );
+                                          }
+                                        } finally {
+                                          setModalState(() => isSavingPassword = false);
+                                        }
+                                      },
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          );
                         },
                       ),
                     ],

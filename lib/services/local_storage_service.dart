@@ -253,6 +253,34 @@ class LocalStorageService {
     }
   }
 
+  String? _cachedDeviceId;
+
+  Future<String> getDeviceId() async {
+    if (_cachedDeviceId != null && _cachedDeviceId!.isNotEmpty) {
+      return _cachedDeviceId!;
+    }
+    try {
+      final file = await _getFile('attendx_device_id.txt');
+      if (file != null && await file.exists()) {
+        final id = (await file.readAsString()).trim();
+        if (id.isNotEmpty) {
+          _cachedDeviceId = id;
+          return id;
+        }
+      }
+      final newId = 'DEV_${DateTime.now().millisecondsSinceEpoch}_${(1000 + DateTime.now().microsecondsSinceEpoch % 9000)}';
+      if (file != null) {
+        await file.writeAsString(newId);
+      }
+      _cachedDeviceId = newId;
+      return newId;
+    } catch (_) {
+      final fallback = 'DEV_${DateTime.now().millisecondsSinceEpoch}';
+      _cachedDeviceId = fallback;
+      return fallback;
+    }
+  }
+
   Future<void> clearAllData() async {
     try {
       final filenames = [

@@ -168,7 +168,7 @@ class AttendanceModel {
   bool get isOnTime => timingStatus == TimingStatus.onTime;
 
   String get lateDisplayLabel {
-    if (isLate) return 'LATE - PENDING APPROVAL ($lateMinutes mins late)';
+    if (isLate) return 'LATE - PENDING APPROVAL (${lateMinutes.toHoursAndMinutes} late)';
     if (isGracePeriod) return 'GRACE PERIOD - PENDING';
     return 'ON TIME - PENDING';
   }
@@ -386,7 +386,24 @@ class AttendanceModel {
       distanceFromOfficeMeters: distanceFromOfficeMeters ?? this.distanceFromOfficeMeters,
       isMissingClockOut: isMissingClockOut ?? this.isMissingClockOut,
       createdAt: createdAt ?? this.createdAt,
-      location: location ?? this.location,
     );
+  }
+}
+
+extension IntTimeExtension on int {
+  String get toHoursAndMinutes {
+    if (this < 60) return '$this min';
+    final int hours = this ~/ 60;
+    final int mins = this % 60;
+    if (mins == 0) return '$hours hour${hours > 1 ? 's' : ''}';
+    return '$hours hour${hours > 1 ? 's' : ''} $mins min';
+  }
+
+  String get toHoursAndMinutesCompact {
+    if (this < 60) return '${this}m';
+    final int hours = this ~/ 60;
+    final int mins = this % 60;
+    if (mins == 0) return '${hours}h';
+    return '${hours}h ${mins}m';
   }
 }

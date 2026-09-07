@@ -20,7 +20,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _isCodeSent = false;
-  bool _obscurePassword = true;
+  final bool _obscurePassword = true;
   String? _localError;
 
   @override

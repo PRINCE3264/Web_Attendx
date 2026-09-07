@@ -290,6 +290,66 @@ class HrDashboard extends StatelessWidget {
                 ),
               ),
 
+              const SizedBox(height: 10),
+
+              // Automated 30-Day HR Email Quick Banner
+              InkWell(
+                onTap: () async {
+                  final res = await hr.sendAutomated30DayHrEmail();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Automated 30-Day Attendance Report emailed to HR (${res['totalPresentDays']} Present / ${res['totalAbsentDays']} Absent)!',
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppTheme.success,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.cardDark : const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.mark_email_read_rounded, color: Color(0xFF10B981), size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Automated 30-Day HR Email Engine (Send Excel + PDF)',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF065F46)),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'AUTO-EMAIL',
+                          style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Department Attendance Breakdown Bar Chart
@@ -328,127 +388,155 @@ class HrDashboard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Builder(
-                      builder: (context) {
+                    LayoutBuilder(
+                      builder: (context, constraints) {
                         final deptRates = hr.departmentAttendanceRates;
                         final deptList = deptRates.entries.toList();
-                        return SizedBox(
-                          height: 210,
-                          child: BarChart(
-                            BarChartData(
-                              alignment: BarChartAlignment.spaceAround,
-                              maxY: 115,
-                              barTouchData: BarTouchData(enabled: true),
-                              titlesData: FlTitlesData(
-                                show: true,
-                                bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 38,
-                                    getTitlesWidget: (val, meta) {
-                                      final idx = val.toInt();
-                                      if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
-                                      String rawName = deptList[idx].key;
-                                      String name = rawName;
-                                      if (rawName == 'Engineering & Technology') name = 'Eng & Tech';
-                                      if (rawName == 'Human Resources') name = 'HR';
-                                      if (rawName == 'Quality Assurance') name = 'QA';
+                        final double itemWidth = 76.0;
+                        final double requiredWidth = deptList.length * itemWidth;
+                        final double chartWidth = requiredWidth > constraints.maxWidth ? requiredWidth : constraints.maxWidth;
 
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: SizedBox(
-                                          width: 75,
-                                          child: Text(
-                                            name,
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: requiredWidth > constraints.maxWidth ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                          child: SizedBox(
+                            width: chartWidth,
+                            height: 220,
+                            child: BarChart(
+                              BarChartData(
+                                alignment: BarChartAlignment.spaceAround,
+                                maxY: 115,
+                                barTouchData: BarTouchData(
+                                  enabled: true,
+                                  touchTooltipData: BarTouchTooltipData(
+                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                      final deptName = deptList[groupIndex].key;
+                                      return BarTooltipItem(
+                                        '$deptName\n',
+                                        GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                        children: [
+                                          TextSpan(
+                                            text: '${rod.toY.toStringAsFixed(1)}%',
+                                            style: GoogleFonts.inter(color: Colors.lightBlueAccent, fontWeight: FontWeight.w600, fontSize: 11),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                                titlesData: FlTitlesData(
+                                  show: true,
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 42,
+                                      getTitlesWidget: (val, meta) {
+                                        final idx = val.toInt();
+                                        if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
+                                        String rawName = deptList[idx].key;
+                                        String name = rawName;
+                                        if (rawName == 'Engineering & Technology' || rawName == 'Engineering') name = 'Engineering';
+                                        if (rawName == 'Human Resources' || rawName == 'HR & Admin') name = 'HR & Admin';
+                                        if (rawName == 'Design & UI' || rawName == 'Design') name = 'Design & UI';
+                                        if (rawName == 'Operations' || rawName == 'Corporate Administration') name = 'Operations';
+
+                                        return Padding(
+                                          padding: const EdgeInsets.only(top: 8),
+                                          child: SizedBox(
+                                            width: 70,
+                                            child: Text(
+                                              name,
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.15,
+                                                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 38,
-                                    interval: 50,
-                                    getTitlesWidget: (val, meta) {
-                                      if (val < 0 || val > 100) return const SizedBox.shrink();
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 4),
-                                        child: Text(
-                                          '${val.toInt()}%',
-                                          textAlign: TextAlign.right,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                            color: const Color(0xFF94A3B8),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                topTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 22,
-                                    getTitlesWidget: (val, meta) {
-                                      final idx = val.toInt();
-                                      if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
-                                      return Text(
-                                        '${deptList[idx].value.toStringAsFixed(0)}%',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.primary,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              ),
-                              gridData: FlGridData(
-                                show: true,
-                                drawVerticalLine: false,
-                                horizontalInterval: 50,
-                                getDrawingHorizontalLine: (val) => FlLine(
-                                  color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
-                                  strokeWidth: 1,
-                                  dashArray: [4, 4],
-                                ),
-                              ),
-                              borderData: FlBorderData(show: false),
-                              barGroups: List.generate(deptList.length, (idx) {
-                                final val = deptList[idx].value;
-                                return BarChartGroupData(
-                                  x: idx,
-                                  barRods: [
-                                    BarChartRodData(
-                                      toY: val.clamp(0.0, 100.0),
-                                      width: 24,
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                                      gradient: LinearGradient(
-                                        colors: idx % 3 == 0
-                                            ? const [Color(0xFF3B82F6), Color(0xFF1D4ED8)]
-                                            : (idx % 3 == 1
-                                                ? const [Color(0xFF06B6D4), Color(0xFF0284C7)]
-                                                : const [Color(0xFF2563EB), Color(0xFF1E40AF)]),
-                                        begin: Alignment.bottomCenter,
-                                        end: Alignment.topCenter,
-                                      ),
+                                        );
+                                      },
                                     ),
-                                  ],
-                                );
-                              }),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 36,
+                                      interval: 50,
+                                      getTitlesWidget: (val, meta) {
+                                        if (val < 0 || val > 100) return const SizedBox.shrink();
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 4),
+                                          child: Text(
+                                            '${val.toInt()}%',
+                                            textAlign: TextAlign.right,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: const Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  topTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 22,
+                                      getTitlesWidget: (val, meta) {
+                                        final idx = val.toInt();
+                                        if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
+                                        return Text(
+                                          '${deptList[idx].value.toStringAsFixed(0)}%',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primary,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                ),
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  horizontalInterval: 50,
+                                  getDrawingHorizontalLine: (val) => FlLine(
+                                    color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                                    strokeWidth: 1,
+                                    dashArray: [4, 4],
+                                  ),
+                                ),
+                                borderData: FlBorderData(show: false),
+                                barGroups: List.generate(deptList.length, (idx) {
+                                  final val = deptList[idx].value;
+                                  return BarChartGroupData(
+                                    x: idx,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: val.clamp(0.0, 100.0),
+                                        width: 22,
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                        gradient: LinearGradient(
+                                          colors: idx % 3 == 0
+                                              ? const [Color(0xFF3B82F6), Color(0xFF1D4ED8)]
+                                              : (idx % 3 == 1
+                                                  ? const [Color(0xFF06B6D4), Color(0xFF0284C7)]
+                                                  : const [Color(0xFF2563EB), Color(0xFF1E40AF)]),
+                                          begin: Alignment.bottomCenter,
+                                          end: Alignment.topCenter,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                              ),
                             ),
                           ),
                         );

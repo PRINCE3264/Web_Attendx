@@ -53,8 +53,15 @@ class TLMenu {
       requiredPermission: AppPermission.viewTeamMembers,
     ),
     const NavMenuItem(
-      title: 'Project Work Reports',
+      title: 'Team Work Report',
       icon: Icons.assignment_turned_in_outlined,
+      destination: NavDestinationKey.teamWorkReport,
+      route: '/tl/team-work-report',
+      requiredPermission: AppPermission.viewTeamAttendance,
+    ),
+    const NavMenuItem(
+      title: 'Project Work Reports',
+      icon: Icons.folder_shared_outlined,
       destination: NavDestinationKey.projectReports,
       route: '/tl/project-reports',
     ),

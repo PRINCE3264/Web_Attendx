@@ -71,7 +71,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '${actionType == 'clockIn' ? 'Clock-In' : 'Clock-Out'} blocked! You are not within the required 500-meter office perimeter.',
+              '${actionType == 'clockIn' ? 'Clock-In' : 'Clock-Out'} blocked! You are not within the required 300-meter office perimeter.',
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
             const SizedBox(height: 14),
@@ -148,7 +148,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             ),
             const SizedBox(height: 12),
             const Text(
-              '📍 Note: Please reach within 500 meters of the office premises to mark your attendance.',
+              '📍 Note: Please reach within 300 meters of United Green Hospital premises to mark your attendance.',
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.grey,
@@ -715,8 +715,8 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     Expanded(
                       child: Text(
                         _lastGeofenceResult!.isWithinGeofence
-                            ? 'GPS Verified • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (Within 500m)'
-                            : 'Outside Geofence • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (> 500m Limit)',
+                            ? 'GPS Verified • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (Within 300m)'
+                            : 'Outside Geofence • Distance: ${_lastGeofenceResult!.distanceMeters.toStringAsFixed(0)}m (> 300m Limit)',
                         style: TextStyle(
                           fontSize: 11,
                           color: _lastGeofenceResult!.isWithinGeofence
@@ -831,7 +831,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                       ),
                       Text(
                         isLate
-                            ? 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.lateMinutes} mins late). Awaiting TL review.'
+                            ? 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.lateMinutes.toHoursAndMinutes} late). Awaiting TL review.'
                             : 'Clocked in at ${DateFormat('hh:mm a').format(todayRec.clockInTime!)} (${todayRec.timingStatus.label}). Awaiting TL review.',
                         style: GoogleFonts.inter(
                           fontSize: 11.5,
@@ -911,6 +911,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
 
     if (todayRec.status == AttendanceStatus.approved) {
       final is8HoursDone = (todayRec.netWorkingDuration?.inMinutes ?? 0) >= 480;
+      final isBreakLimitReached = todayRec.totalBreakMinutes >= 60;
 
       // Approved and Active Shift
       return Container(
@@ -951,7 +952,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '🎉 8-Hour Workday Target Reached! Net Worked: ${todayRec.formattedNetDuration}',
+                        '🎉 8-Hour Daily Net Work Target Reached! (9h Total Shift Target)',
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -993,9 +994,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                         ),
                       ),
                       Text(
-                        'Gross: ${todayRec.formattedGrossDuration} • Break: ${todayRec.totalBreakMinutes}m • Net: ${todayRec.formattedNetDuration}',
+                        'Target: 8h Net Work + 1h Max Break = 9h Total',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           color: isDark
                               ? AppTheme.textMutedDark
                               : const Color(0xFF047857),
@@ -1011,7 +1012,39 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.cardDarkAlt : Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? AppTheme.borderDark : const Color(0xFFA7F3D0),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildCompletedMetricItem('Net Work', '${todayRec.formattedNetDuration} / 8h', isDark),
+                  Container(height: 24, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                  _buildCompletedMetricItem('Break', '${todayRec.totalBreakMinutes.toHoursAndMinutesCompact} / 1h', isDark),
+                  Container(height: 24, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                  _buildCompletedMetricItem('Gross Shift', '${todayRec.formattedGrossDuration} / 9h', isDark),
+                ],
+              ),
+            ),
+            if (isBreakLimitReached) ...[
+              const SizedBox(height: 8),
+              Text(
+                '⚠️ Max 1-hour break limit (60 mins) reached for today.',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: const Color(0xFFDC2626),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
             Row(
               children: [
                 // Break tracking button
@@ -1160,55 +1193,148 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
       );
     }
 
-    // Completed
+    // Completed State - 1 Clock-In & 1 Clock-Out Daily Limit Reached
+    final dateStr = todayRec.date;
+    final inTimeStr = todayRec.clockInTime != null
+        ? DateFormat('hh:mm a').format(todayRec.clockInTime!)
+        : '--';
+    final outTimeStr = todayRec.clockOutTime != null
+        ? DateFormat('hh:mm a').format(todayRec.clockOutTime!)
+        : '--';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardDark : AppTheme.infoSoft,
+        color: isDark ? AppTheme.cardDark : AppTheme.successSoft,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.info.withValues(alpha: 0.4),
+          color: AppTheme.success.withValues(alpha: 0.4),
           width: 1.5,
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.info.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.task_alt, color: AppTheme.info, size: 24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.task_alt_rounded,
+                  color: AppTheme.success,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily Shift Completed 🎉',
+                      style: GoogleFonts.outfit(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF065F46),
+                      ),
+                    ),
+                    Text(
+                      '1 Clock-In & 1 Clock-Out limit reached for today ($dateStr). Next Clock-In available tomorrow.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : const Color(0xFF047857),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const StatusBadge(
+                status: AttendanceStatus.completed,
+                isCompact: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.cardDarkAlt : Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? AppTheme.borderDark : const Color(0xFFA7F3D0),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text(
-                  'Daily Attendance Completed',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF1E40AF),
-                  ),
-                ),
-                Text(
-                  'In: ${todayRec.clockInTime != null ? DateFormat('hh:mm a').format(todayRec.clockInTime!) : "--"} • Out: ${todayRec.clockOutTime != null ? DateFormat('hh:mm a').format(todayRec.clockOutTime!) : "--"} • Net: ${todayRec.formattedNetDuration}',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppTheme.textMutedDark
-                        : const Color(0xFF1D4ED8),
-                  ),
-                ),
+                _buildCompletedMetricItem('Clock In', inTimeStr, isDark),
+                Container(height: 24, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                _buildCompletedMetricItem('Clock Out', outTimeStr, isDark),
+                Container(height: 24, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                _buildCompletedMetricItem('Net Worked', todayRec.formattedNetDuration, isDark),
               ],
             ),
           ),
-          const StatusBadge(
-            status: AttendanceStatus.completed,
-            isCompact: true,
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.lock, size: 18),
+            label: const Text(
+              'SHIFT COMPLETED FOR TODAY 🔒',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Colors.grey.shade400,
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedMetricItem(String label, String value, bool isDark) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: isDark ? AppTheme.textMutedDark : Colors.grey.shade600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
           ),
         ],
       ),

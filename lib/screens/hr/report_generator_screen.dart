@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/report_model.dart';
+import '../../models/user_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 
 class ReportGeneratorScreen extends StatefulWidget {
@@ -22,7 +24,7 @@ class ReportGeneratorScreen extends StatefulWidget {
 
 class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
   late String _currentType;
-  final _emailController = TextEditingController(text: 'executives@company.com');
+  late final TextEditingController _emailController;
   final _searchController = TextEditingController();
   String _selectedDept = 'All';
 
@@ -30,6 +32,8 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
   void initState() {
     super.initState();
     _currentType = widget.initialReportType;
+    final user = context.read<AuthProvider>().currentUser;
+    _emailController = TextEditingController(text: user?.email ?? '');
   }
 
   @override
@@ -105,6 +109,347 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAutomated30DayEmailModal(BuildContext context, HrProvider hr) {
+    final reports = hr.generateAll30DayReports();
+    int totalPresent = 0;
+    int totalAbsent = 0;
+    for (final r in reports) {
+      totalPresent += r.presentDays;
+      totalAbsent += r.absentDays;
+    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.bgDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF10B981), size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Automated 30-Day HR Email Engine',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        'Calculates employee Present/Absent counts & sends Excel + PDF to HR',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(bottomSheetContext),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.cardDark : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 16, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Cycle: Every 30 Days',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primary),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.successSoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'STATUS: ACTIVE',
+                          style: TextStyle(color: AppTheme.success, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'HR & Admin Profile Emails: ${hr.allEmployees.where((u) => u.role == UserRole.hr || u.role == UserRole.admin).map((u) => u.email.trim()).where((e) => e.isNotEmpty).toSet().join(', ')}',
+                    style: GoogleFonts.inter(fontSize: 11.5, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successSoft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$totalPresent Days',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.success),
+                        ),
+                        const Text(
+                          'Total Present Days',
+                          style: TextStyle(fontSize: 11, color: AppTheme.success),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.dangerSoft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$totalAbsent Days',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.danger),
+                        ),
+                        const Text(
+                          'Total Absent Days',
+                          style: TextStyle(fontSize: 11, color: AppTheme.danger),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '${hr.companyAttendanceRate.toStringAsFixed(1)}%',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primary),
+                        ),
+                        const Text(
+                          'Workforce Rate',
+                          style: TextStyle(fontSize: 11, color: AppTheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Employee 30-Day Attendance Breakdown',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                  ),
+                ),
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: reports.length,
+                  separatorBuilder: (_, __) => const Divider(height: 12),
+                  itemBuilder: (ctx, idx) {
+                    final r = reports[idx];
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                r.employeeName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              Text(
+                                '${r.employeeCode} • ${r.department}',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.successSoft,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Present: ${r.presentDays}',
+                                style: const TextStyle(color: AppTheme.success, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.dangerSoft,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Absent: ${r.absentDays}',
+                                style: const TextStyle(color: AppTheme.danger, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(bottomSheetContext);
+                final res = await hr.sendAutomated30DayHrEmail();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Automated 30-Day Attendance Report emailed to HR (${res['totalPresentDays']} Present / ${res['totalAbsentDays']} Absent)!',
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: AppTheme.success,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.mark_email_read_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Dispatch Automated Email to HR Now',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Includes Excel & PDF attachments',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -873,16 +1218,17 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
 
           const SizedBox(height: 12),
 
-          // 4. Automated Email Dispatch Card
+          // 4. Automated 30-Day HR Email Engine Card
           _buildExportOptionCard(
             context: context,
             isDark: isDark,
-            title: 'Automated Email Dispatch',
-            description: 'Send full attendance summary & PDF attachments directly to management & finance.',
+            title: 'Automated 30-Day HR Email Engine',
+            description: 'Auto-calculates employee Present & Absent counts every 30 days and emails Excel sheet + PDF audit report directly to HR.',
             icon: Icons.mark_email_read_rounded,
-            color: const Color(0xFF0EA5E9),
-            buttonLabel: 'Configure & Dispatch Email',
-            onTap: _showEmailDialog,
+            color: const Color(0xFF10B981),
+            buttonLabel: 'Dispatch 30-Day HR Email',
+            onTap: () => _showAutomated30DayEmailModal(context, hr),
+            isLoading: hr.isGeneratingReport,
           ),
         ],
       ),
@@ -952,7 +1298,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     ElevatedButton.icon(
                       onPressed: isLoading ? null : onTap,
@@ -963,27 +1312,31 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
                           : Icon(icon, size: 15),
-                      label: Text(buttonLabel),
+                      label: Text(
+                        buttonLabel,
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: color,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
-                    if (onPreviewTap != null) ...[
-                      const SizedBox(width: 8),
+                    if (onPreviewTap != null)
                       OutlinedButton.icon(
                         onPressed: onPreviewTap,
                         icon: const Icon(Icons.visibility_outlined, size: 14),
-                        label: const Text('Preview'),
+                        label: Text(
+                          'Preview',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5),
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
-                    ],
                   ],
                 ),
               ],

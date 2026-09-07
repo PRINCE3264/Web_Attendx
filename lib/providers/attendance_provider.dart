@@ -48,12 +48,20 @@ class AttendanceProvider extends ChangeNotifier {
   List<AttendanceModel> _filterAttendance(List<AttendanceModel> records) {
     try {
       final user = AuthService().currentUser;
-      if (user != null && user.role == UserRole.employee) {
-        final validIds = {user.userId, user.employeeId};
-        return records.where((r) => validIds.contains(r.employeeId) || validIds.contains(r.employeeCode) || validIds.contains(r.uid)).toList();
+      if (user != null) {
+        // Employee: only their own records
+        // Manager/TL: only their own personal clock-in records
+        //   (team attendance is fetched separately via getTeamAttendanceForTL)
+        if (user.role == UserRole.employee || user.role == UserRole.manager) {
+          final validIds = {user.userId, user.employeeId};
+          return records.where((r) =>
+            validIds.contains(r.employeeId) ||
+            validIds.contains(r.employeeCode) ||
+            validIds.contains(r.uid)).toList();
+        }
       }
     } catch (_) {}
-    return records;
+    return records; // HR and Admin get all records
   }
 
   @override
@@ -253,19 +261,32 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   final Set<String> _notified8HourAttendanceIds = {};
+  final Set<String> _notifiedBreakLimitIds = {};
 
   void checkShiftCompletedAlert(UserModel user) {
     final todayRec = getTodayAttendance(user.userId);
     if (todayRec == null || todayRec.clockOutTime != null) return;
-    if (_notified8HourAttendanceIds.contains(todayRec.attendanceId)) return;
 
     final netMins = todayRec.netWorkingDuration?.inMinutes ?? 0;
-    if (netMins >= 480) { // 8 Hours (480 mins)
+    final breakMins = todayRec.totalBreakMinutes;
+
+    // 1. Max 1-Hour Break limit alert (60 mins)
+    if (breakMins >= 60 && !_notifiedBreakLimitIds.contains(todayRec.attendanceId)) {
+      _notifiedBreakLimitIds.add(todayRec.attendanceId);
+      NotificationService().sendNotification(
+        title: '☕ Maximum 1-Hour Break Reached',
+        message: '${user.name}, you have reached the daily maximum break allowance of 1 hour (${breakMins}m logged). Please resume work.',
+        type: 'warning',
+      );
+    }
+
+    // 2. 8-Hour Net Work target alert (480 mins)
+    if (netMins >= 480 && !_notified8HourAttendanceIds.contains(todayRec.attendanceId)) {
       _notified8HourAttendanceIds.add(todayRec.attendanceId);
       
       NotificationService().sendNotification(
         title: '🎉 8-Hour Workday Completed!',
-        message: 'Congratulations ${user.name}! You have completed your standard 8-hour shift target (${todayRec.formattedNetDuration}). You can clock out now or continue working.',
+        message: 'Congratulations ${user.name}! You completed your 8-hour net work target (Total shift span: ${todayRec.formattedGrossDuration}). You can clock out now.',
         type: 'approval',
       );
     }

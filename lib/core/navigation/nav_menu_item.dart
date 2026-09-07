@@ -25,6 +25,7 @@ enum NavDestinationKey {
   pendingApprovals,
   leaveApprovals,
   teamMembers,
+  teamWorkReport,
 
   // HR
   employees,

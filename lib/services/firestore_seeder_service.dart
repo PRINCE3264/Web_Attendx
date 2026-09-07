@@ -161,10 +161,10 @@ class FirestoreSeederService {
     final locs = [
       {
         'locationId': 'loc_hq_surat',
-        'name': 'AttendX HQ - Green Atria',
-        'address': 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
+        'name': 'AttendX HQ - United Green Hospital',
+        'address': 'United Green Hospital, Anand Mahal Rd, Adajan, Surat, Gujarat 395009',
         'geopoint': const GeoPoint(21.1986872, 72.7965515),
-        'geofenceRadiusMeters': 500,
+        'geofenceRadiusMeters': 300,
         'wifiBSSIDs': ['00:14:22:01:23:45'],
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -174,7 +174,7 @@ class FirestoreSeederService {
         'name': 'Tech Hub - Koramangala',
         'address': '80 Feet Rd, 4th Block, Koramangala, Bengaluru 560034',
         'geopoint': const GeoPoint(12.9352, 77.6245),
-        'geofenceRadiusMeters': 500,
+        'geofenceRadiusMeters': 300,
         'wifiBSSIDs': [],
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),

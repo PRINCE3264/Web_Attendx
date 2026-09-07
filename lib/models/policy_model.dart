@@ -22,7 +22,7 @@ class AttendancePolicyModel {
     this.isAutoClockOutEnabled = false,
     this.officeLatitude = 21.1986872,
     this.officeLongitude = 72.7965515,
-    this.geofenceRadiusMeters = 500.0,
+    this.geofenceRadiusMeters = 300.0,
     this.officeName = 'United Green Hospital, Anand Mahal Rd, Adajan, Surat, Gujarat 395009',
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
@@ -55,7 +55,7 @@ class AttendancePolicyModel {
       isAutoClockOutEnabled: map['isAutoClockOutEnabled'] ?? false,
       officeLatitude: (map['officeLatitude'] as num?)?.toDouble() ?? 21.1986872,
       officeLongitude: (map['officeLongitude'] as num?)?.toDouble() ?? 72.7965515,
-      geofenceRadiusMeters: (map['geofenceRadiusMeters'] as num?)?.toDouble() ?? 500.0,
+      geofenceRadiusMeters: (map['geofenceRadiusMeters'] as num?)?.toDouble() ?? 300.0,
       officeName: map['officeName'] ?? 'United Green Hospital, Anand Mahal Rd, Adajan, Surat, Gujarat 395009',
       updatedAt: map['updatedAt'] != null
           ? DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now()

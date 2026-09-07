@@ -136,6 +136,23 @@ class AuthService {
       throw Exception('This account has been disabled by Administrator.');
     }
 
+    // 4. Device Lock / Single Phone Binding Verification for Employees and TLs
+    if (user.role == UserRole.employee || user.role == UserRole.manager) {
+      final currentDeviceId = await LocalStorageService().getDeviceId();
+      if (user.deviceId == null || user.deviceId!.isEmpty) {
+        // First login: bind user account to this phone!
+        user = user.copyWith(deviceId: currentDeviceId);
+        await FirestoreService().updateEmployee(user, user);
+      } else if (user.deviceId != currentDeviceId) {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (_) {}
+        throw Exception(
+          '🔒 Device Lock Warning: This account is registered on another mobile phone device. Employees can only log in and clock in from their registered phone. Please contact Admin or HR to reset your registered device.',
+        );
+      }
+    }
+
     await updateSessionUser(user);
 
     AuditService().log(
@@ -179,7 +196,7 @@ class AuthService {
         }
       }
 
-      if (email == null || email.isEmpty) {
+      if (email.isEmpty) {
         throw Exception('Could not retrieve Google account email.');
       }
       final String validEmail = email;
@@ -335,6 +352,41 @@ class AuthService {
     return true;
   }
 
+  /// Admin-only: Change any user's password directly (no Firebase Auth re-auth needed)
+  Future<bool> adminChangePassword({
+    required UserModel targetUser,
+    required String newPassword,
+    required UserModel actor,
+  }) async {
+    if (actor.role != UserRole.admin) {
+      throw Exception('Only Admins can change other users\' passwords.');
+    }
+    final cleanEmail = targetUser.email.toLowerCase().trim();
+
+    // Update in-memory password store
+    _passwords[cleanEmail] = newPassword.trim();
+
+    // Persist the new password in Firestore via initialPassword field
+    final updatedUser = targetUser.copyWith(initialPassword: newPassword.trim());
+    await FirestoreService().updateEmployee(updatedUser, actor);
+
+    AuditService().log(
+      actor: actor,
+      actionType: 'ADMIN_PASSWORD_CHANGE',
+      description:
+          '${actor.name} changed password for ${targetUser.name} (${targetUser.employeeId}).',
+      targetEntityId: targetUser.userId,
+    );
+
+    NotificationService().sendNotification(
+      title: 'Password Changed 🔑',
+      message: 'Password for ${targetUser.name} has been updated successfully.',
+      type: 'info',
+    );
+
+    return true;
+  }
+
   Future<bool> resetPassword({
     required String email,
     required String newPassword,
@@ -474,6 +526,20 @@ class AuthService {
     );
 
     return newUser;
+  }
+
+  Future<void> resetUserDeviceBinding(String userId, UserModel actor) async {
+    final user = FirestoreService().getUserById(userId);
+    if (user != null) {
+      final updated = user.copyWith(resetDeviceId: true);
+      await FirestoreService().updateEmployee(updated, actor);
+      AuditService().log(
+        actor: actor,
+        actionType: 'RESET_DEVICE_BINDING',
+        description: 'Reset registered phone device lock for ${user.name} (${user.employeeId}).',
+        targetEntityId: user.userId,
+      );
+    }
   }
 
   Future<void> signOut() async {

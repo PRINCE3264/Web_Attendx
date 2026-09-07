@@ -70,6 +70,7 @@ class UserModel {
   final String? initialPassword;
   final String? assignedProjectId;
   final String? assignedProjectName;
+  final String? deviceId;
 
   UserModel({
     required this.userId,
@@ -90,6 +91,7 @@ class UserModel {
     this.initialPassword,
     this.assignedProjectId,
     this.assignedProjectName,
+    this.deviceId,
   });
 
   Map<String, dynamic> toMap() {
@@ -112,6 +114,7 @@ class UserModel {
       'initialPassword': initialPassword,
       'assignedProjectId': assignedProjectId,
       'assignedProjectName': assignedProjectName,
+      'deviceId': deviceId,
     };
   }
 
@@ -137,6 +140,7 @@ class UserModel {
       initialPassword: map['initialPassword'] ?? map['password'],
       assignedProjectId: map['assignedProjectId'],
       assignedProjectName: map['assignedProjectName'],
+      deviceId: map['deviceId'],
     );
   }
 
@@ -159,6 +163,8 @@ class UserModel {
     String? initialPassword,
     String? assignedProjectId,
     String? assignedProjectName,
+    String? deviceId,
+    bool resetDeviceId = false,
   }) {
     return UserModel(
       userId: userId ?? this.userId,
@@ -179,6 +185,7 @@ class UserModel {
       initialPassword: initialPassword ?? this.initialPassword,
       assignedProjectId: assignedProjectId ?? this.assignedProjectId,
       assignedProjectName: assignedProjectName ?? this.assignedProjectName,
+      deviceId: resetDeviceId ? null : (deviceId ?? this.deviceId),
     );
   }
 }

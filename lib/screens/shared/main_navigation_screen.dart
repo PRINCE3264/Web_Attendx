@@ -99,12 +99,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
       ];
     } else if (role == UserRole.manager) {
       screens = [
+        const EmployeeDashboard(),
         const ManagerDashboard(),
         const LeaveApprovalScreen(),
         const AllEmployeesScreen(),
         const ProfileScreen(),
       ];
       navItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.touch_app_outlined), activeIcon: Icon(Icons.touch_app), label: 'Clock & Today'),
         BottomNavigationBarItem(icon: Icon(Icons.approval_outlined), activeIcon: Icon(Icons.approval), label: 'Approvals & Team'),
         BottomNavigationBarItem(icon: Icon(Icons.beach_access_outlined), activeIcon: Icon(Icons.beach_access), label: 'Leave Requests'),
         BottomNavigationBarItem(icon: Icon(Icons.groups_outlined), activeIcon: Icon(Icons.groups), label: 'Team Roster'),
@@ -337,12 +339,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
             ),
           ],
         ),
-        body: _customScreen ??
-            TabBarView(
-              controller: _tabController,
-              children: screens,
-            ),
-        floatingActionButton: const AIVoiceButton(),
+        body: Stack(
+          children: [
+            _customScreen ??
+                TabBarView(
+                  controller: _tabController,
+                  children: screens,
+                ),
+            const AIVoiceButton(),
+          ],
+        ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _customScreen != null ? 0 : _tabController.index.clamp(0, navItems.length - 1),
           onTap: (index) {

@@ -55,7 +55,7 @@ class FirestoreService {
   AttendancePolicyModel _policy = MockDataSeeder.getSeedPolicy();
   final List<AnnouncementModel> _announcements = [];
   final List<NotificationModel> _notifications = [];
-  final List<ProjectReportModel> _projectReports = [];
+  final List<ProjectReportModel> _projectReports = MockDataSeeder.getSeedProjectReports();
   final List<ProjectModel> _projects = MockDataSeeder.getSeedProjects();
 
   final _attendanceStreamController =
@@ -287,8 +287,12 @@ class FirestoreService {
 
           if (_users.isNotEmpty) {
             final existingIds = _users.map((u) => u.userId).toSet();
+            // Only notify HR and Admin about new employee joins
+            final currentUserRole = AuthService().currentUser?.role;
+            final isHrOrAdmin = currentUserRole == UserRole.hr ||
+                currentUserRole == UserRole.admin;
             for (final u in items) {
-              if (!existingIds.contains(u.userId)) {
+              if (!existingIds.contains(u.userId) && isHrOrAdmin) {
                 NotificationService().sendNotification(
                   title: '🆕 New Employee Joined: ${u.name}',
                   message:
@@ -762,12 +766,16 @@ class FirestoreService {
       targetEntityId: newUser.userId,
     );
 
-    NotificationService().sendNotification(
-      title: '🆕 New Employee Joined: ${newUser.name}',
-      message:
-          '${newUser.name} (${newUser.employeeId}) enrolled in ${newUser.department} as ${newUser.role.name}.',
-      type: 'info',
-    );
+    // Only show local notification to the HR/Admin who performed the action
+    final actorRole = actor.role;
+    if (actorRole == UserRole.hr || actorRole == UserRole.admin) {
+      NotificationService().sendNotification(
+        title: '🆕 New Employee Joined: ${newUser.name}',
+        message:
+            '${newUser.name} (${newUser.employeeId}) enrolled in ${newUser.department} as ${newUser.role.name}.',
+        type: 'info',
+      );
+    }
 
     return newUser;
   }
@@ -1069,18 +1077,21 @@ class FirestoreService {
 
     final Set<String> empIds = {};
     for (final u in _users) {
+      // Skip the TL themselves
       if (u.userId == tlUser.userId ||
           (tlUser.employeeId.isNotEmpty && u.employeeId == tlUser.employeeId)) {
         continue;
       }
+      // Only include employees explicitly assigned to this TL
       final isAssigned =
           u.managerId == tlId ||
           u.managerId == tlUser.userId ||
           (tlUser.employeeId.isNotEmpty && u.managerId == tlUser.employeeId) ||
           (tlUser.name.isNotEmpty && u.managerId == tlUser.name) ||
-          (tlUser.teamId.isNotEmpty &&
-              tlUser.teamId != 'unassigned' &&
-              u.teamId == tlUser.teamId);
+          (tlUser.email.isNotEmpty && u.managerId == tlUser.email) ||
+          (u.managerName != null &&
+              u.managerName!.isNotEmpty &&
+              u.managerName!.trim().toLowerCase() == tlUser.name.trim().toLowerCase());
 
       if (isAssigned) {
         empIds.add(u.userId);
@@ -1401,6 +1412,17 @@ class FirestoreService {
     if (index == -1) throw Exception('Attendance record not found');
 
     final old = _attendance[index];
+
+    // Strict Rule: Employee clock-in -> TL, HR, Admin can approve.
+    //              TL/Manager clock-in -> HR, Admin ONLY! (Self-approval blocked)
+    final isSelf = (old.employeeId == manager.userId || old.employeeCode == manager.employeeId) ||
+        (manager.name.isNotEmpty && old.employeeName.trim().toLowerCase() == manager.name.trim().toLowerCase());
+    if (isSelf && manager.role != UserRole.admin) {
+      throw Exception(
+        'Self-approval blocked! Clock-in for Team Leads and Managers must be approved by HR or Admin.',
+      );
+    }
+
     final updated = old.copyWith(
       status: AttendanceStatus.approved,
       approvedBy: manager.userId,
@@ -1453,12 +1475,19 @@ class FirestoreService {
 
     for (int i = 0; i < _attendance.length; i++) {
       if (_attendance[i].status == AttendanceStatus.pending) {
+        // Skip self-approval for TL unless manager is Admin
+        final isSelf = (_attendance[i].employeeId == manager.userId || _attendance[i].employeeCode == manager.employeeId) ||
+            (manager.name.isNotEmpty && _attendance[i].employeeName.trim().toLowerCase() == manager.name.trim().toLowerCase());
+        if (isSelf && manager.role != UserRole.admin) {
+          continue;
+        }
+
         _attendance[i] = _attendance[i].copyWith(
           status: AttendanceStatus.approved,
           approvedBy: manager.userId,
           approvedByName: '${manager.name} (${manager.role.name})',
           approvedAt: now,
-          managerComment: 'Bulk verified & approved by TL',
+          managerComment: 'Bulk verified & approved',
         );
         try {
           await _db
@@ -1499,6 +1528,16 @@ class FirestoreService {
     if (index == -1) throw Exception('Attendance record not found');
 
     final old = _attendance[index];
+
+    // Self-rejection restriction for TL/Manager
+    final isSelf = (old.employeeId == manager.userId || old.employeeCode == manager.employeeId) ||
+        (manager.name.isNotEmpty && old.employeeName.trim().toLowerCase() == manager.name.trim().toLowerCase());
+    if (isSelf && manager.role != UserRole.admin) {
+      throw Exception(
+        'Self-action blocked! Attendance for Team Leads and Managers must be reviewed by HR or Admin.',
+      );
+    }
+
     final updated = old.copyWith(
       status: AttendanceStatus.rejected,
       approvedBy: manager.userId,
@@ -1559,10 +1598,40 @@ class FirestoreService {
 
     final old = _attendance[index];
 
+    // Clock-Out is strictly permitted 1 time per day
+    if (old.status == AttendanceStatus.completed || old.clockOutTime != null) {
+      throw Exception(
+        'Shift already completed for today (${old.date})! 1 Clock-In and 1 Clock-Out limit reached per day.',
+      );
+    }
+
     // Clock-Out is strictly permitted only AFTER attendance has been approved by TL
     if (old.status != AttendanceStatus.approved) {
       throw Exception(
         'Clock-Out is locked! Your Clock-In status is "${old.status.label}". You can Clock-Out only AFTER your Team Lead / Manager approves your attendance.',
+      );
+    }
+
+    // Geofence verification for Clock-Out (within 300 meters of office)
+    final userLat = latitude ?? _policy.officeLatitude + 0.0001;
+    final userLng = longitude ?? _policy.officeLongitude + 0.0001;
+    final geofenceRes = GeofenceService.verifyLocation(
+      userLat: userLat,
+      userLng: userLng,
+      officeLat: _policy.officeLatitude,
+      officeLng: _policy.officeLongitude,
+      allowedRadiusMeters: _policy.geofenceRadiusMeters,
+    );
+
+    final isRemoteOrWfh = old.location != null &&
+        (old.location!.toLowerCase().contains('remote') ||
+            old.location!.toLowerCase().contains('wfh') ||
+            old.location!.toLowerCase().contains('work from home') ||
+            old.location!.toLowerCase().contains('authorized'));
+
+    if (!isRemoteOrWfh && !geofenceRes.isWithinGeofence) {
+      throw Exception(
+        'Outside Geofence for Clock-Out: You are ${geofenceRes.distanceMeters.toStringAsFixed(0)}m away. Clock-Out is strictly allowed within ${_policy.geofenceRadiusMeters.toStringAsFixed(0)}m of the office (${_policy.officeName}).',
       );
     }
 
@@ -1862,6 +1931,43 @@ class FirestoreService {
       type: 'info',
     );
 
+    // Create & dispatch persistent notification records for TL, HR, and Admin users
+    final Set<UserModel> targetRecipients = {};
+    for (final u in _users) {
+      if (u.role == UserRole.admin || u.role == UserRole.hr) {
+        targetRecipients.add(u);
+      } else if (u.role == UserRole.manager) {
+        final isManagerOfEmp = (employee.managerId != null &&
+                employee.managerId!.isNotEmpty &&
+                (u.userId == employee.managerId ||
+                    u.employeeId == employee.managerId ||
+                    u.name.toLowerCase() == employee.managerId!.toLowerCase() ||
+                    u.email.toLowerCase() == employee.managerId!.toLowerCase())) ||
+            (employee.teamId.isNotEmpty && u.teamId == employee.teamId);
+        if (isManagerOfEmp) {
+          targetRecipients.add(u);
+        }
+      }
+    }
+
+    for (final recipient in targetRecipients) {
+      final notif = NotificationModel(
+        id: 'notif_leave_${leave.leaveId}_${recipient.userId}_${DateTime.now().microsecondsSinceEpoch}',
+        userId: recipient.userId,
+        title: '🌴 New Leave Request: ${employee.name}',
+        message: '${employee.name} (${employee.department}) requested $totalDays days ${leaveType.label} (${DateFormat('dd MMM').format(startDate)} - ${DateFormat('dd MMM').format(endDate)}). Sent for your review & approval.',
+        type: 'approval',
+        createdAt: DateTime.now(),
+      );
+      _notifications.insert(0, notif);
+      try {
+        await _db?.collection('notifications').doc(notif.id).set(notif.toMap(), SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Firestore leave notification dispatch error: $e');
+      }
+    }
+    _notificationsStreamController.add(List.unmodifiable(_notifications));
+
     return leave;
   }
 
@@ -1875,7 +1981,10 @@ class FirestoreService {
     if (index == -1) throw Exception('Leave request not found');
 
     final old = _leaves[index];
-    final reviewerFormattedName = '${manager.name} (${manager.role.name})';
+    final reviewerRoleLabel = manager.role == UserRole.manager
+        ? 'Team Lead (TL)'
+        : (manager.role == UserRole.hr ? 'HR' : 'Admin');
+    final reviewerFormattedName = '${manager.name} ($reviewerRoleLabel)';
 
     final updated = old.copyWith(
       status: isApproved ? LeaveStatus.approved : LeaveStatus.rejected,
@@ -1937,6 +2046,34 @@ class FirestoreService {
           : 'Your ${old.leaveType.label} was rejected by $reviewerFormattedName.${rejectionReason != null && rejectionReason.isNotEmpty ? " Reason: $rejectionReason" : ""}',
       type: isApproved ? 'approval' : 'rejection',
     );
+
+    // Dispatch targeted notification to Employee who requested the leave
+    final empUser = _users.firstWhere(
+      (u) => u.userId == old.employeeId || u.employeeId == old.employeeId,
+      orElse: () => _users.firstWhere(
+        (u) => u.name.toLowerCase() == old.employeeName.toLowerCase(),
+        orElse: () => _users.first,
+      ),
+    );
+
+    final notifToEmployee = NotificationModel(
+      id: 'notif_leavereview_${updated.leaveId}_${DateTime.now().microsecondsSinceEpoch}',
+      userId: empUser.userId,
+      title: isApproved ? 'Leave Approved 🎉' : 'Leave Rejected ⚠️',
+      message: isApproved
+          ? 'Your ${old.leaveType.label} (${old.totalDays} days) was APPROVED by $reviewerFormattedName.'
+          : 'Your ${old.leaveType.label} was REJECTED by $reviewerFormattedName.${rejectionReason != null && rejectionReason.isNotEmpty ? " Reason: $rejectionReason" : ""}',
+      type: isApproved ? 'approval' : 'rejection',
+      createdAt: DateTime.now(),
+    );
+
+    _notifications.insert(0, notifToEmployee);
+    try {
+      await _db?.collection('notifications').doc(notifToEmployee.id).set(notifToEmployee.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore review notification dispatch error: $e');
+    }
+    _notificationsStreamController.add(List.unmodifiable(_notifications));
 
     return updated;
   }
@@ -2280,6 +2417,104 @@ class FirestoreService {
         actionType: 'PROJECT_DELETE',
         description: 'Deleted project "${target.projectName}".',
         targetEntityId: projectId,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteProjectReport(String reportId, UserModel actor) async {
+    final idx = _projectReports.indexWhere((r) => r.reportId == reportId);
+    if (idx != -1) {
+      final target = _projectReports[idx];
+      _projectReports.removeAt(idx);
+      _projectReportsStreamController.add(List.unmodifiable(_projectReports));
+
+      try {
+        await _db?.collection('projectReports').doc(reportId).delete();
+      } catch (e) {
+        debugPrint('Firestore delete project report error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'PROJECT_REPORT_DELETE',
+        description: 'Deleted daily work report for project "${target.projectName}" submitted by ${target.employeeName}.',
+        targetEntityId: reportId,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteAttendanceRecord(String attendanceId, UserModel actor) async {
+    final idx = _attendance.indexWhere((a) => a.attendanceId == attendanceId);
+    if (idx != -1) {
+      final target = _attendance[idx];
+      _attendance.removeAt(idx);
+      _attendanceStreamController.add(List.unmodifiable(_attendance));
+      LocalStorageService().saveAttendance(_attendance);
+
+      try {
+        await _db?.collection('attendance').doc(attendanceId).delete();
+      } catch (e) {
+        debugPrint('Firestore delete attendance record error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'ATTENDANCE_DELETE',
+        description: 'Deleted attendance record (${target.date}) for ${target.employeeName}.',
+        targetEntityId: attendanceId,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteLeaveRequest(String leaveId, UserModel actor) async {
+    final idx = _leaves.indexWhere((l) => l.leaveId == leaveId);
+    if (idx != -1) {
+      final target = _leaves[idx];
+      _leaves.removeAt(idx);
+      _leavesStreamController.add(List.unmodifiable(_leaves));
+      LocalStorageService().saveLeaves(_leaves);
+
+      try {
+        await _db?.collection('leaves').doc(leaveId).delete();
+      } catch (e) {
+        debugPrint('Firestore delete leave request error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'LEAVE_DELETE',
+        description: 'Deleted leave request for ${target.employeeName} (${target.leaveType.label}).',
+        targetEntityId: leaveId,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteAnnouncement(String announcementId, UserModel actor) async {
+    final idx = _announcements.indexWhere((a) => a.id == announcementId);
+    if (idx != -1) {
+      final target = _announcements[idx];
+      _announcements.removeAt(idx);
+      _announcementsStreamController.add(List.unmodifiable(_announcements));
+
+      try {
+        await _db?.collection('announcements').doc(announcementId).delete();
+      } catch (e) {
+        debugPrint('Firestore delete announcement error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'ANNOUNCEMENT_DELETE',
+        description: 'Deleted announcement "${target.title}".',
+        targetEntityId: announcementId,
       );
       return true;
     }

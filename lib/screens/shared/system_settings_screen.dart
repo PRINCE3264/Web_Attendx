@@ -32,6 +32,12 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   bool _isSaving = false;
 
+  void _onSettingChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +59,20 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     _radiusController = TextEditingController(
       text: '${policy.geofenceRadiusMeters}',
     );
+
+    _officeNameController.addListener(_onSettingChanged);
+    _latController.addListener(_onSettingChanged);
+    _lngController.addListener(_onSettingChanged);
+    _radiusController.addListener(_onSettingChanged);
   }
 
   @override
   void dispose() {
+    _officeNameController.removeListener(_onSettingChanged);
+    _latController.removeListener(_onSettingChanged);
+    _lngController.removeListener(_onSettingChanged);
+    _radiusController.removeListener(_onSettingChanged);
+
     _mapTransformationController.dispose();
     _officeNameController.dispose();
     _startTimeController.dispose();
@@ -654,8 +670,10 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   }
 
   Future<void> _openGoogleMapsLocation() async {
-    const mapsUrl =
-        'https://www.google.com/maps/place/United+Green+Hospital/@21.1986872,72.7939766,17z/data=!3m1!4b1!4m6!3m5!1s0x3be04d5ab3558c45:0xd145c8822257a152!8m2!3d21.1986872!4d72.7965515';
+    final lat = double.tryParse(_latController.text.trim()) ?? 21.1986872;
+    final lng = double.tryParse(_lngController.text.trim()) ?? 72.7965515;
+    final mapsUrl =
+        'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
     final Uri url = Uri.parse(mapsUrl);
     try {
       if (await canLaunchUrl(url)) {
@@ -672,6 +690,20 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     final double currentScale = _mapTransformationController.value
         .getMaxScaleOnAxis();
     final int zoomPercentage = (currentScale * 100).round();
+
+    final officeName = _officeNameController.text.trim().isEmpty
+        ? 'United Green Hospital'
+        : _officeNameController.text.trim();
+    final latStr = _latController.text.trim().isEmpty
+        ? '21.1986872'
+        : _latController.text.trim();
+    final lngStr = _lngController.text.trim().isEmpty
+        ? '72.7965515'
+        : _lngController.text.trim();
+    final radiusStr = _radiusController.text.trim().isEmpty
+        ? '300'
+        : _radiusController.text.trim();
+    final radiusValue = double.tryParse(radiusStr) ?? 300.0;
 
     return Container(
       height: 240,
@@ -695,7 +727,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         borderRadius: BorderRadius.circular(15),
         child: Stack(
           children: [
-            // Interactive Zoomable Map Canvas (Pinch, Drag & Double-tap)
+            // Interactive Zoomable Map Canvas
             Positioned.fill(
               child: InteractiveViewer(
                 transformationController: _mapTransformationController,
@@ -704,18 +736,24 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 onInteractionUpdate: (_) => setState(() {}),
                 child: Stack(
                   children: [
-                    // Vector Styled Road Map Background
+                    // Vector Styled Road Map Background with Dynamic Geofence Circle
                     Positioned.fill(
-                      child: CustomPaint(painter: MapPainter(isDark: isDark)),
+                      child: CustomPaint(
+                        painter: MapPainter(
+                          isDark: isDark,
+                          geofenceRadiusMeters: radiusValue,
+                        ),
+                      ),
                     ),
 
-                    // Pin Marker & Name Badge over United Green Hospital
+                    // Pin Marker & Dynamic Name Badge over Office Location
                     Align(
                       alignment: const Alignment(0.0, -0.2),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
+                            constraints: const BoxConstraints(maxWidth: 240),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 5,
@@ -737,19 +775,22 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'United Green Hospital',
+                                  officeName,
                                   style: GoogleFonts.outfit(
-                                    fontSize: 13,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFFDC2626),
                                   ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  'યુનાઇટેડ ગ્રીન હોસ્પિટલ',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11,
+                                  'GPS: $latStr, $lngStr • ${radiusValue.toStringAsFixed(0)}m Geofence',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w600,
-                                    color: const Color(0xFFDC2626),
+                                    color: isDark ? AppTheme.textMutedDark : const Color(0xFF475569),
                                   ),
                                 ),
                               ],
@@ -807,13 +848,12 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               ),
             ),
 
-            // Top Right Map Controls Stack: Zoom In (+), Zoom Out (-), Reset (⟲), Layer Controls
+            // Top Right Map Controls Stack
             Positioned(
               top: 12,
               right: 12,
               child: Column(
                 children: [
-                  // Zoom In Button (+)
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -842,7 +882,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // Zoom Out Button (-)
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -871,7 +910,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // Reset Zoom Button (⟲)
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -903,7 +941,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               ),
             ),
 
-            // Bottom Map Status Banner Overlay
+            // Bottom Map Status Banner Overlay with Dynamic Office Info
             Positioned(
               bottom: 0,
               left: 0,
@@ -928,9 +966,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'United Green Hospital • Anand Mahal Rd, Surat',
+                        '$officeName • $latStr, $lngStr (${radiusValue.toStringAsFixed(0)}m radius)',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
@@ -982,7 +1020,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
 class MapPainter extends CustomPainter {
   final bool isDark;
-  MapPainter({required this.isDark});
+  final double geofenceRadiusMeters;
+
+  MapPainter({required this.isDark, this.geofenceRadiusMeters = 300.0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1048,6 +1088,21 @@ class MapPainter extends CustomPainter {
 
     canvas.drawPath(secRoadPath, secRoadPaint);
 
+    // Draw Dynamic Geofence Perimeter Radius Circle Overlay
+    final pinCenter = Offset(size.width * 0.5, size.height * 0.45);
+    final visualRadius = (geofenceRadiusMeters * 0.25).clamp(35.0, 110.0);
+
+    final circleFillPaint = Paint()
+      ..color = const Color(0xFF3B82F6).withValues(alpha: 0.15)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(pinCenter, visualRadius, circleFillPaint);
+
+    final circleStrokePaint = Paint()
+      ..color = const Color(0xFF2563EB).withValues(alpha: 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(pinCenter, visualRadius, circleStrokePaint);
+
     // Road Labels
     const textStyle = TextStyle(
       color: Color(0xFF64748B),
@@ -1081,5 +1136,5 @@ class MapPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

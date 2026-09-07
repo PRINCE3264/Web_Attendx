@@ -26,6 +26,7 @@ import '../hr/hr_dashboard.dart';
 import '../hr/report_generator_screen.dart';
 import '../manager/leave_approval_screen.dart';
 import '../manager/manager_dashboard.dart';
+import '../manager/tl_team_attendance_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
 import 'project_reports_screen.dart';
 import 'system_settings_screen.dart';
@@ -222,7 +223,7 @@ class _AppShellState extends State<AppShell> {
           case AppRole.employee:
             return const EmployeeDashboard();
           case AppRole.tl:
-            return const ManagerDashboard();
+            return const EmployeeDashboard();
           case AppRole.hr:
             return const HrDashboard();
           case AppRole.admin:
@@ -249,13 +250,20 @@ class _AppShellState extends State<AppShell> {
 
       // TL & Approvals
       case NavDestinationKey.pendingApprovals:
-      case NavDestinationKey.teamAttendance:
       case NavDestinationKey.teamMembers:
         return RouteGuard.protect(
           context: context,
           user: user,
           requiredPermission: AppPermission.viewTeamAttendance,
           child: const ManagerDashboard(),
+        );
+
+      case NavDestinationKey.teamAttendance:
+        return RouteGuard.protect(
+          context: context,
+          user: user,
+          requiredPermission: AppPermission.viewTeamAttendance,
+          child: const TlTeamAttendanceScreen(),
         );
 
       case NavDestinationKey.leaveApprovals:
@@ -298,6 +306,7 @@ class _AppShellState extends State<AppShell> {
           child: const ReportGeneratorScreen(),
         );
 
+      case NavDestinationKey.teamWorkReport:
       case NavDestinationKey.projectReports:
         return const ProjectReportsScreen(isEmbedded: true);
 
