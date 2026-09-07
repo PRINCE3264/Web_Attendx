@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../config/app_theme.dart';
 import '../../models/project_report_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 
@@ -162,15 +163,27 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
     final hrProv = context.watch<HrProvider>();
-    final rawProjects = hrProv.projectsList;
-    final Set<String> projectSet = Set<String>.from(rawProjects);
+    final allProjects = hrProv.projects;
+    final Set<String> projectSet = {};
+    for (final proj in allProjects) {
+      if (user?.role == UserRole.admin) {
+        projectSet.add(proj.projectName);
+      } else {
+        if (proj.projectId == user?.assignedProjectId ||
+            proj.assignedEmployeeIds.contains(user?.userId) ||
+            proj.assignedLeadId == user?.userId ||
+            proj.assignedLeadId == user?.employeeId) {
+          projectSet.add(proj.projectName);
+        }
+      }
+    }
     if (user?.assignedProjectName != null && user!.assignedProjectName!.isNotEmpty) {
       projectSet.add(user.assignedProjectName!);
     }
     if (_selectedProject != null && _selectedProject!.isNotEmpty) {
       projectSet.add(_selectedProject!);
     }
-    final projects = projectSet.isEmpty ? ['Mobile App Revamp'] : projectSet.toList();
+    final projects = projectSet.isEmpty ? ['Unassigned Project'] : projectSet.toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(

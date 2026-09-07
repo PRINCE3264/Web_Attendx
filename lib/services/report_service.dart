@@ -19,6 +19,7 @@ class ReportService {
     final periodEnd = now;
 
     final allRecords = attendanceList ?? FirestoreService().getAttendanceForEmployee(employee.userId);
+    
 
     // Filter within 30-day window
     final relevantRecords = allRecords.where((a) {

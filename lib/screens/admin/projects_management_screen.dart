@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
 import '../../providers/hr_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/project_model.dart';
@@ -9,13 +10,11 @@ import '../../models/user_model.dart';
 class ProjectsManagementScreen extends StatefulWidget {
   final bool isEmbedded;
 
-  const ProjectsManagementScreen({
-    super.key,
-    this.isEmbedded = false,
-  });
+  const ProjectsManagementScreen({super.key, this.isEmbedded = false});
 
   @override
-  State<ProjectsManagementScreen> createState() => _ProjectsManagementScreenState();
+  State<ProjectsManagementScreen> createState() =>
+      _ProjectsManagementScreenState();
 }
 
 class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
@@ -36,29 +35,54 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
 
     // Filter projects
     final filteredProjects = allProjects.where((proj) {
+      // Role-based visibility
+      if (currentUser != null && (currentUser.role == UserRole.employee || currentUser.role == UserRole.manager)) {
+        final isAssigned =
+            proj.projectId == currentUser.assignedProjectId ||
+            proj.assignedEmployeeIds.contains(currentUser.userId) ||
+            proj.assignedLeadId == currentUser.userId ||
+            proj.assignedLeadId == currentUser.employeeId; // Just in case legacy IDs are used
+        if (!isAssigned) return false;
+      }
+
       final leadName = proj.assignedLeadName ?? '';
-      final matchesSearch = proj.projectName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      final matchesSearch =
+          proj.projectName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           proj.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           leadName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           proj.department.toLowerCase().contains(_searchQuery.toLowerCase());
 
-      final matchesStatus = _selectedStatusFilter == 'All' ||
+      final matchesStatus =
+          _selectedStatusFilter == 'All' ||
           proj.status.toLowerCase() == _selectedStatusFilter.toLowerCase();
 
-      final matchesDept = _selectedDeptFilter == 'All' ||
+      final matchesDept =
+          _selectedDeptFilter == 'All' ||
           proj.department.toLowerCase() == _selectedDeptFilter.toLowerCase();
 
       return matchesSearch && matchesStatus && matchesDept;
     }).toList();
 
     // Calculate stats
-    final totalCount = allProjects.length;
-    final activeCount = allProjects.where((p) => p.status == 'active').length;
-    final completedCount = allProjects.where((p) => p.status == 'completed').length;
-    final onHoldCount = allProjects.where((p) => p.status == 'on_hold' || p.status == 'planning').length;
+    final totalCount = filteredProjects.length;
+    final activeCount = filteredProjects
+        .where((p) => p.status == 'active')
+        .length;
+    final completedCount = filteredProjects
+        .where((p) => p.status == 'completed')
+        .length;
+    final onHoldCount = filteredProjects
+        .where((p) => p.status == 'on_hold' || p.status == 'planning')
+        .length;
 
     // Available departments
-    final departments = <String>{'All', ...allProjects.map((p) => p.department)};
+    final departments = <String>{
+      'All',
+      ...allProjects.map((p) => p.department),
+    };
+    if (!departments.contains(_selectedDeptFilter)) {
+      _selectedDeptFilter = 'All';
+    }
 
     final body = SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -69,59 +93,82 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isAdmin ? 'Project Master Directory' : 'Company Projects Directory',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isAdmin
+                          ? 'Project Master Directory'
+                          : (currentUser?.role == UserRole.manager
+                                ? 'My Managed Projects'
+                                : 'My Assigned Projects'),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isAdmin
-                        ? 'Manage company projects, leads, target schedules, and team assignments.'
-                        : 'Browse active company projects, team leads, schedules, and departments.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    const SizedBox(height: 4),
+                    Text(
+                      isAdmin
+                          ? 'Manage company projects, leads, target schedules, and team assignments.'
+                          : (currentUser?.role == UserRole.employee
+                                ? 'View your assigned projects, team leads, and schedules.'
+                                : 'Browse active company projects, team leads, schedules, and departments.'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               if (isAdmin)
                 ElevatedButton.icon(
-                  onPressed: () => _openProjectBottomSheet(context, hrProvider, currentUser),
+                  onPressed: () =>
+                      _openProjectBottomSheet(context, hrProvider, currentUser),
                   icon: const Icon(Icons.add_rounded, size: 20),
                   label: const Text('New Project'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 2,
                   ),
                 )
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.lock_outline_rounded, size: 14, color: Colors.blue),
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 14,
+                        color: Colors.blue,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         currentUser?.role == UserRole.manager
                             ? 'TL · View Only'
                             : currentUser?.role == UserRole.hr
-                                ? 'HR · View Only'
-                                : 'Employee · View Only',
+                            ? 'HR · View Only'
+                            : 'Employee · View Only',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -147,14 +194,18 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: Colors.blue),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: Colors.blue,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'You have read-only access to the Project Directory. Contact Admin to make changes.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? Colors.blue[200] : Colors.blue[800],
+                        color: isDark ? const Color(0xFF90CAF9) : const Color(0xFF1565C0),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -166,9 +217,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
           const SizedBox(height: 16),
 
           // KPI Stats Cards
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 600;
+          Builder(
+            builder: (context) {
+              final isMobile = MediaQuery.of(context).size.width < 600;
               return GridView.count(
                 crossAxisCount: isMobile ? 2 : 4,
                 crossAxisSpacing: 16,
@@ -206,7 +257,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                     title: 'On Hold / Planning',
                     value: '$onHoldCount',
                     icon: Icons.pause_circle_rounded,
-                    color: Colors.amber[800]!,
+                    color: const Color(0xFFFF8F00),
                     isDark: isDark,
                   ),
                 ],
@@ -221,10 +272,10 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: isDark ? Colors.white12 : Colors.grey[200]!,
+                color: isDark ? Colors.white12 : const Color(0xFFEEEEEE),
               ),
             ),
-            color: isDark ? Colors.grey[900] : Colors.white,
+            color: isDark ? const Color(0xFF212121) : Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -233,30 +284,37 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                   TextField(
                     onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: InputDecoration(
-                      hintText: 'Search by title, description, lead, department...',
+                      hintText:
+                          'Search by title, description, lead, department...',
                       prefixIcon: const Icon(Icons.search_rounded),
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                          color: isDark ? Colors.white24 : Colors.grey[300]!,
+                          color: isDark ? Colors.white24 : const Color(0xFFE0E0E0),
                         ),
                       ),
                       filled: true,
-                      fillColor: isDark ? Colors.grey[850] : Colors.grey[50],
+                      fillColor: isDark ? const Color(0xFF303030) : const Color(0xFFFAFAFA),
                     ),
                   ),
                   const SizedBox(height: 10),
                   // Department Dropdown Filter (Row 2 - Full Width)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isDark ? Colors.white24 : Colors.grey[300]!,
+                        color: isDark ? Colors.white24 : const Color(0xFFE0E0E0),
                       ),
-                      color: isDark ? Colors.grey[850] : Colors.grey[50],
+                      color: isDark ? const Color(0xFF303030) : const Color(0xFFFAFAFA),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
@@ -269,13 +327,17 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                         onChanged: (val) {
-                          if (val != null) setState(() => _selectedDeptFilter = val);
+                          if (val != null) {
+                            setState(() => _selectedDeptFilter = val);
+                          }
                         },
                         items: departments.map((dept) {
                           return DropdownMenuItem<String>(
                             value: dept,
                             child: Text(
-                              dept == 'All' ? 'Filter by Department: All Depts' : 'Department: $dept',
+                              dept == 'All'
+                                  ? 'Filter by Department: All Depts'
+                                  : 'Department: $dept',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -293,13 +355,33 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                       children: [
                         _buildStatusChip('All', 'All Status', isDark),
                         const SizedBox(width: 8),
-                        _buildStatusChip('active', 'Active', isDark, color: Colors.green),
+                        _buildStatusChip(
+                          'active',
+                          'Active',
+                          isDark,
+                          color: Colors.green,
+                        ),
                         const SizedBox(width: 8),
-                        _buildStatusChip('completed', 'Completed', isDark, color: Colors.blue),
+                        _buildStatusChip(
+                          'completed',
+                          'Completed',
+                          isDark,
+                          color: Colors.blue,
+                        ),
                         const SizedBox(width: 8),
-                        _buildStatusChip('on_hold', 'On Hold', isDark, color: Colors.amber[800]),
+                        _buildStatusChip(
+                          'on_hold',
+                          'On Hold',
+                          isDark,
+                          color: const Color(0xFFFF8F00),
+                        ),
                         const SizedBox(width: 8),
-                        _buildStatusChip('planning', 'Planning', isDark, color: const Color(0xFF0EA5E9)),
+                        _buildStatusChip(
+                          'planning',
+                          'Planning',
+                          isDark,
+                          color: const Color(0xFF0EA5E9),
+                        ),
                       ],
                     ),
                   ),
@@ -316,8 +398,10 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: isDark ? Colors.grey[900] : Colors.grey[50],
-                border: Border.all(color: isDark ? Colors.white10 : Colors.grey[200]!),
+                color: isDark ? const Color(0xFF212121) : const Color(0xFFFAFAFA),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : const Color(0xFFEEEEEE),
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -325,7 +409,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                   Icon(
                     Icons.folder_off_rounded,
                     size: 64,
-                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                    color: isDark ? const Color(0xFF757575) : const Color(0xFFBDBDBD),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -341,29 +425,36 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                         : 'Click "New Project" to add the first company project.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575),
                     ),
                   ),
                 ],
               ),
             )
           else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 850;
+            Builder(
+              builder: (context) {
+                final isWide = MediaQuery.of(context).size.width > 850;
                 if (isWide) {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      mainAxisExtent: 240,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          mainAxisExtent: 240,
+                        ),
                     itemCount: filteredProjects.length,
                     itemBuilder: (context, index) {
-                      return _buildProjectCard(context, filteredProjects[index], hrProvider, currentUser, isDark);
+                      return _buildProjectCard(
+                        context,
+                        filteredProjects[index],
+                        hrProvider,
+                        currentUser,
+                        isDark,
+                      );
                     },
                   );
                 }
@@ -371,9 +462,16 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: filteredProjects.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    return _buildProjectCard(context, filteredProjects[index], hrProvider, currentUser, isDark);
+                    return _buildProjectCard(
+                      context,
+                      filteredProjects[index],
+                      hrProvider,
+                      currentUser,
+                      isDark,
+                    );
                   },
                 );
               },
@@ -387,9 +485,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Project Management'),
-      ),
+      appBar: AppBar(title: const Text('Project Management')),
       body: body,
     );
   }
@@ -405,11 +501,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
+        color: isDark ? const Color(0xFF212121) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.grey[200]!,
-        ),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFEEEEEE)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
@@ -449,7 +543,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              color: isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575),
             ),
           ),
         ],
@@ -457,7 +551,12 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
     );
   }
 
-  Widget _buildStatusChip(String key, String label, bool isDark, {Color? color}) {
+  Widget _buildStatusChip(
+    String key,
+    String label,
+    bool isDark, {
+    Color? color,
+  }) {
     final isSelected = _selectedStatusFilter == key;
     final theme = Theme.of(context);
     final activeColor = color ?? theme.colorScheme.primary;
@@ -468,18 +567,18 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
       labelStyle: TextStyle(
         color: isSelected
             ? Colors.white
-            : (isDark ? Colors.grey[300] : Colors.grey[800]),
+            : (isDark ? const Color(0xFFE0E0E0) : const Color(0xFF424242)),
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         fontSize: 13,
       ),
       selectedColor: activeColor,
-      backgroundColor: isDark ? Colors.grey[850] : Colors.grey[100],
+      backgroundColor: isDark ? const Color(0xFF303030) : const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
           color: isSelected
               ? activeColor
-              : (isDark ? Colors.white12 : Colors.grey[300]!),
+              : (isDark ? Colors.white12 : const Color(0xFFE0E0E0)),
         ),
       ),
       onSelected: (_) {
@@ -505,7 +604,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
         statusLabel = 'Completed';
         break;
       case 'on_hold':
-        statusColor = Colors.amber[800]!;
+        statusColor = const Color(0xFFFF8F00);
         statusLabel = 'On Hold';
         break;
       case 'planning':
@@ -532,11 +631,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
+        color: isDark ? const Color(0xFF212121) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.grey[200]!,
-        ),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFEEEEEE)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
@@ -570,11 +667,16 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                            border: Border.all(
+                              color: statusColor.withValues(alpha: 0.4),
+                            ),
                           ),
                           child: Text(
                             statusLabel,
@@ -612,9 +714,18 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: Colors.red,
+                  ),
                   tooltip: 'Delete Project',
-                  onPressed: () => _confirmDeleteProject(context, hrProvider, project, currentUser),
+                  onPressed: () => _confirmDeleteProject(
+                    context,
+                    hrProvider,
+                    project,
+                    currentUser,
+                  ),
                 ),
               ],
             ],
@@ -628,110 +739,135 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
-              color: isDark ? Colors.grey[300] : Colors.grey[700],
+              color: isDark ? const Color(0xFFE0E0E0) : const Color(0xFF616161),
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 12),
           const Divider(height: 16),
 
-          // Details row: Lead, Dates, Reports
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Details row: Lead, Dates, Reports, Members
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Lead Info
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
-                    child: Text(
-                      leadName.isNotEmpty ? leadName[0].toUpperCase() : 'L',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
+                  // Lead Info
+                  Expanded(
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: theme.colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          child: Text(
+                            leadName.isNotEmpty ? leadName[0].toUpperCase() : 'L',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            leadName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFFE0E0E0) : const Color(0xFF424242),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    leadName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.grey[300] : Colors.grey[800],
-                    ),
+
+                  // Date Range
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 13,
+                        color: isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$startDateStr - $targetDateStr',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-
-              // Date Range
-              Row(
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  Icon(
-                    Icons.calendar_today_rounded,
-                    size: 13,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  // Report Badge Count
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF424242) : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.assignment_turned_in_rounded,
+                          size: 12,
+                          color: isDark ? const Color(0xFFE0E0E0) : const Color(0xFF616161),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${projectReports.length} Reports',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFE0E0E0) : const Color(0xFF616161),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$startDateStr - $targetDateStr',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+
+                  // Assigned Members chip
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.group_rounded,
+                          size: 12,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${project.assignedEmployeeIds.length} Members',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-
-              // Report Badge Count
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[800] : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.assignment_turned_in_rounded,
-                      size: 12,
-                      color: isDark ? Colors.grey[300] : Colors.grey[700],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${projectReports.length} Reports',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.grey[300] : Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Assigned Members chip
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.group_rounded, size: 12, color: theme.colorScheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${project.assignedEmployeeIds.length} Members',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -748,16 +884,24 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
     ProjectModel? existingProject,
   }) {
     final isEditing = existingProject != null;
-    final nameController = TextEditingController(text: existingProject?.projectName ?? '');
-    final descController = TextEditingController(text: existingProject?.description ?? '');
-    final deptController = TextEditingController(text: existingProject?.department ?? 'Engineering');
+    final nameController = TextEditingController(
+      text: existingProject?.projectName ?? '',
+    );
+    final descController = TextEditingController(
+      text: existingProject?.description ?? '',
+    );
+    final deptController = TextEditingController(
+      text: existingProject?.department ?? 'Engineering',
+    );
 
     String selectedStatus = existingProject?.status ?? 'active';
     String selectedLeadId = existingProject?.assignedLeadId ?? '';
     String selectedLeadName = existingProject?.assignedLeadName ?? '';
 
     DateTime startDate = existingProject?.startDate ?? DateTime.now();
-    DateTime? targetDate = existingProject?.targetDate ?? DateTime.now().add(const Duration(days: 90));
+    DateTime? targetDate =
+        existingProject?.targetDate ??
+        DateTime.now().add(const Duration(days: 90));
 
     // Get list of potential project leads (Managers/TLs/Admins)
     final allUsers = hrProvider.filteredEmployees;
@@ -784,8 +928,10 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
               ),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[900] : Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  color: isDark ? const Color(0xFF212121) : Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
                 padding: const EdgeInsets.all(24),
                 child: Form(
@@ -801,7 +947,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                             width: 40,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[700] : Colors.grey[300],
+                              color: isDark
+                                  ? const Color(0xFF616161)
+                                  : const Color(0xFFE0E0E0),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -810,7 +958,9 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
 
                         // Title
                         Text(
-                          isEditing ? 'Edit Project Details' : 'Create New Project',
+                          isEditing
+                              ? 'Edit Project Details'
+                              : 'Create New Project',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -820,12 +970,16 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                         // Project Name Input
                         TextFormField(
                           controller: nameController,
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Project name is required' : null,
+                          validator: (val) => val == null || val.trim().isEmpty
+                              ? 'Project name is required'
+                              : null,
                           decoration: InputDecoration(
                             labelText: 'Project Name *',
                             hintText: 'e.g. Attendance AI Engine v2',
                             prefixIcon: const Icon(Icons.folder_outlined),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -834,13 +988,17 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                         TextFormField(
                           controller: descController,
                           maxLines: 3,
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Description is required' : null,
+                          validator: (val) => val == null || val.trim().isEmpty
+                              ? 'Description is required'
+                              : null,
                           decoration: InputDecoration(
                             labelText: 'Project Description *',
                             hintText: 'Describe key milestones, goals, and tech stack...',
                             prefixIcon: const Icon(Icons.description_outlined),
                             alignLabelWithHint: true,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -852,12 +1010,17 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                             Expanded(
                               child: TextFormField(
                                 controller: deptController,
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Department required' : null,
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                    ? 'Department required'
+                                    : null,
                                 decoration: InputDecoration(
                                   labelText: 'Department *',
                                   hintText: 'e.g. Engineering',
                                   prefixIcon: const Icon(Icons.domain_outlined),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),
@@ -869,16 +1032,32 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 decoration: InputDecoration(
                                   labelText: 'Status',
                                   prefixIcon: const Icon(Icons.flag_outlined),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'active', child: Text('Active')),
-                                  DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                                  DropdownMenuItem(value: 'on_hold', child: Text('On Hold')),
-                                  DropdownMenuItem(value: 'planning', child: Text('Planning')),
+                                  DropdownMenuItem(
+                                    value: 'active',
+                                    child: Text('Active'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'completed',
+                                    child: Text('Completed'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'on_hold',
+                                    child: Text('On Hold'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'planning',
+                                    child: Text('Planning'),
+                                  ),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null) setModalState(() => selectedStatus = val);
+                                  if (val != null) {
+                                    setModalState(() => selectedStatus = val);
+                                  }
                                 },
                               ),
                             ),
@@ -888,23 +1067,35 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
 
                         // Assigned Project Lead Dropdown
                         DropdownButtonFormField<String>(
-                          initialValue: selectedLeadId.isNotEmpty && allUsers.any((u) => u.userId == selectedLeadId)
+                          initialValue:
+                              selectedLeadId.isNotEmpty &&
+                                  allUsers.any(
+                                    (u) => u.userId == selectedLeadId,
+                                  )
                               ? selectedLeadId
-                              : (allUsers.isNotEmpty ? allUsers.first.userId : null),
+                              : (allUsers.isNotEmpty
+                                    ? allUsers.first.userId
+                                    : null),
                           decoration: InputDecoration(
                             labelText: 'Assigned Project Lead / Manager',
                             prefixIcon: const Icon(Icons.person_pin_outlined),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           items: allUsers.map((u) {
                             return DropdownMenuItem<String>(
                               value: u.userId,
-                              child: Text('${u.name} (${u.role.name.toUpperCase()})'),
+                              child: Text(
+                                '${u.name} (${u.role.name.toUpperCase()})',
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) {
-                              final leadUser = allUsers.firstWhere((u) => u.userId == val);
+                              final leadUser = allUsers.firstWhere(
+                                (u) => u.userId == val,
+                              );
                               setModalState(() {
                                 selectedLeadId = leadUser.userId;
                                 selectedLeadName = leadUser.name;
@@ -934,8 +1125,12 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 child: InputDecorator(
                                   decoration: InputDecoration(
                                     labelText: 'Start Date',
-                                    prefixIcon: const Icon(Icons.calendar_month_outlined),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    prefixIcon: const Icon(
+                                      Icons.calendar_month_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: Text(
                                     DateFormat('yyyy-MM-dd').format(startDate),
@@ -950,7 +1145,11 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 onTap: () async {
                                   final picked = await showDatePicker(
                                     context: context,
-                                    initialDate: targetDate ?? DateTime.now().add(const Duration(days: 90)),
+                                    initialDate:
+                                        targetDate ??
+                                        DateTime.now().add(
+                                          const Duration(days: 90),
+                                        ),
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
                                   );
@@ -961,11 +1160,18 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 child: InputDecorator(
                                   decoration: InputDecoration(
                                     labelText: 'Target Date',
-                                    prefixIcon: const Icon(Icons.event_outlined),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    prefixIcon: const Icon(
+                                      Icons.event_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: Text(
-                                    targetDate != null ? DateFormat('yyyy-MM-dd').format(targetDate!) : 'Select Date',
+                                    targetDate != null
+                                        ? DateFormat('yyyy-MM-dd')
+                                              .format(targetDate!)
+                                        : 'Select Date',
                                   ),
                                 ),
                               ),
@@ -995,14 +1201,22 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                 targetDate: targetDate,
                                 assignedLeadId: selectedLeadId,
                                 assignedLeadName: selectedLeadName,
-                                createdAt: existingProject?.createdAt ?? DateTime.now(),
+                                createdAt:
+                                    existingProject?.createdAt ??
+                                    DateTime.now(),
                               );
 
                               if (currentUser != null) {
                                 if (isEditing) {
-                                  await hrProvider.updateProject(newProj, currentUser);
+                                  await hrProvider.updateProject(
+                                    newProj,
+                                    currentUser,
+                                  );
                                 } else {
-                                  await hrProvider.createProject(newProj, currentUser);
+                                  await hrProvider.createProject(
+                                    newProj,
+                                    currentUser,
+                                  );
                                 }
                               }
 
@@ -1015,7 +1229,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                                           ? 'Project "${newProj.projectName}" updated successfully!'
                                           : 'Project "${newProj.projectName}" created successfully!',
                                     ),
-                                    backgroundColor: Colors.green[700],
+                                    backgroundColor: const Color(0xFF388E3C),
                                   ),
                                 );
                               }
@@ -1024,11 +1238,16 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               backgroundColor: theme.colorScheme.primary,
                               foregroundColor: theme.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             child: Text(
                               isEditing ? 'Save Changes' : 'Create Project',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -1073,14 +1292,19 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (currentUser != null) {
-                  await hrProvider.deleteProject(project.projectId, currentUser);
+                  await hrProvider.deleteProject(
+                    project.projectId,
+                    currentUser,
+                  );
                 }
                 if (context.mounted) {
                   Navigator.pop(dialogContext);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Project "${project.projectName}" deleted.'),
-                      backgroundColor: Colors.red[700],
+                      content: Text(
+                        'Project "${project.projectName}" deleted.',
+                      ),
+                      backgroundColor: const Color(0xFFD32F2F),
                     ),
                   );
                 }

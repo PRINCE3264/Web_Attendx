@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_theme.dart';
 import '../../core/navigation/nav_menu_item.dart';
 import '../../core/permissions/role_model.dart';
@@ -14,6 +15,7 @@ import '../admin/admin_panel_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/policy_settings_screen.dart';
 import '../admin/projects_management_screen.dart';
+
 import '../auth/login_screen.dart';
 import '../employee/attendance_history_screen.dart';
 import '../employee/camera_capture_screen.dart';
@@ -78,9 +80,7 @@ class _AppShellState extends State<AppShell> {
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
                 // Role-Protected Active Screen Content
-                Expanded(
-                  child: _resolveActiveScreen(role, user),
-                ),
+                Expanded(child: _resolveActiveScreen(role, user)),
               ],
             ),
           ),
@@ -107,7 +107,11 @@ class _AppShellState extends State<AppShell> {
           if (!isDesktop)
             Builder(
               builder: (ctx) => IconButton(
-                icon: const Icon(Icons.menu_rounded, size: 24, color: AppTheme.textMainLight),
+                icon: const Icon(
+                  Icons.menu_rounded,
+                  size: 24,
+                  color: AppTheme.textMainLight,
+                ),
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
                 tooltip: 'Open Sidebar',
               ),
@@ -151,7 +155,9 @@ class _AppShellState extends State<AppShell> {
               decoration: BoxDecoration(
                 color: role.badgeColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: role.badgeColor.withValues(alpha: 0.35)),
+                border: Border.all(
+                  color: role.badgeColor.withValues(alpha: 0.35),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -176,7 +182,11 @@ class _AppShellState extends State<AppShell> {
           if (isCompact)
             IconButton(
               onPressed: _showRoleSwitcherDialog,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 20, color: AppTheme.primary),
+              icon: const Icon(
+                Icons.swap_horiz_rounded,
+                size: 20,
+                color: AppTheme.primary,
+              ),
               tooltip: 'Switch Role',
             )
           else
@@ -192,7 +202,11 @@ class _AppShellState extends State<AppShell> {
 
           // Notification Icon
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, size: 20, color: Color(0xFF64748B)),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              size: 20,
+              color: Color(0xFF64748B),
+            ),
             onPressed: _showNotificationsSheet,
             tooltip: 'FCM Alerts',
           ),
@@ -352,7 +366,9 @@ class _AppShellState extends State<AppShell> {
 
     final auth = context.read<AuthProvider>();
     final user = auth.currentUser;
-    final role = user != null ? AppRole.fromString(user.role.name) : AppRole.employee;
+    final role = user != null
+        ? AppRole.fromString(user.role.name)
+        : AppRole.employee;
 
     // Verify permission before switching destination
     if (item.requiredPermission != null &&
@@ -390,9 +406,15 @@ class _AppShellState extends State<AppShell> {
               children: [
                 Text(
                   'FCM Alerts & Updates',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -443,12 +465,27 @@ class _AppShellState extends State<AppShell> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(body, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
               ],
             ),
           ),
-          Text(time, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+          Text(
+            time,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+          ),
         ],
       ),
     );
@@ -475,9 +512,15 @@ class _AppShellState extends State<AppShell> {
                 children: [
                   Text(
                     'Switch Active User & Role',
-                    style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -488,34 +531,52 @@ class _AppShellState extends State<AppShell> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Material(
-                    color: isCurrent ? role.badgeColor.withValues(alpha: 0.08) : Colors.transparent,
+                    color: isCurrent
+                        ? role.badgeColor.withValues(alpha: 0.08)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: ListTile(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       leading: CircleAvatar(
                         backgroundColor: role.badgeColor.withValues(alpha: 0.2),
-                        child: Icon(role.icon, color: role.badgeColor, size: 20),
+                        child: Icon(
+                          role.icon,
+                          color: role.badgeColor,
+                          size: 20,
+                        ),
                       ),
                       title: Text(
                         u.name,
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       subtitle: Text(
                         '${role.displayName} • ${u.department}',
                         style: const TextStyle(fontSize: 12),
                       ),
                       trailing: isCurrent
-                          ? const Icon(Icons.check_circle, color: AppTheme.success)
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: AppTheme.success,
+                            )
                           : OutlinedButton(
                               onPressed: () {
                                 auth.selectUser(u);
                                 Navigator.pop(ctx);
                                 setState(() {
-                                  _activeDestination = NavDestinationKey.dashboard;
+                                  _activeDestination =
+                                      NavDestinationKey.dashboard;
                                 });
                               },
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                               ),
                               child: const Text('Switch'),
                             ),

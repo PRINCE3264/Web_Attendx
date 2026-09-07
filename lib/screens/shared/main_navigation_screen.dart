@@ -49,12 +49,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
 
   void _updateTabController(int length) {
     if (_tabController.length != length) {
-      _tabController.dispose();
+      final oldController = _tabController;
       _tabController = TabController(length: length, vsync: this);
       _tabController.addListener(() {
         if (!_tabController.indexIsChanging) {
           setState(() {});
         }
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldController.dispose();
       });
     }
   }
@@ -140,11 +143,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
 
     if (_previousRole != role) {
       _previousRole = role;
+      _customScreen = null;
+      _customScreenTitle = null;
       _updateTabController(screens.length);
       // Always reset to tab 0 on role change so HR lands on HR Overview, etc.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _tabController.index != 0) {
-          _tabController.animateTo(0);
+        if (mounted) {
+          _tabController.index = 0;
+          setState(() {});
         }
       });
     }
@@ -165,159 +171,196 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         break;
     }
 
-    return Scaffold(
-      drawer: AppSidebarDrawer(
-        currentIndex: _customScreen != null ? -1 : _tabController.index,
-        onSelectTab: (index) {
+    return PopScope(
+      canPop: _customScreen == null && _tabController.index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_customScreen != null) {
           setState(() {
             _customScreen = null;
             _customScreenTitle = null;
-            _tabController.animateTo(index.clamp(0, screens.length - 1));
           });
-        },
-        onSelectScreen: (screen, title) {
+        } else if (_tabController.index != 0) {
           setState(() {
-            _customScreen = screen;
-            _customScreenTitle = title;
+            _tabController.animateTo(0);
           });
-        },
-      ),
-      appBar: AppBar(
-        titleSpacing: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: Icon(
-              _customScreen != null ? Icons.arrow_back_rounded : Icons.menu_rounded,
-              size: 26,
-            ),
-            onPressed: () {
-              if (_customScreen != null) {
-                setState(() {
-                  _customScreen = null;
-                  _customScreenTitle = null;
-                });
-              } else {
-                Scaffold.of(ctx).openDrawer();
-              }
-            },
-            tooltip: _customScreen != null ? 'Back to Main Dashboard' : 'Open Navigation Drawer',
-          ),
+        }
+      },
+      child: Scaffold(
+        drawer: AppSidebarDrawer(
+          currentIndex: _customScreen != null ? -1 : _tabController.index,
+          onSelectTab: (index) {
+            setState(() {
+              _customScreen = null;
+              _customScreenTitle = null;
+              _tabController.animateTo(index.clamp(0, screens.length - 1));
+            });
+          },
+          onSelectScreen: (screen, title) {
+            setState(() {
+              _customScreen = screen;
+              _customScreenTitle = title;
+            });
+          },
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: roleColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+        appBar: AppBar(
+          titleSpacing: 0,
+          leading: Builder(
+            builder: (ctx) => IconButton(
+              icon: Icon(
+                _customScreen != null ? Icons.arrow_back_rounded : Icons.menu_rounded,
+                size: 26,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    role == UserRole.admin
-                        ? Icons.admin_panel_settings
-                        : (role == UserRole.manager
-                            ? Icons.supervisor_account
-                            : (role == UserRole.hr ? Icons.badge : Icons.person)),
-                    size: 14,
-                    color: roleColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    role.name,
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+              onPressed: () {
+                if (_customScreen != null) {
+                  setState(() {
+                    _customScreen = null;
+                    _customScreenTitle = null;
+                  });
+                } else {
+                  Scaffold.of(ctx).openDrawer();
+                }
+              },
+              tooltip: _customScreen != null ? 'Back to Main Dashboard' : 'Open Navigation Drawer',
+            ),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: roleColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      role == UserRole.admin
+                          ? Icons.admin_panel_settings
+                          : (role == UserRole.manager
+                              ? Icons.supervisor_account
+                              : (role == UserRole.hr ? Icons.badge : Icons.person)),
+                      size: 14,
                       color: roleColor,
                     ),
-                  ),
-                ],
-              ),
-            ),
-            if (_customScreenTitle != null) ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '• $_customScreenTitle',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 6),
+                    Text(
+                      role.name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: roleColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ],
-        ),
-        actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, size: 24),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                  );
-                },
-                tooltip: 'Notifications',
-              ),
-              if (notifProvider.unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
+              if (_customScreenTitle != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '• $_customScreenTitle',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : Colors.black87,
                     ),
-                    child: Text(
-                      notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.notifications_outlined,
+                    size: 24,
+                    color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    );
+                  },
+                  tooltip: 'Notifications',
+                ),
+                if (notifProvider.unreadCount > 0)
+                  Positioned(
+                    right: 6,
+                    top: 10,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.danger,
+                            const Color(0xFFFF6B6B),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.danger.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, size: 22),
-            onPressed: () {
-              // TODO: Implement more options
-            },
-            tooltip: 'More Options',
-          ),
-        ],
-      ),
-      body: _customScreen ??
-          TabBarView(
-            controller: _tabController,
-            children: screens,
-          ),
-      floatingActionButton: const AIVoiceButton(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _customScreen != null ? 0 : _tabController.index.clamp(0, navItems.length - 1),
-        onTap: (index) {
-          setState(() {
-            _customScreen = null;
-            _customScreenTitle = null;
-            _tabController.animateTo(index);
-          });
-        },
-        selectedItemColor: _customScreen != null
-            ? (isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight)
-            : roleColor,
-        unselectedItemColor: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-        type: BottomNavigationBarType.fixed,
-        items: navItems,
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.more_vert, size: 22),
+              onPressed: () {
+                // TODO: Implement more options
+              },
+              tooltip: 'More Options',
+            ),
+          ],
+        ),
+        body: _customScreen ??
+            TabBarView(
+              controller: _tabController,
+              children: screens,
+            ),
+        floatingActionButton: const AIVoiceButton(),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _customScreen != null ? 0 : _tabController.index.clamp(0, navItems.length - 1),
+          onTap: (index) {
+            setState(() {
+              _customScreen = null;
+              _customScreenTitle = null;
+              _tabController.animateTo(index);
+            });
+          },
+          backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+          selectedItemColor: _customScreen != null
+              ? (isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight)
+              : roleColor,
+          unselectedItemColor: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+          type: BottomNavigationBarType.fixed,
+          elevation: isDark ? 0 : 8,
+          items: navItems,
+        ),
       ),
     );
   }

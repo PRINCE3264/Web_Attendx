@@ -52,7 +52,7 @@ class EmployeeMenu {
       route: '/employee/project-reports',
     ),
     const NavMenuItem(
-      title: 'Company Projects',
+      title: 'My Projects',
       icon: Icons.folder_special_rounded,
       destination: NavDestinationKey.projectsManagement,
       route: '/employee/projects',

@@ -183,14 +183,15 @@ class LocalStorageService {
   }
 
   // --- Notifications Persistence ---
-  // Keeps the latest 50 notifications so they survive app restarts.
-  static const int _maxSavedNotifications = 50;
+  // Keeps notifications so they survive app restarts.
+  static const int _maxSavedNotifications = 1000;
 
   Future<void> saveNotifications(List<Map<String, dynamic>> notifications) async {
     try {
       final file = await _getFile('attendx_notifications.json');
       if (file == null) return;
-      // Cap to the latest _maxSavedNotifications entries
+      
+      // Keep up to 1000 notifications so old data doesn't get cleaned up soon
       final capped = notifications.length > _maxSavedNotifications
           ? notifications.sublist(0, _maxSavedNotifications)
           : notifications;
@@ -214,12 +215,60 @@ class LocalStorageService {
     }
   }
 
+  // --- Firestore Notifications Persistence ---
+  Future<void> saveFirestoreNotifications(List<Map<String, dynamic>> notifications) async {
+    try {
+      final file = await _getFile('attendx_fs_notifications.json');
+      if (file == null) return;
+      
+      final capped = notifications.length > 1000
+          ? notifications.sublist(0, 1000)
+          : notifications;
+      await file.writeAsString(jsonEncode(capped));
+    } catch (e) {
+      debugPrint('Error saving fs notifications: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> loadFirestoreNotifications() async {
+    try {
+      final file = await _getFile('attendx_fs_notifications.json');
+      if (file == null || !await file.exists()) return null;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      final List<dynamic> jsonList = jsonDecode(content);
+      return jsonList.cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error loading fs notifications: $e');
+      return null;
+    }
+  }
+
   Future<void> clearNotifications() async {
     try {
       final file = await _getFile('attendx_notifications.json');
       if (file != null && await file.exists()) await file.delete();
     } catch (e) {
       debugPrint('Error clearing notifications from local storage: $e');
+    }
+  }
+
+  Future<void> clearAllData() async {
+    try {
+      final filenames = [
+        'attendx_attendance.json',
+        'attendx_leaves.json',
+        'attendx_corrections.json',
+        'attendx_projects.json',
+      ];
+      for (final name in filenames) {
+        final file = await _getFile(name);
+        if (file != null && await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error clearing local storage data: $e');
     }
   }
 }

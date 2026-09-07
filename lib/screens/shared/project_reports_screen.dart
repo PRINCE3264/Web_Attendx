@@ -13,7 +13,7 @@ import '../shared/custom_widgets.dart';
 
 class ProjectReportsScreen extends StatefulWidget {
   final bool isEmbedded;
-  const ProjectReportsScreen({super.key, this.isEmbedded = false});
+  const ProjectReportsScreen({super.key, this.isEmbedded = true});
 
   @override
   State<ProjectReportsScreen> createState() => _ProjectReportsScreenState();
@@ -35,12 +35,15 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
 
     // Filter by TL if logged in as TL
     if (currentUser?.role == UserRole.manager && currentUser != null) {
-      final teamEmpIds = hrProv.filteredEmployees
-          .where((e) => e.managerId == currentUser.userId)
+      final teamEmpIds = hrProv.allEmployees
+          .where((e) => e.managerId == currentUser.userId || (e.managerId != null && e.managerId == currentUser.employeeId))
           .map((e) => e.userId)
           .toSet();
       teamEmpIds.add(currentUser.userId);
       reports = reports.where((r) => teamEmpIds.contains(r.employeeId)).toList();
+    } else if (currentUser?.role == UserRole.employee && currentUser != null) {
+      // Filter for Employee to only see their own reports
+      reports = reports.where((r) => r.employeeId == currentUser.userId).toList();
     }
 
     // Filter by Project

@@ -25,6 +25,18 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = user;
       notifyListeners();
     });
+    FirestoreService().usersStream.listen((users) {
+      if (_currentUser != null) {
+        try {
+          final updated = users.firstWhere((u) => u.userId == _currentUser!.userId);
+          if (updated.toMap().toString() != _currentUser!.toMap().toString()) {
+            _currentUser = updated;
+            _authService.updateSessionUser(updated);
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+    });
   }
 
   void clearError() {

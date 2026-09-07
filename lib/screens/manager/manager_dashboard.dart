@@ -10,6 +10,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
 import '../shared/custom_widgets.dart';
 import '../shared/project_reports_screen.dart';
+import '../../providers/hr_provider.dart';
+import '../hr/all_employees_screen.dart';
 import 'photo_review_dialog.dart';
 import 'leave_approval_screen.dart';
 
@@ -333,6 +335,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
             ];
           },
           body: TabBarView(
+            key: const ValueKey('manager_tab_bar_view'),
             controller: _tabController,
             children: [
               // Pending Approvals List
@@ -375,26 +378,185 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                     ),
 
               // Team Roster List
-              allToday.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No attendance logged for today matching filters.',
-                        style: GoogleFonts.inter(
-                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                        ),
+              Builder(
+                builder: (context) {
+                  final hrProv = context.watch<HrProvider>();
+                  final myTeamMembers = hrProv.allEmployees.where((e) =>
+                      e.managerId == user.userId ||
+                      (e.managerId != null && e.managerId == user.employeeId) ||
+                      (user.teamId.isNotEmpty && user.teamId != 'unassigned' && e.teamId == user.teamId)
+                  ).toList();
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Assigned Team Members (${myTeamMembers.length})',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const Scaffold(
+                                    body: SafeArea(
+                                      child: AllEmployeesScreen(isEmbedded: false),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
+                            label: const Text('Assign Team', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      itemCount: allToday.length,
-                      itemBuilder: (context, index) {
-                        final rec = allToday[index];
-                        return _buildRosterCard(context, rec);
-                      },
-                    ),
+                      const SizedBox(height: 12),
+                      if (myTeamMembers.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppTheme.cardDark : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.groups_outlined, size: 48, color: AppTheme.primary),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No Employees Assigned Yet',
+                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Assign employees to your team roster to track their attendance and manage requests.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const Scaffold(
+                                        body: SafeArea(
+                                          child: AllEmployeesScreen(isEmbedded: false),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.person_add, size: 16),
+                                label: const Text('Assign Employees Now'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        for (final member in myTeamMembers) ...[
+                          Builder(
+                            builder: (context) {
+                              final attendanceMatch = allToday.where((a) => a.employeeId == member.userId || a.employeeId == member.employeeId).toList();
+                              if (attendanceMatch.isNotEmpty) {
+                                return _buildRosterCard(context, attendanceMatch.first);
+                              } else {
+                                return _buildUncheckedMemberCard(context, member);
+                              }
+                            },
+                          ),
+                        ],
+                      ],
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUncheckedMemberCard(BuildContext context, UserModel member) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            child: ClipOval(
+              child: PhotoDisplayWidget(
+                photoUrl: member.avatarUrl,
+                size: 40,
+                borderRadius: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${member.employeeId} • ${member.department}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.schedule, size: 12, color: Colors.orange),
+                SizedBox(width: 4),
+                Text('Not Checked In', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.orange)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

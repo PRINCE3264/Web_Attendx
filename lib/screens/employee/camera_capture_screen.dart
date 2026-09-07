@@ -92,10 +92,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
     final attendance = context.watch<AttendanceProvider>();
     final isClockIn = widget.actionType == 'clockIn';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppTheme.bgDark : Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Text(

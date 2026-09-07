@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../providers/admin_provider.dart';
@@ -19,7 +20,7 @@ class AllEmployeesScreen extends StatefulWidget {
 
   const AllEmployeesScreen({
     super.key,
-    this.isEmbedded = false,
+    this.isEmbedded = true,
     this.initialStatusFilter = 'all',
     this.initialRoleFilter = 'all',
   });
@@ -31,6 +32,7 @@ class AllEmployeesScreen extends StatefulWidget {
 class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
   late String _statusFilter;
   late String _roleFilter;
+  String _tlTeamScope = 'my_team'; // 'my_team' or 'all'
 
   @override
   void initState() {
@@ -60,14 +62,30 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUser = auth.currentUser;
 
-    // Filter employees by TL assignment if logged in as TL
-    final baseEmployees = (currentUser?.role == UserRole.manager && currentUser != null)
-        ? hr.filteredEmployees.where((e) => e.managerId == currentUser.userId).toList()
+    final isTL = currentUser?.role == UserRole.manager && currentUser != null;
+    final myTeamEmployees = isTL
+        ? hr.filteredEmployees
+              .where(
+                (e) =>
+                    e.managerId == currentUser.userId ||
+                    (e.managerId != null &&
+                        e.managerId == currentUser.employeeId) ||
+                    (currentUser.teamId.isNotEmpty &&
+                        currentUser.teamId != 'unassigned' &&
+                        e.teamId == currentUser.teamId),
+              )
+              .toList()
+        : <UserModel>[];
+
+    // Filter employees by TL scope if logged in as TL
+    final baseEmployees = isTL
+        ? (_tlTeamScope == 'my_team' ? myTeamEmployees : hr.filteredEmployees)
         : hr.filteredEmployees;
 
     // Apply Role filter first to establish role-based directory list
     final roleFilteredBase = baseEmployees.where((e) {
-      if (_roleFilter == 'employee' && e.role != UserRole.employee) return false;
+      if (_roleFilter == 'employee' && e.role != UserRole.employee)
+        return false;
       if (_roleFilter == 'manager' && e.role != UserRole.manager) return false;
       if (_roleFilter == 'hr' && e.role != UserRole.hr) return false;
       if (_roleFilter == 'admin' && e.role != UserRole.admin) return false;
@@ -93,21 +111,30 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                 _roleFilter == 'manager'
                     ? 'Team Lead Directory'
                     : (_roleFilter == 'hr'
-                        ? 'HR Personnel Directory'
-                        : (_roleFilter == 'employee'
-                            ? 'Employee Directory'
-                            : (currentUser?.role == UserRole.manager ? 'Team Roster' : 'User Directory'))),
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                          ? 'HR Personnel Directory'
+                          : (_roleFilter == 'employee'
+                                ? 'Employee Directory'
+                                : (currentUser?.role == UserRole.manager
+                                      ? 'Team Roster'
+                                      : 'User Directory'))),
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
-      floatingActionButton: (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr)
+      floatingActionButton:
+          (currentUser?.role == UserRole.admin ||
+              currentUser?.role == UserRole.hr)
           ? FloatingActionButton(
               onPressed: () {
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   builder: (_) => const AddEmployeeSheet(),
                 );
@@ -115,10 +142,35 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
               backgroundColor: AppTheme.primary,
               child: const Icon(Icons.person_add, color: Colors.white),
             )
-          : null,
+          : (isTL
+                ? FloatingActionButton.extended(
+                    onPressed: () =>
+                        _showTLManageTeamSheet(context, currentUser),
+                    backgroundColor: AppTheme.primary,
+                    icon: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Assign Team Members',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null),
       body: SafeArea(
         child: Column(
           children: [
+            // TL Scope Switch Chips (My Team vs All Company)
+            if (isTL)
+              _buildTLScopeChips(
+                isDark,
+                myTeamEmployees.length,
+                hr.filteredEmployees.length,
+              ),
+
             // Search Bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -144,11 +196,25 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildStatusChip('all', 'All (${roleFilteredBase.length})', isDark),
+                    _buildStatusChip(
+                      'all',
+                      'All (${roleFilteredBase.length})',
+                      isDark,
+                    ),
                     const SizedBox(width: 8),
-                    _buildStatusChip('active', 'Active ($activeCount)', isDark, badgeColor: AppTheme.success),
+                    _buildStatusChip(
+                      'active',
+                      'Active ($activeCount)',
+                      isDark,
+                      badgeColor: AppTheme.success,
+                    ),
                     const SizedBox(width: 8),
-                    _buildStatusChip('inactive', 'Inactive ($inactiveCount)', isDark, badgeColor: AppTheme.danger),
+                    _buildStatusChip(
+                      'inactive',
+                      'Inactive ($inactiveCount)',
+                      isDark,
+                      badgeColor: AppTheme.danger,
+                    ),
                   ],
                 ),
               ),
@@ -166,7 +232,10 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(dept, style: const TextStyle(fontSize: 12)),
+                          label: Text(
+                            dept,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                           selected: isSelected,
                           onSelected: (selected) {
                             if (selected) hr.setDepartmentFilter(dept);
@@ -194,19 +263,27 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                   ? Icons.no_accounts_outlined
                                   : Icons.people_outline,
                               size: 48,
-                              color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                              color: isDark
+                                  ? AppTheme.textMutedDark
+                                  : AppTheme.textMutedLight,
                             ),
                             const SizedBox(height: 12),
                             Text(
                               'No Employees Found',
-                              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _statusFilter == 'inactive'
                                   ? 'There are currently no inactive or deactivated employees.'
                                   : 'No employee profiles match the current filter criteria.',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -214,14 +291,21 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       itemCount: employees.length,
                       itemBuilder: (context, index) {
                         final emp = employees[index];
-                        final todayRec = attendance.getTodayAttendance(emp.userId);
+                        final todayRec = attendance.getTodayAttendance(
+                          emp.userId,
+                        );
                         final report = ReportService.calculate30DayReport(
                           employee: emp,
-                          attendanceList: attendance.getEmployeeHistory(emp.userId),
+                          attendanceList: attendance.getEmployeeHistory(
+                            emp.userId,
+                          ),
                         );
 
                         return _buildEmployeeCard(
@@ -242,7 +326,12 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     );
   }
 
-  Widget _buildStatusChip(String key, String label, bool isDark, {Color? badgeColor}) {
+  Widget _buildStatusChip(
+    String key,
+    String label,
+    bool isDark, {
+    Color? badgeColor,
+  }) {
     final isSelected = _statusFilter == key;
     return ChoiceChip(
       selected: isSelected,
@@ -254,7 +343,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
         style: GoogleFonts.outfit(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
           fontSize: 12.5,
-          color: isSelected ? Colors.white : (isDark ? AppTheme.textMutedDark : AppTheme.textMainLight),
+          color: isSelected
+              ? Colors.white
+              : (isDark ? AppTheme.textMutedDark : AppTheme.textMainLight),
         ),
       ),
       selectedColor: badgeColor ?? AppTheme.primary,
@@ -262,7 +353,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isSelected ? (badgeColor ?? AppTheme.primary) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          color: isSelected
+              ? (badgeColor ?? AppTheme.primary)
+              : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -286,11 +379,15 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
       decoration: BoxDecoration(
         color: isActive
             ? (isDark ? AppTheme.cardDark : Colors.white)
-            : (isDark ? const Color(0xFF1E1E2E) : AppTheme.dangerSoft.withValues(alpha: 0.35)),
+            : (isDark
+                  ? const Color(0xFF1E1E2E)
+                  : AppTheme.dangerSoft.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isActive
-              ? (isDark ? AppTheme.borderDark : AppTheme.primary.withValues(alpha: 0.15))
+              ? (isDark
+                    ? AppTheme.borderDark
+                    : AppTheme.primary.withValues(alpha: 0.15))
               : AppTheme.danger.withValues(alpha: 0.35),
           width: isActive ? 1.0 : 1.2,
         ),
@@ -323,7 +420,10 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                     decoration: BoxDecoration(
                       color: isActive ? AppTheme.success : AppTheme.danger,
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? AppTheme.cardDark : Colors.white, width: 2),
+                      border: Border.all(
+                        color: isDark ? AppTheme.cardDark : Colors.white,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ],
@@ -343,27 +443,40 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                             style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : AppTheme.textMainLight,
+                              color: isDark
+                                  ? Colors.white
+                                  : AppTheme.textMainLight,
                             ),
                           ),
                         ),
                         // Status Badge Pill
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                            color: isActive ? AppTheme.successSoft : AppTheme.dangerSoft,
+                            color: isActive
+                                ? AppTheme.successSoft
+                                : AppTheme.dangerSoft,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isActive ? AppTheme.success.withValues(alpha: 0.3) : AppTheme.danger.withValues(alpha: 0.3),
+                              color: isActive
+                                  ? AppTheme.success.withValues(alpha: 0.3)
+                                  : AppTheme.danger.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                isActive ? Icons.check_circle_rounded : Icons.block_rounded,
+                                isActive
+                                    ? Icons.check_circle_rounded
+                                    : Icons.block_rounded,
                                 size: 12,
-                                color: isActive ? AppTheme.success : AppTheme.danger,
+                                color: isActive
+                                    ? AppTheme.success
+                                    : AppTheme.danger,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -371,7 +484,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: isActive ? AppTheme.success : AppTheme.danger,
+                                  color: isActive
+                                      ? AppTheme.success
+                                      : AppTheme.danger,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -387,7 +502,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight,
                       ),
                     ),
                     if (emp.role == UserRole.employee) ...[
@@ -421,41 +538,77 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
             ],
           ),
 
-          // Admin/HR Action Bar Row
-          if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+          // Admin/HR/TL Action Bar Row
+          if (currentUser?.role == UserRole.admin ||
+              currentUser?.role == UserRole.hr ||
+              currentUser?.role == UserRole.manager) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                _buildCardActionButton(
-                  icon: Icons.edit_note_rounded,
-                  label: 'Edit',
-                  color: AppTheme.primary,
-                  onTap: () => _showEditUserModal(context, emp),
-                ),
-                if (emp.role == UserRole.employee) ...[
+                if (currentUser?.role == UserRole.admin ||
+                    currentUser?.role == UserRole.hr) ...[
                   _buildCardActionButton(
-                    icon: Icons.supervisor_account_rounded,
-                    label: 'Assign TL',
-                    color: const Color(0xFF2563EB),
-                    onTap: () => _showAssignTLSheet(context, emp),
+                    icon: Icons.edit_note_rounded,
+                    label: 'Edit',
+                    color: AppTheme.primary,
+                    onTap: () => _showEditUserModal(context, emp),
                   ),
                 ],
-                if (emp.role == UserRole.employee || emp.role == UserRole.manager) ...[
+                if (currentUser?.role == UserRole.manager &&
+                    emp.role == UserRole.employee) ...[
+                  if (emp.managerId == currentUser!.userId ||
+                      (emp.managerId != null &&
+                          emp.managerId == currentUser.employeeId)) ...[
+                    _buildCardActionButton(
+                      icon: Icons.check_circle_rounded,
+                      label: 'In Your Team',
+                      color: AppTheme.success,
+                      onTap: () =>
+                          _showTLRemoveDialog(context, emp, currentUser),
+                    ),
+                    _buildCardActionButton(
+                      icon: Icons.folder_special_rounded,
+                      label: 'Assign Proj',
+                      color: AppTheme.accent,
+                      onTap: () => _showAssignProjectSheet(context, emp),
+                    ),
+                  ] else
+                    _buildCardActionButton(
+                      icon: Icons.person_add_alt_1_rounded,
+                      label: 'Assign to My Team',
+                      color: const Color(0xFF2563EB),
+                      onTap: () =>
+                          _assignEmployeeToMe(context, emp, currentUser),
+                    ),
+                ],
+                if (currentUser?.role == UserRole.admin ||
+                    currentUser?.role == UserRole.hr) ...[
+                  if (emp.role == UserRole.employee) ...[
+                    _buildCardActionButton(
+                      icon: Icons.supervisor_account_rounded,
+                      label: 'Assign TL',
+                      color: const Color(0xFF2563EB),
+                      onTap: () => _showAssignTLSheet(context, emp),
+                    ),
+                  ],
+                  if (emp.role == UserRole.employee ||
+                      emp.role == UserRole.manager) ...[
+                    _buildCardActionButton(
+                      icon: Icons.folder_special_rounded,
+                      label: 'Assign Proj',
+                      color: AppTheme.accent,
+                      onTap: () => _showAssignProjectSheet(context, emp),
+                    ),
+                  ],
                   _buildCardActionButton(
-                    icon: Icons.folder_special_rounded,
-                    label: 'Assign Proj',
-                    color: AppTheme.accent,
-                    onTap: () => _showAssignProjectSheet(context, emp),
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    color: AppTheme.danger,
+                    onTap: () => _confirmDeleteEmployee(context, emp),
                   ),
                 ],
-                _buildCardActionButton(
-                  icon: Icons.delete_outline_rounded,
-                  label: 'Delete',
-                  color: AppTheme.danger,
-                  onTap: () => _confirmDeleteEmployee(context, emp),
-                ),
               ],
             ),
           ],
@@ -469,11 +622,17 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
               decoration: BoxDecoration(
                 color: AppTheme.dangerSoft,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.danger.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: AppTheme.danger.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.lock_person_outlined, size: 16, color: AppTheme.danger),
+                  const Icon(
+                    Icons.lock_person_outlined,
+                    size: 16,
+                    color: AppTheme.danger,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -496,18 +655,26 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStatItem('30-Day Rate', '${report.attendancePercentage.toStringAsFixed(1)}%'),
+              _buildStatItem(
+                '30-Day Rate',
+                '${report.attendancePercentage.toStringAsFixed(1)}%',
+              ),
               _buildStatItem('Days Present', '${report.presentDays}d'),
               _buildStatItem('Late In', '${report.lateArrivals}x'),
               _buildStatItem('Absent', '${report.absentDays}d'),
               // Admin/HR Activation Toggle Switch
-              if (currentUser?.role == UserRole.admin || currentUser?.role == UserRole.hr) ...[
+              if (currentUser?.role == UserRole.admin ||
+                  currentUser?.role == UserRole.hr) ...[
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       isActive ? 'Deactivate' : 'Reactivate',
-                      style: GoogleFonts.inter(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     SizedBox(
@@ -517,7 +684,11 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                         activeThumbColor: AppTheme.success,
                         onChanged: (val) {
                           if (currentUser != null) {
-                            adminProv.toggleUserStatus(emp.userId, val, currentUser);
+                            adminProv.toggleUserStatus(
+                              emp.userId,
+                              val,
+                              currentUser,
+                            );
                           }
                         },
                       ),
@@ -538,7 +709,11 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -592,8 +767,15 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     final currentUser = auth.currentUser;
     if (currentUser == null) return;
 
-    final managers = context.read<HrProvider>().filteredEmployees.where((u) => u.role == UserRole.manager).toList();
-    final allManagers = FirestoreService().getAllUsers().where((u) => u.role == UserRole.manager).toList();
+    final managers = context
+        .read<HrProvider>()
+        .filteredEmployees
+        .where((u) => u.role == UserRole.manager)
+        .toList();
+    final allManagers = FirestoreService()
+        .getAllUsers()
+        .where((u) => u.role == UserRole.manager)
+        .toList();
     final Map<String, UserModel> managerMap = {};
     for (final m in [...managers, ...allManagers]) {
       managerMap[m.userId] = m;
@@ -603,7 +785,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     UserModel? selectedTL;
     if (employee.managerId != null && employee.managerId != 'unassigned') {
       try {
-        selectedTL = combinedManagers.firstWhere((m) => m.userId == employee.managerId);
+        selectedTL = combinedManagers.firstWhere(
+          (m) => m.userId == employee.managerId,
+        );
       } catch (_) {}
     }
 
@@ -648,7 +832,11 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           color: AppTheme.primarySoft,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.assignment_ind_rounded, color: AppTheme.primary, size: 24),
+                        child: const Icon(
+                          Icons.assignment_ind_rounded,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -657,11 +845,19 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           children: [
                             Text(
                               'Assign Team Lead (TL)',
-                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
                             Text(
                               'Assign ${employee.name} (${employee.employeeId}) to a manager.',
-                              style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppTheme.textMutedDark
+                                    : AppTheme.textMutedLight,
+                              ),
                             ),
                           ],
                         ),
@@ -674,19 +870,31 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.black.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'No Team Leads / Managers available.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : AppTheme.textMutedLight,
+                        ),
                       ),
                     ),
                   ] else ...[
                     Text(
                       'SELECT MANAGER / TL:',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary, letterSpacing: 0.5),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ConstrainedBox(
@@ -707,14 +915,23 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? AppTheme.primary.withValues(alpha: 0.12)
-                                    : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08)),
+                                    : (isDark
+                                          ? Colors.white.withValues(alpha: 0.05)
+                                          : Colors.grey.withValues(
+                                              alpha: 0.08,
+                                            )),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isSelected ? AppTheme.primary : Colors.transparent,
+                                  color: isSelected
+                                      ? AppTheme.primary
+                                      : Colors.transparent,
                                   width: 1.5,
                                 ),
                               ),
@@ -722,38 +939,57 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 18,
-                                    backgroundColor: isSelected ? AppTheme.primary : Colors.grey.shade400,
+                                    backgroundColor: isSelected
+                                        ? AppTheme.primary
+                                        : Colors.grey.shade400,
                                     child: Text(
-                                      m.name.isNotEmpty ? m.name[0].toUpperCase() : 'M',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                      m.name.isNotEmpty
+                                          ? m.name[0].toUpperCase()
+                                          : 'M',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           m.name,
                                           style: GoogleFonts.inter(
                                             fontWeight: FontWeight.w600,
                                             fontSize: 14,
-                                            color: isSelected ? AppTheme.primary : (isDark ? Colors.white : Colors.black87),
+                                            color: isSelected
+                                                ? AppTheme.primary
+                                                : (isDark
+                                                      ? Colors.white
+                                                      : Colors.black87),
                                           ),
                                         ),
                                         Text(
                                           '${m.department} • ${m.employeeId}',
                                           style: GoogleFonts.inter(
                                             fontSize: 11,
-                                            color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                            color: isDark
+                                                ? AppTheme.textMutedDark
+                                                : AppTheme.textMutedLight,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
                                   Icon(
-                                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                    color: isSelected ? AppTheme.primary : Colors.grey.shade400,
+                                    isSelected
+                                        ? Icons.check_circle_rounded
+                                        : Icons.radio_button_unchecked_rounded,
+                                    color: isSelected
+                                        ? AppTheme.primary
+                                        : Colors.grey.shade400,
                                     size: 20,
                                   ),
                                 ],
@@ -788,18 +1024,25 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                         ? '✅ ${employee.name} assigned to TL ${selectedTL!.name}!'
                                         : '❌ Failed to assign TL.',
                                   ),
-                                  backgroundColor: success ? AppTheme.success : AppTheme.danger,
+                                  backgroundColor: success
+                                      ? AppTheme.success
+                                      : AppTheme.danger,
                                 ),
                               );
                             }
                           },
                     icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: const Text('Confirm TL Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Confirm TL Assignment',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ],
@@ -813,7 +1056,22 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
 
   void _showAssignProjectSheet(BuildContext context, UserModel employee) {
     final hrProv = context.read<HrProvider>();
-    final projects = hrProv.projectsList;
+    final currentUser = context.read<AuthProvider>().currentUser;
+
+    // Admin and HR see all projects, TLs only see projects they manage or are assigned to
+    final projects = hrProv.projects
+        .where((p) {
+          if (currentUser?.role == UserRole.admin ||
+              currentUser?.role == UserRole.hr)
+            return true;
+          return p.assignedLeadId == currentUser?.userId ||
+              p.assignedLeadId == currentUser?.employeeId ||
+              p.projectId == currentUser?.assignedProjectId ||
+              p.assignedEmployeeIds.contains(currentUser?.userId);
+        })
+        .map((p) => p.projectName)
+        .toList();
+
     String? selectedProject = employee.assignedProjectName;
     if (selectedProject == null || !projects.contains(selectedProject)) {
       selectedProject = projects.isNotEmpty ? projects.first : null;
@@ -860,7 +1118,11 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           color: AppTheme.accent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.folder_special_rounded, color: AppTheme.accent, size: 24),
+                        child: const Icon(
+                          Icons.folder_special_rounded,
+                          color: AppTheme.accent,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -869,11 +1131,19 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           children: [
                             Text(
                               'Assign Active Project',
-                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
                             Text(
                               'Assign ${employee.name} (${employee.employeeId}) to a project.',
-                              style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppTheme.textMutedDark
+                                    : AppTheme.textMutedLight,
+                              ),
                             ),
                           ],
                         ),
@@ -886,19 +1156,31 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.black.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'No projects available in workspace.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(fontSize: 13, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : AppTheme.textMutedLight,
+                        ),
                       ),
                     ),
                   ] else ...[
                     Text(
                       'SELECT PROJECT:',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accent, letterSpacing: 0.5),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accent,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ConstrainedBox(
@@ -919,14 +1201,23 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? AppTheme.accent.withValues(alpha: 0.12)
-                                    : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08)),
+                                    : (isDark
+                                          ? Colors.white.withValues(alpha: 0.05)
+                                          : Colors.grey.withValues(
+                                              alpha: 0.08,
+                                            )),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isSelected ? AppTheme.accent : Colors.transparent,
+                                  color: isSelected
+                                      ? AppTheme.accent
+                                      : Colors.transparent,
                                   width: 1.5,
                                 ),
                               ),
@@ -935,10 +1226,16 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? AppTheme.accent : Colors.grey.shade400,
+                                      color: isSelected
+                                          ? AppTheme.accent
+                                          : Colors.grey.shade400,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.folder_rounded, size: 14, color: Colors.white),
+                                    child: const Icon(
+                                      Icons.folder_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -947,13 +1244,21 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                       style: GoogleFonts.inter(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
-                                        color: isSelected ? AppTheme.accent : (isDark ? Colors.white : Colors.black87),
+                                        color: isSelected
+                                            ? AppTheme.accent
+                                            : (isDark
+                                                  ? Colors.white
+                                                  : Colors.black87),
                                       ),
                                     ),
                                   ),
                                   Icon(
-                                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                    color: isSelected ? AppTheme.accent : Colors.grey.shade400,
+                                    isSelected
+                                        ? Icons.check_circle_rounded
+                                        : Icons.radio_button_unchecked_rounded,
+                                    color: isSelected
+                                        ? AppTheme.accent
+                                        : Colors.grey.shade400,
                                     size: 20,
                                   ),
                                 ],
@@ -982,19 +1287,26 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                             if (mounted) {
                               messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text('✅ ${employee.name} assigned to "$selectedProject"!'),
+                                  content: Text(
+                                    '✅ ${employee.name} assigned to "$selectedProject"!',
+                                  ),
                                   backgroundColor: AppTheme.success,
                                 ),
                               );
                             }
                           },
                     icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: const Text('Confirm Project Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Confirm Project Assignment',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ],
@@ -1045,7 +1357,11 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                               color: AppTheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.edit_note_rounded, color: AppTheme.primary, size: 24),
+                            child: const Icon(
+                              Icons.edit_note_rounded,
+                              color: AppTheme.primary,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1054,11 +1370,17 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                               children: [
                                 Text(
                                   'Edit Employee Profile',
-                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
                                 ),
                                 Text(
                                   'Update details for ${targetUser.name} (${targetUser.employeeId})',
-                                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1074,7 +1396,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.person),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Name is required'
+                            : null,
                       ),
                       const SizedBox(height: 14),
 
@@ -1085,7 +1409,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.email),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Email is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Email is required'
+                            : null,
                       ),
                       const SizedBox(height: 14),
 
@@ -1096,7 +1422,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.badge),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Employee ID is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Employee ID is required'
+                            : null,
                       ),
                       const SizedBox(height: 14),
 
@@ -1107,7 +1435,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.business),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Department is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Department is required'
+                            : null,
                       ),
                       const SizedBox(height: 14),
 
@@ -1125,27 +1455,38 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                         items: UserRole.values.map((role) {
                           return DropdownMenuItem<UserRole>(
                             value: role,
-                            child: Text(role.name.toUpperCase(), overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              role.name.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           );
                         }).toList(),
                         onChanged: (val) {
-                          if (val != null) setModalState(() => selectedRole = val);
+                          if (val != null)
+                            setModalState(() => selectedRole = val);
                         },
                       ),
                       const SizedBox(height: 20),
 
                       ElevatedButton.icon(
                         icon: const Icon(Icons.save_rounded, size: 18),
-                        label: const Text('Save Profile Updates', style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'Save Profile Updates',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           backgroundColor: AppTheme.primary,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: () async {
                           if (!formKey.currentState!.validate()) return;
-                          final admin = context.read<AuthProvider>().currentUser;
+                          final admin = context
+                              .read<AuthProvider>()
+                              .currentUser;
                           if (admin == null) return;
 
                           final updatedUser = targetUser.copyWith(
@@ -1159,7 +1500,10 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                           final nav = Navigator.of(ctx);
                           final messenger = ScaffoldMessenger.of(context);
                           final adminProv = context.read<AdminProvider>();
-                          final success = await adminProv.updateEmployee(updatedUser, admin);
+                          final success = await adminProv.updateEmployee(
+                            updatedUser,
+                            admin,
+                          );
                           nav.pop();
 
                           if (mounted) {
@@ -1170,7 +1514,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                                       ? '✅ Profile for ${updatedUser.name} updated successfully!'
                                       : '❌ Failed to update employee.',
                                 ),
-                                backgroundColor: success ? AppTheme.success : AppTheme.danger,
+                                backgroundColor: success
+                                    ? AppTheme.success
+                                    : AppTheme.danger,
                               ),
                             );
                           }
@@ -1205,12 +1551,21 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: AppTheme.danger, size: 28),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: AppTheme.danger,
+                size: 28,
+              ),
               const SizedBox(width: 10),
-              Text('Delete Account?', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              Text(
+                'Delete Account?',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           content: Text(
@@ -1227,7 +1582,10 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                 final nav = Navigator.of(ctx);
                 final messenger = ScaffoldMessenger.of(context);
                 final adminProv = context.read<AdminProvider>();
-                final success = await adminProv.deleteEmployee(targetUser.userId, admin);
+                final success = await adminProv.deleteEmployee(
+                  targetUser.userId,
+                  admin,
+                );
                 nav.pop();
 
                 if (mounted) {
@@ -1251,6 +1609,360 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTLScopeChips(bool isDark, int myTeamCount, int totalCount) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.cardDark : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _tlTeamScope = 'my_team'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _tlTeamScope == 'my_team'
+                        ? AppTheme.primary
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'My Assigned Team ($myTeamCount)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                        color: _tlTeamScope == 'my_team'
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _tlTeamScope = 'all'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _tlTeamScope == 'all'
+                        ? AppTheme.primary
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'All Employees ($totalCount)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                        color: _tlTeamScope == 'all'
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _assignEmployeeToMe(
+    BuildContext context,
+    UserModel employee,
+    UserModel currentUser,
+  ) async {
+    final hr = context.read<HrProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final success = await hr.assignEmployeeToTL(
+      employeeId: employee.userId,
+      tlUser: currentUser,
+      actor: currentUser,
+    );
+
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '✅ ${employee.name} added to your Team Roster!'
+                : '❌ Failed to assign employee.',
+          ),
+          backgroundColor: success ? AppTheme.success : AppTheme.danger,
+        ),
+      );
+    }
+  }
+
+  void _showTLRemoveDialog(
+    BuildContext context,
+    UserModel employee,
+    UserModel currentUser,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Remove from Team?',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to remove "${employee.name}" from your team roster?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final messenger = ScaffoldMessenger.of(context);
+              final hr = context.read<HrProvider>();
+              await hr.unassignEmployeeFromTL(
+                employeeId: employee.userId,
+                actor: currentUser,
+              );
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Removed ${employee.name} from your team.'),
+                  ),
+                );
+              }
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTLManageTeamSheet(BuildContext context, UserModel currentUser) {
+    String search = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final hr = context.watch<HrProvider>();
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final allEmps = hr.allEmployees
+                .where((u) => u.role == UserRole.employee)
+                .toList();
+            final filtered = allEmps.where((u) {
+              if (search.isEmpty) return true;
+              return u.name.toLowerCase().contains(search.toLowerCase()) ||
+                  u.employeeId.toLowerCase().contains(search.toLowerCase());
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.groups_rounded,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Assign Employees to My Team',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            Text(
+                              'Select employees to add to your Team Roster',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppTheme.textMutedDark
+                                    : AppTheme.textMutedLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    onChanged: (val) => setModalState(() => search = val),
+                    decoration: const InputDecoration(
+                      hintText: 'Search employee by name or ID...',
+                      prefixIcon: Icon(Icons.search, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('No employees found.'))
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final emp = filtered[index];
+                              final isMyTeam =
+                                  emp.managerId == currentUser.userId ||
+                                  (emp.managerId != null &&
+                                      emp.managerId == currentUser.employeeId);
+
+                              final subtitleText =
+                                  '${emp.employeeId} • ${emp.department}'
+                                  '${isMyTeam ? " • In Your Team" : (emp.managerName != null ? " • TL: ${emp.managerName}" : "")}';
+
+                              return ListTile(
+                                leading: PhotoDisplayWidget(
+                                  photoUrl: emp.avatarUrl,
+                                  size: 40,
+                                  borderRadius: 20,
+                                ),
+                                title: Text(
+                                  emp.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  subtitleText,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isMyTeam
+                                        ? AppTheme.success
+                                        : (isDark
+                                              ? Colors.white60
+                                              : Colors.black54),
+                                    fontWeight: isMyTeam
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                                trailing: isMyTeam
+                                    ? OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppTheme.danger,
+                                          side: const BorderSide(
+                                            color: AppTheme.danger,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          await hr.unassignEmployeeFromTL(
+                                            employeeId: emp.userId,
+                                            actor: currentUser,
+                                          );
+
+                                          setModalState(() {});
+                                        },
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'Remove',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppTheme.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          await hr.assignEmployeeToTL(
+                                            employeeId: emp.userId,
+                                            tlUser: currentUser,
+                                            actor: currentUser,
+                                          );
+                                          setModalState(() {});
+                                        },
+                                        icon: const Icon(
+                                          Icons.person_add,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'Add',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

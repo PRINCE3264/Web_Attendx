@@ -16,7 +16,7 @@ class AllAttendanceScreen extends StatefulWidget {
 
   const AllAttendanceScreen({
     super.key,
-    this.isEmbedded = false,
+    this.isEmbedded = true,
     this.initialStatusFilter = 'all',
   });
 

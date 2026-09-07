@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_theme.dart';
 import '../../models/policy_model.dart';
@@ -12,7 +13,7 @@ import '../../services/firestore_service.dart';
 
 class SystemSettingsScreen extends StatefulWidget {
   final bool isEmbedded;
-  const SystemSettingsScreen({super.key, this.isEmbedded = false});
+  const SystemSettingsScreen({super.key, this.isEmbedded = true});
 
   @override
   State<SystemSettingsScreen> createState() => _SystemSettingsScreenState();
@@ -27,25 +28,36 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   late TextEditingController _latController;
   late TextEditingController _lngController;
   late TextEditingController _radiusController;
+  late TransformationController _mapTransformationController;
 
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _mapTransformationController = TransformationController();
     final policy = FirestoreService().currentPolicy;
     _officeNameController = TextEditingController(text: policy.officeName);
     _startTimeController = TextEditingController(text: policy.officeStartTime);
-    _graceController = TextEditingController(text: '${policy.gracePeriodMinutes}');
-    _minHoursController = TextEditingController(text: '${policy.minimumWorkingHours}');
-    _maxBreakController = TextEditingController(text: '${policy.maxBreakMinutes}');
+    _graceController = TextEditingController(
+      text: '${policy.gracePeriodMinutes}',
+    );
+    _minHoursController = TextEditingController(
+      text: '${policy.minimumWorkingHours}',
+    );
+    _maxBreakController = TextEditingController(
+      text: '${policy.maxBreakMinutes}',
+    );
     _latController = TextEditingController(text: '${policy.officeLatitude}');
     _lngController = TextEditingController(text: '${policy.officeLongitude}');
-    _radiusController = TextEditingController(text: '${policy.geofenceRadiusMeters}');
+    _radiusController = TextEditingController(
+      text: '${policy.geofenceRadiusMeters}',
+    );
   }
 
   @override
   void dispose() {
+    _mapTransformationController.dispose();
     _officeNameController.dispose();
     _startTimeController.dispose();
     _graceController.dispose();
@@ -57,6 +69,34 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     super.dispose();
   }
 
+  void _zoomInMap() {
+    final Matrix4 current = _mapTransformationController.value;
+    final double currentScale = current.getMaxScaleOnAxis();
+    if (currentScale < 4.0) {
+      final Matrix4 updated = current.clone()..scale(1.25, 1.25, 1.0);
+      setState(() {
+        _mapTransformationController.value = updated;
+      });
+    }
+  }
+
+  void _zoomOutMap() {
+    final Matrix4 current = _mapTransformationController.value;
+    final double currentScale = current.getMaxScaleOnAxis();
+    if (currentScale > 0.5) {
+      final Matrix4 updated = current.clone()..scale(0.8, 0.8, 1.0);
+      setState(() {
+        _mapTransformationController.value = updated;
+      });
+    }
+  }
+
+  void _resetMapZoom() {
+    setState(() {
+      _mapTransformationController.value = Matrix4.identity();
+    });
+  }
+
   Future<void> _saveSystemSettings() async {
     final auth = context.read<AuthProvider>();
     final adminProv = context.read<AdminProvider>();
@@ -65,7 +105,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     if (currentUser?.role != UserRole.admin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Permission Denied: Only Admins can modify system settings.'),
+          content: Text(
+            'Permission Denied: Only Admins can modify system settings.',
+          ),
           backgroundColor: AppTheme.danger,
         ),
       );
@@ -75,14 +117,21 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     setState(() => _isSaving = true);
 
     final updatedPolicy = AttendancePolicyModel(
-      officeName: _officeNameController.text.trim().isEmpty ? 'HQ Office' : _officeNameController.text.trim(),
-      officeStartTime: _startTimeController.text.trim().isEmpty ? '09:00 AM' : _startTimeController.text.trim(),
+      officeName: _officeNameController.text.trim().isEmpty
+          ? 'HQ Office'
+          : _officeNameController.text.trim(),
+      officeStartTime: _startTimeController.text.trim().isEmpty
+          ? '09:00 AM'
+          : _startTimeController.text.trim(),
       gracePeriodMinutes: int.tryParse(_graceController.text.trim()) ?? 15,
-      minimumWorkingHours: double.tryParse(_minHoursController.text.trim()) ?? 8.0,
+      minimumWorkingHours:
+          double.tryParse(_minHoursController.text.trim()) ?? 8.0,
       maxBreakMinutes: int.tryParse(_maxBreakController.text.trim()) ?? 60,
       officeLatitude: double.tryParse(_latController.text.trim()) ?? 21.1986872,
-      officeLongitude: double.tryParse(_lngController.text.trim()) ?? 72.7965515,
-      geofenceRadiusMeters: double.tryParse(_radiusController.text.trim()) ?? 500.0,
+      officeLongitude:
+          double.tryParse(_lngController.text.trim()) ?? 72.7965515,
+      geofenceRadiusMeters:
+          double.tryParse(_radiusController.text.trim()) ?? 500.0,
     );
 
     final success = await adminProv.updatePolicy(updatedPolicy, currentUser!);
@@ -91,7 +140,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'System Settings & Company Policy updated successfully!' : 'Failed to update system settings.'),
+          content: Text(
+            success
+                ? 'System Settings & Company Policy updated successfully!'
+                : 'Failed to update system settings.',
+          ),
           backgroundColor: success ? AppTheme.success : AppTheme.danger,
         ),
       );
@@ -119,7 +172,10 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   : null,
               title: Text(
                 'System Settings',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
       body: SafeArea(
@@ -134,7 +190,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 decoration: BoxDecoration(
                   color: isAdmin
                       ? (isDark ? AppTheme.cardDark : AppTheme.primarySoft)
-                      : (isDark ? const Color(0xFF1E1E2E) : const Color(0xFFFEF3C7)),
+                      : (isDark
+                            ? const Color(0xFF1E1E2E)
+                            : const Color(0xFFFEF3C7)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isAdmin
@@ -146,7 +204,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Icon(
                       isAdmin ? Icons.admin_panel_settings : Icons.lock_outline,
-                      color: isAdmin ? AppTheme.primary : const Color(0xFFD97706),
+                      color: isAdmin
+                          ? AppTheme.primary
+                          : const Color(0xFFD97706),
                       size: 28,
                     ),
                     const SizedBox(width: 14),
@@ -155,13 +215,17 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isAdmin ? 'Admin Mode (Edit & Update Access)' : 'System Overview (Read-Only Mode)',
+                            isAdmin
+                                ? 'Admin Mode (Edit & Update Access)'
+                                : 'System Overview (Read-Only Mode)',
                             style: GoogleFonts.outfit(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                               color: isAdmin
                                   ? (isDark ? Colors.white : AppTheme.primary)
-                                  : (isDark ? Colors.white : const Color(0xFF92400E)),
+                                  : (isDark
+                                        ? Colors.white
+                                        : const Color(0xFF92400E)),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -171,7 +235,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                                 : 'You are logged in as ${currentUser?.role.name.toUpperCase() ?? "User"}. System configuration can only be edited by System Admins.',
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                              color: isDark
+                                  ? AppTheme.textMutedDark
+                                  : AppTheme.textMutedLight,
                             ),
                           ),
                         ],
@@ -184,7 +250,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               const SizedBox(height: 24),
 
               // Section 1: Company & Office Premises
-              _buildSectionHeader('Office Premises & Location', Icons.business_rounded, isDark),
+              _buildSectionHeader(
+                'Office Premises & Location',
+                Icons.business_rounded,
+                isDark,
+              ),
               const SizedBox(height: 12),
 
               TextField(
@@ -205,7 +275,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     child: TextField(
                       controller: _latController,
                       enabled: isAdmin,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Latitude',
                         prefixIcon: const Icon(Icons.location_searching),
@@ -218,7 +290,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     child: TextField(
                       controller: _lngController,
                       enabled: isAdmin,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Longitude',
                         prefixIcon: const Icon(Icons.location_searching),
@@ -234,7 +308,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               TextField(
                 controller: _radiusController,
                 enabled: isAdmin,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Geofence Perimeter (Meters)',
                   prefixIcon: const Icon(Icons.radar),
@@ -242,10 +318,19 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 ),
               ),
 
+              const SizedBox(height: 14),
+
+              // Visual Live Map Preview Widget
+              _buildMapPreviewWidget(isDark),
+
               const SizedBox(height: 24),
 
               // Section 2: Shift Timing & Grace Rules
-              _buildSectionHeader('Shift Timing & Attendance Rules', Icons.schedule_rounded, isDark),
+              _buildSectionHeader(
+                'Shift Timing & Attendance Rules',
+                Icons.schedule_rounded,
+                isDark,
+              ),
               const SizedBox(height: 12),
 
               Row(
@@ -285,7 +370,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     child: TextField(
                       controller: _minHoursController,
                       enabled: isAdmin,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Min Working Shift (Hrs)',
                         prefixIcon: const Icon(Icons.hourglass_bottom),
@@ -312,7 +399,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               const SizedBox(height: 24),
 
               // Section 3: App & Firebase Sync Status
-              _buildSectionHeader('System Info & Cloud Services', Icons.cloud_done_rounded, isDark),
+              _buildSectionHeader(
+                'System Info & Cloud Services',
+                Icons.cloud_done_rounded,
+                isDark,
+              ),
               const SizedBox(height: 12),
 
               Container(
@@ -320,18 +411,122 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 decoration: BoxDecoration(
                   color: isDark ? AppTheme.cardDark : Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                  border: Border.all(
+                    color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                  ),
                 ),
                 child: Column(
                   children: [
-                    _buildInfoRow('App Version', 'AttendX v1.0.0+1 (Production Build)', Icons.info_outline),
+                    _buildInfoRow(
+                      'App Version',
+                      'AttendX v1.0.0+1 (Production Build)',
+                      Icons.info_outline,
+                    ),
                     const Divider(height: 20),
-                    _buildInfoRow('Database Engine', 'Google Cloud Firestore (Real-Time)', Icons.storage_rounded),
+                    _buildInfoRow(
+                      'Database Engine',
+                      'Google Cloud Firestore (Real-Time)',
+                      Icons.storage_rounded,
+                    ),
                     const Divider(height: 20),
-                    _buildInfoRow('Storage Service', 'Firebase Cloud Storage (Media Proof)', Icons.cloud_upload_outlined),
+                    _buildInfoRow(
+                      'Storage Service',
+                      'Firebase Cloud Storage (Media Proof)',
+                      Icons.cloud_upload_outlined,
+                    ),
                     const Divider(height: 20),
-                    _buildInfoRow('Project Master List', '${context.watch<HrProvider>().projectsList.length} Active Projects Registered', Icons.folder_special_outlined),
+                    _buildInfoRow(
+                      'Project Master List',
+                      '${context.watch<HrProvider>().projectsList.length} Active Projects Registered',
+                      Icons.folder_special_outlined,
+                    ),
+                    const Divider(height: 20),
+                    _buildInfoRow(
+                      'Company Office HQ',
+                      'United Green Hospital (Surat, GJ)',
+                      Icons.business_rounded,
+                    ),
+                    const Divider(height: 20),
+                    _buildInfoRow(
+                      'GPS Geofence Center',
+                      '21.1986872° N, 72.7965515° E',
+                      Icons.my_location_rounded,
+                    ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Interactive Google Maps HQ Location Card
+              InkWell(
+                onTap: _openGoogleMapsLocation,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.map_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Open HQ Location on Google Maps',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'United Green Hospital, Surat • Tap to view live map',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.open_in_new_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -342,11 +537,23 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 ElevatedButton.icon(
                   onPressed: _isSaving ? null : _saveSystemSettings,
                   icon: _isSaving
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.save_rounded, size: 20),
                   label: Text(
-                    _isSaving ? 'SAVING SYSTEM SETTINGS...' : 'SAVE & APPLY SYSTEM SETTINGS',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                    _isSaving
+                        ? 'SAVING SYSTEM SETTINGS...'
+                        : 'SAVE & APPLY SYSTEM SETTINGS',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
@@ -358,20 +565,33 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 ),
               ] else ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.info_outline, size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Editing restricted to Admin accounts only',
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -412,12 +632,19 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             children: [
               Text(
                 title,
-                style: GoogleFonts.inter(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -425,4 +652,434 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       ],
     );
   }
+
+  Future<void> _openGoogleMapsLocation() async {
+    const mapsUrl =
+        'https://www.google.com/maps/place/United+Green+Hospital/@21.1986872,72.7939766,17z/data=!3m1!4b1!4m6!3m5!1s0x3be04d5ab3558c45:0xd145c8822257a152!8m2!3d21.1986872!4d72.7965515';
+    final Uri url = Uri.parse(mapsUrl);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(url, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching map URL: $e');
+    }
+  }
+
+  Widget _buildMapPreviewWidget(bool isDark) {
+    final double currentScale = _mapTransformationController.value
+        .getMaxScaleOnAxis();
+    final int zoomPercentage = (currentScale * 100).round();
+
+    return Container(
+      height: 240,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Stack(
+          children: [
+            // Interactive Zoomable Map Canvas (Pinch, Drag & Double-tap)
+            Positioned.fill(
+              child: InteractiveViewer(
+                transformationController: _mapTransformationController,
+                minScale: 0.5,
+                maxScale: 4.0,
+                onInteractionUpdate: (_) => setState(() {}),
+                child: Stack(
+                  children: [
+                    // Vector Styled Road Map Background
+                    Positioned.fill(
+                      child: CustomPaint(painter: MapPainter(isDark: isDark)),
+                    ),
+
+                    // Pin Marker & Name Badge over United Green Hospital
+                    Align(
+                      alignment: const Alignment(0.0, -0.2),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'United Green Hospital',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFFDC2626),
+                                  ),
+                                ),
+                                Text(
+                                  'યુનાઇટેડ ગ્રીન હોસ્પિટલ',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFFDC2626),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Icon(
+                            Icons.location_on_rounded,
+                            color: Color(0xFFEA4335), // Google Red Pin
+                            size: 38,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Top Left Zoom Level Badge Indicator
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black87 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.zoom_in_rounded,
+                      size: 14,
+                      color: Color(0xFF2563EB),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Zoom: $zoomPercentage%',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Top Right Map Controls Stack: Zoom In (+), Zoom Out (-), Reset (⟲), Layer Controls
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Column(
+                children: [
+                  // Zoom In Button (+)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _zoomInMap,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          size: 18,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Zoom Out Button (-)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _zoomOutMap,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.remove_rounded,
+                          size: 18,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Reset Zoom Button (⟲)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _resetMapZoom,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 16,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom Map Status Banner Overlay
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.85)
+                      : Colors.white.withValues(alpha: 0.92),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.place_rounded,
+                      color: Color(0xFFEA4335),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'United Green Hospital • Anand Mahal Rd, Surat',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _openGoogleMapsLocation,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Open Map',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MapPainter extends CustomPainter {
+  final bool isDark;
+  MapPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()
+      ..color = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    // Draw Blocks/Buildings
+    final blockPaint = Paint()
+      ..color = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(15, 15, 90, 50),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(120, 15, 140, 35),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(20, 130, 80, 45),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(180, 115, 150, 55),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+
+    // Draw Main Road (Anand Mahal Rd)
+    final roadPaint = Paint()
+      ..color = isDark ? const Color(0xFF475569) : Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 26
+      ..strokeCap = StrokeCap.round;
+
+    final roadPath = Path()
+      ..moveTo(0, size.height * 0.95)
+      ..lineTo(size.width * 0.45, size.height * 0.5)
+      ..lineTo(size.width, size.height * 0.15);
+
+    canvas.drawPath(roadPath, roadPaint);
+
+    // Draw Secondary Road (Giriraj Society Rd)
+    final secRoadPaint = Paint()
+      ..color = isDark ? const Color(0xFF334155) : const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16;
+
+    final secRoadPath = Path()
+      ..moveTo(size.width * 0.4, size.height * 0.55)
+      ..lineTo(size.width, size.height * 0.75);
+
+    canvas.drawPath(secRoadPath, secRoadPaint);
+
+    // Road Labels
+    const textStyle = TextStyle(
+      color: Color(0xFF64748B),
+      fontSize: 9.5,
+      fontWeight: FontWeight.bold,
+    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    textPainter.text = const TextSpan(text: 'Anand Mahal Rd', style: textStyle);
+    textPainter.layout();
+    canvas.save();
+    canvas.translate(65, 140);
+    canvas.rotate(-0.65);
+    textPainter.paint(canvas, Offset.zero);
+    canvas.restore();
+
+    textPainter.text = const TextSpan(
+      text: 'Giriraj Society Rd',
+      style: textStyle,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(170, 160));
+
+    textPainter.text = const TextSpan(text: 'Arjun Marg', style: textStyle);
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(15, 185));
+
+    textPainter.text = const TextSpan(text: 'Sports Complex', style: textStyle);
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(210, 135));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

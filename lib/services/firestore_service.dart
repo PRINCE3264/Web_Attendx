@@ -21,6 +21,7 @@ import '../models/notification_model.dart';
 import '../models/project_report_model.dart';
 import '../models/project_model.dart';
 import 'local_storage_service.dart';
+import 'auth_service.dart';
 
 class FirestoreService {
   static final FirestoreService _instance = FirestoreService._internal();
@@ -193,6 +194,17 @@ class FirestoreService {
         debugPrint('Firestore sync project report notice (${report.reportId}): $e');
       }
     }
+    // Sync Projects
+    for (final project in _projects) {
+      try {
+        await db
+            .collection('projects')
+            .doc(project.projectId)
+            .set(project.toMap(), SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Firestore sync project notice (${project.projectId}): $e');
+      }
+    }
     // Sync Policy
     try {
       await db
@@ -208,7 +220,52 @@ class FirestoreService {
 
   Future<void> ensureFirestoreConnected() async {
     _bindFirestoreListeners();
-    await syncLocalDataToFirestore();
+    await _seedFirestoreIfEmpty();
+  }
+  
+  Future<void> _seedFirestoreIfEmpty() async {
+    final db = _db;
+    if (db == null) return;
+    try {
+      final snapshot = await db.collection('users').limit(1).get();
+      if (snapshot.docs.isEmpty) {
+        debugPrint('Firestore is empty. Seeding with local mock data...');
+        await syncLocalDataToFirestore();
+      } else {
+        debugPrint('Firestore already contains data. Skipping initial sync to preserve dynamic changes.');
+      }
+    } catch (e) {
+      debugPrint('Error checking Firestore emptiness: $e');
+    }
+  }
+
+  // Session Tracking (1 Hour Continuous Usage feature)
+  Future<void> logSessionStart(String userId) async {
+    try {
+      final db = _db;
+      if (db == null) return;
+      await db.collection('appSessions').doc(userId).set({
+        'userId': userId,
+        'openedAt': DateTime.now().toIso8601String(),
+        'status': 'active',
+        'lastActive': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore session start error: $e');
+    }
+  }
+
+  Future<void> logSessionEnd(String userId) async {
+    try {
+      final db = _db;
+      if (db == null) return;
+      await db.collection('appSessions').doc(userId).set({
+        'status': 'closed',
+        'closedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore session end error: $e');
+    }
   }
 
   void _bindFirestoreListeners() {
@@ -217,8 +274,8 @@ class FirestoreService {
     if (_hasBoundListeners) return;
     _hasBoundListeners = true;
 
-    // Trigger immediate push sync to Cloud Firestore
-    syncLocalDataToFirestore();
+    // Seed data asynchronously if empty
+    _seedFirestoreIfEmpty();
 
     try {
       // Users live stream from Firestore
@@ -242,23 +299,14 @@ class FirestoreService {
             }
           }
 
-          final Map<String, UserModel> map = {
-            for (final u in _users) u.userId: u,
-          };
-          for (final u in items) {
-            map[u.userId] = u;
-          }
           _users.clear();
-          _users.addAll(map.values);
+          _users.addAll(items);
           _usersStreamController.add(List.unmodifiable(_users));
           LocalStorageService().saveUsers(_users);
-        } else if (_users.isNotEmpty) {
-          for (final u in _users) {
-            db
-                .collection('users')
-                .doc(u.userId)
-                .set(u.toMap(), SetOptions(merge: true));
-          }
+        } else {
+          _users.clear();
+          _usersStreamController.add(List.unmodifiable(_users));
+          LocalStorageService().saveUsers(_users);
         }
       }, onError: (e) => debugPrint('Live users sync info: $e'));
 
@@ -287,23 +335,14 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, AttendanceModel> map = {
-            for (final a in _attendance) a.attendanceId: a,
-          };
-          for (final a in items) {
-            map[a.attendanceId] = a;
-          }
           _attendance.clear();
-          _attendance.addAll(map.values);
+          _attendance.addAll(items);
           _attendanceStreamController.add(List.unmodifiable(_attendance));
           LocalStorageService().saveAttendance(_attendance);
-        } else if (_attendance.isNotEmpty) {
-          for (final a in _attendance) {
-            db
-                .collection('attendance')
-                .doc(a.attendanceId)
-                .set(a.toMap(), SetOptions(merge: true));
-          }
+        } else {
+          _attendance.clear();
+          _attendanceStreamController.add(List.unmodifiable(_attendance));
+          LocalStorageService().saveAttendance(_attendance);
         }
       }, onError: (e) => debugPrint('Live attendance sync info: $e'));
 
@@ -313,23 +352,14 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => LeaveRequestModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, LeaveRequestModel> map = {
-            for (final l in _leaves) l.leaveId: l,
-          };
-          for (final l in items) {
-            map[l.leaveId] = l;
-          }
           _leaves.clear();
-          _leaves.addAll(map.values);
+          _leaves.addAll(items);
           _leavesStreamController.add(List.unmodifiable(_leaves));
           LocalStorageService().saveLeaves(_leaves);
-        } else if (_leaves.isNotEmpty) {
-          for (final l in _leaves) {
-            db
-                .collection('leaves')
-                .doc(l.leaveId)
-                .set(l.toMap(), SetOptions(merge: true));
-          }
+        } else {
+          _leaves.clear();
+          _leavesStreamController.add(List.unmodifiable(_leaves));
+          LocalStorageService().saveLeaves(_leaves);
         }
       }, onError: (e) => debugPrint('Live leaves sync info: $e'));
 
@@ -339,23 +369,14 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceCorrectionModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, AttendanceCorrectionModel> map = {
-            for (final c in _corrections) c.correctionId: c,
-          };
-          for (final c in items) {
-            map[c.correctionId] = c;
-          }
           _corrections.clear();
-          _corrections.addAll(map.values);
+          _corrections.addAll(items);
           _correctionsStreamController.add(List.unmodifiable(_corrections));
           LocalStorageService().saveCorrections(_corrections);
-        } else if (_corrections.isNotEmpty) {
-          for (final c in _corrections) {
-            db
-                .collection('attendanceCorrections')
-                .doc(c.correctionId)
-                .set(c.toMap(), SetOptions(merge: true));
-          }
+        } else {
+          _corrections.clear();
+          _correctionsStreamController.add(List.unmodifiable(_corrections));
+          LocalStorageService().saveCorrections(_corrections);
         }
       }, onError: (e) => debugPrint('Live corrections sync info: $e'));
 
@@ -365,27 +386,13 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => ProjectReportModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, ProjectReportModel> map = {
-            for (final r in _projectReports) r.reportId: r,
-          };
-          for (final r in items) {
-            map[r.reportId] = r;
-          }
           _projectReports.clear();
-          _projectReports.addAll(map.values);
-          _projectReports.sort(
-            (a, b) => b.submittedAt.compareTo(a.submittedAt),
-          );
-          _projectReportsStreamController.add(
-            List.unmodifiable(_projectReports),
-          );
-        } else if (_projectReports.isNotEmpty) {
-          for (final r in _projectReports) {
-            db
-                .collection('projectReports')
-                .doc(r.reportId)
-                .set(r.toMap(), SetOptions(merge: true));
-          }
+          _projectReports.addAll(items);
+          _projectReports.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+          _projectReportsStreamController.add(List.unmodifiable(_projectReports));
+        } else {
+          _projectReports.clear();
+          _projectReportsStreamController.add(List.unmodifiable(_projectReports));
         }
       }, onError: (e) => debugPrint('Live project reports sync info: $e'));
 
@@ -451,6 +458,9 @@ class FirestoreService {
           _announcements.clear();
           _announcements.addAll(items);
           _announcementsStreamController.add(List.unmodifiable(_announcements));
+        } else {
+          _announcements.clear();
+          _announcementsStreamController.add(List.unmodifiable(_announcements));
         }
       }, onError: (e) => debugPrint('Live announcements sync info: $e'));
 
@@ -477,11 +487,33 @@ class FirestoreService {
             }
           }
 
+          final Map<String, NotificationModel> map = {for (final n in _notifications) n.id: n};
+          for (final item in items) {
+            map[item.id] = item;
+          }
           _notifications.clear();
-          _notifications.addAll(items);
+          _notifications.addAll(map.values);
+          _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _notificationsStreamController.add(List.unmodifiable(_notifications));
+          LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
         }
       }, onError: (e) => debugPrint('Live notifications sync info: $e'));
+
+      // Projects live stream from Firestore
+      db.collection('projects').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs
+              .map((d) => ProjectModel.fromMap(d.data(), d.id))
+              .toList();
+          _projects.clear();
+          _projects.addAll(items);
+          _projectsStreamController.add(List.unmodifiable(_projects));
+        } else {
+          _projects.clear();
+          _projectsStreamController.add(List.unmodifiable(_projects));
+        }
+      }, onError: (e) => debugPrint('Live projects sync info: $e'));
+
     } catch (e) {
       debugPrint('Firestore real-time listeners fallback: $e');
     }
@@ -506,6 +538,10 @@ class FirestoreService {
     if (_projects.isEmpty) {
       _projects.addAll(MockDataSeeder.getSeedProjects());
     }
+    // Seed initial notifications so screen is never blank on start
+    if (_notifications.isEmpty) {
+      _notifications.addAll(MockDataSeeder.getSeedNotifications());
+    }
     _notifyAll();
 
     _loadFromLocalStorage();
@@ -519,6 +555,7 @@ class FirestoreService {
       final savedLeaves = await local.loadLeaves();
       final savedCorrections = await local.loadCorrections();
       final savedPolicy = await local.loadPolicy();
+      final savedNotifications = await local.loadFirestoreNotifications();
 
       if (savedUsers != null && savedUsers.isNotEmpty) {
         final Map<String, UserModel> map = {
@@ -560,6 +597,18 @@ class FirestoreService {
         _corrections.clear();
         _corrections.addAll(map.values);
       }
+      if (savedNotifications != null && savedNotifications.isNotEmpty) {
+        final Map<String, NotificationModel> map = {
+          for (final n in _notifications) n.id: n,
+        };
+        for (final m in savedNotifications) {
+          final notif = NotificationModel.fromMap(m, (m['id'] ?? '').toString());
+          map[notif.id] = notif;
+        }
+        _notifications.clear();
+        _notifications.addAll(map.values);
+        _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
       if (savedPolicy != null) {
         _policy = savedPolicy;
       }
@@ -592,6 +641,7 @@ class FirestoreService {
     _notifications.clear();
     _projects.clear();
     _policy = MockDataSeeder.getSeedPolicy();
+    LocalStorageService().clearAllData();
     _initializeData();
   }
 
@@ -702,6 +752,7 @@ class FirestoreService {
       }
     }
     _notificationsStreamController.add(List.unmodifiable(_notifications));
+    LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
 
     AuditService().log(
       actor: actor,
@@ -731,6 +782,10 @@ class FirestoreService {
       _usersStreamController.add(List.unmodifiable(_users));
       LocalStorageService().saveUsers(_users);
 
+      if (AuthService().currentUser?.userId == updatedUser.userId) {
+        await AuthService().updateSessionUser(updatedUser);
+      }
+
       try {
         await _db
             ?.collection('users')
@@ -741,6 +796,7 @@ class FirestoreService {
           'userId': updatedUser.userId,
           'fullName': updatedUser.name,
           'workEmail': updatedUser.email,
+          'role': updatedUser.role.code,
           'departmentId': updatedUser.department,
           'departmentName': updatedUser.department,
           'teamId': updatedUser.teamId,
@@ -770,6 +826,7 @@ class FirestoreService {
       final target = _users[index];
       _users.removeAt(index);
       _usersStreamController.add(List.unmodifiable(_users));
+      LocalStorageService().saveUsers(_users);
 
       try {
         await _db?.collection('users').doc(userId).delete();
@@ -883,6 +940,7 @@ class FirestoreService {
       }
 
       _notificationsStreamController.add(List.unmodifiable(_notifications));
+      LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
 
       AuditService().log(
         actor: actor,
@@ -895,6 +953,41 @@ class FirestoreService {
         title: 'TL Assigned 👥',
         message: 'Assigned ${old.name} to ${tlUser.name}.',
         type: 'info',
+      );
+
+      return updated;
+    }
+    throw Exception('Employee not found');
+  }
+
+  Future<UserModel> unassignEmployeeFromTL({
+    required String employeeId,
+    required UserModel actor,
+  }) async {
+    final index = _users.indexWhere((u) => u.userId == employeeId);
+    if (index != -1) {
+      final old = _users[index];
+      final updated = old.copyWith(
+        managerId: 'unassigned',
+        managerName: 'Unassigned',
+      );
+      _users[index] = updated;
+      _usersStreamController.add(List.unmodifiable(_users));
+
+      try {
+        await _db
+            ?.collection('users')
+            .doc(employeeId)
+            .set(updated.toMap(), SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Firestore unassign TL error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'ADMIN_UNASSIGN_TL',
+        description: 'Unassigned employee ${old.name} from TL.',
+        targetEntityId: employeeId,
       );
 
       return updated;
@@ -970,6 +1063,7 @@ class FirestoreService {
           (u) =>
               u.userId == tlId ||
               u.managerId == tlId ||
+              (tlUser.employeeId.isNotEmpty && u.managerId == tlUser.employeeId) ||
               (tlUser.teamId.isNotEmpty &&
                   tlUser.teamId != 'unassigned' &&
                   u.teamId == tlUser.teamId &&
@@ -1578,10 +1672,12 @@ class FirestoreService {
       if (announcement.type == 'holiday') return true;
       if (announcement.audience == 'everyone') return true;
       if (announcement.audience == 'all_employees' &&
-          (u.role == UserRole.employee || u.role == UserRole.manager))
+          (u.role == UserRole.employee || u.role == UserRole.manager)) {
         return true;
-      if (announcement.audience == 'all_tls' && u.role == UserRole.manager)
+      }
+      if (announcement.audience == 'all_tls' && u.role == UserRole.manager) {
         return true;
+      }
       return false;
     }).toList();
 
@@ -1612,6 +1708,7 @@ class FirestoreService {
     }
 
     _notificationsStreamController.add(List.unmodifiable(_notifications));
+    LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
 
     // Send floating in-app notification alert to active session
     NotificationService().sendNotification(
@@ -1642,6 +1739,7 @@ class FirestoreService {
     if (idx != -1) {
       _notifications[idx] = _notifications[idx].copyWith(isRead: true);
       _notificationsStreamController.add(List.unmodifiable(_notifications));
+      LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
 
       try {
         _db?.collection('notifications').doc(notificationId).update({
@@ -1655,13 +1753,24 @@ class FirestoreService {
 
   List<NotificationModel> getNotificationsForUser(String identifier) {
     final targetUser = _findUserByIdentifier(identifier);
+    final roleName = targetUser?.role.name.toUpperCase() ?? '';
     final validIds = {
       identifier,
       if (targetUser != null) targetUser.userId,
       if (targetUser != null) targetUser.employeeId,
+      'ALL',
+      'ALL_EMPLOYEES',
+      'EMPLOYEES',
+      'EVERYONE',
+      if (roleName.isNotEmpty) roleName,
+      '',
     };
 
-    return _notifications.where((n) => validIds.contains(n.userId)).toList()
+    return _notifications.where((n) {
+      if (n.userId.isEmpty) return true;
+      final targetUpper = n.userId.toUpperCase();
+      return validIds.contains(n.userId) || validIds.contains(targetUpper);
+    }).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -2012,6 +2121,11 @@ class FirestoreService {
           'assignedProjectId': projectId,
           'assignedProjectName': projectName,
         }, SetOptions(merge: true));
+
+        // Add user to the project's assignedEmployeeIds
+        await _db?.collection('projects').doc(projectId).update({
+          'assignedEmployeeIds': FieldValue.arrayUnion([userId])
+        });
       } catch (e) {
         debugPrint('Firestore assign project error: $e');
       }

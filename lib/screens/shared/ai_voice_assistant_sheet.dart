@@ -646,10 +646,16 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.smart_toy_rounded,
-              color: Colors.white,
-              size: 24,
+            child: Image.asset(
+              'assets/ai.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.smart_toy_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -853,8 +859,40 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
   }
 }
 
-class AIVoiceButton extends StatelessWidget {
+class AIVoiceButton extends StatefulWidget {
   const AIVoiceButton({super.key});
+
+  @override
+  State<AIVoiceButton> createState() => _AIVoiceButtonState();
+}
+
+class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProviderStateMixin {
+  late AnimationController _glowController;
+  late Animation<double> _glowAnimation;
+  late Animation<double> _pulseScaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    _glowAnimation = Tween<double>(begin: 0.3, end: 0.95).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+
+    _pulseScaleAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -862,33 +900,82 @@ class AIVoiceButton extends StatelessWidget {
       onTap: () => AIVoiceAssistantSheet.show(context),
       child: Tooltip(
         message: 'Open AI Assistant',
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
+        child: AnimatedBuilder(
+          animation: _glowController,
+          builder: (context, child) {
+            final glowVal = _glowAnimation.value;
+            final scaleVal = _pulseScaleAnimation.value;
+
+            return Transform.scale(
+              scale: scaleVal,
+              child: SizedBox(
+                width: 68,
+                height: 68,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Subtle Pulsing Glow Ring
+                    Container(
+                      width: 52 + (glowVal * 4),
+                      height: 52 + (glowVal * 4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.08 * glowVal),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.15 + (glowVal * 0.15)),
+                            blurRadius: 8 + (glowVal * 4),
+                            spreadRadius: 1 + (glowVal * 2),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Inner Core Glowing Floating Button
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.5 + (glowVal * 0.4)),
+                          width: 1.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1D4ED8).withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/ai.png',
+                          width: 30,
+                          height: 30,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.smart_toy_rounded,
+                            color: Colors.white.withValues(alpha: 0.92 + (glowVal * 0.08)),
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.smart_toy_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
+

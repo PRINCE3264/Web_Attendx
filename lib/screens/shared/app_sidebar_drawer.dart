@@ -147,17 +147,17 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   _buildNavItem(
                     icon: Icons.folder_special_outlined,
                     title: 'Project Work Reports',
-                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: false), 'Project Work Reports'),
+                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Project Work Reports'),
                   ),
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
-                    title: 'Company Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
+                    title: 'My Projects',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'My Projects'),
                   ),
                   _buildNavItem(
                     icon: Icons.settings_outlined,
                     title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
                   ),
                 ],
 
@@ -187,13 +187,13 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   ),
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
-                    title: 'Company Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
+                    title: 'My Projects',
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'My Projects'),
                   ),
                   _buildNavItem(
                     icon: Icons.settings_outlined,
                     title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
                   ),
                 ],
 
@@ -208,7 +208,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
                     title: 'Project Management',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Project Master Directory'),
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'Project Master Directory'),
                   ),
                   _buildExpandableSection(
                     title: 'Employee Management',
@@ -272,7 +272,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
                       _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview')),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: false), 'Monthly Attendance Calendar')),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: true), 'Monthly Attendance Calendar')),
                       _buildSubItem('Employee Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
                       _buildSubItem('Attendance Reports', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
                     ],
@@ -339,11 +339,11 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'System Settings',
                     icon: Icons.settings_outlined,
                     children: [
-                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: false), 'Roles & Permissions', defaultTabIndex: 1)),
-                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const AllEmployeesScreen(isEmbedded: false), 'Department Directory')),
-                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: false), 'Attendance Rules', defaultTabIndex: 1)),
-                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'App & System Settings')),
-                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: false), 'Audit Logs', defaultTabIndex: 2)),
+                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Roles & Permissions', defaultTabIndex: 1)),
+                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const AllEmployeesScreen(isEmbedded: true), 'Department Directory')),
+                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Attendance Rules', defaultTabIndex: 1)),
+                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'App & System Settings')),
+                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: true), 'Audit Logs', defaultTabIndex: 2)),
                     ],
                   ),
                 ],
@@ -359,7 +359,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
                     title: 'Company Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: false), 'Company Projects'),
+                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'Company Projects'),
                   ),
                   _buildExpandableSection(
                     title: 'Employees',
@@ -384,7 +384,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
                       _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview', defaultTabIndex: 0)),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: false), 'Monthly Attendance Calendar')),
+                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: true), 'Monthly Attendance Calendar')),
                       _buildSubItem('Attendance Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
                     ],
                   ),
@@ -439,7 +439,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   _buildNavItem(
                     icon: Icons.settings_outlined,
                     title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: false), 'System Settings'),
+                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
                   ),
                 ],
 
@@ -473,7 +473,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
           // 3. Logout Item at Bottom
           const Divider(height: 1, thickness: 1),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () async {

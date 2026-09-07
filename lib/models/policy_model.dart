@@ -23,7 +23,7 @@ class AttendancePolicyModel {
     this.officeLatitude = 21.1986872,
     this.officeLongitude = 72.7965515,
     this.geofenceRadiusMeters = 500.0,
-    this.officeName = 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
+    this.officeName = 'United Green Hospital, Anand Mahal Rd, Adajan, Surat, Gujarat 395009',
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
@@ -56,7 +56,7 @@ class AttendancePolicyModel {
       officeLatitude: (map['officeLatitude'] as num?)?.toDouble() ?? 21.1986872,
       officeLongitude: (map['officeLongitude'] as num?)?.toDouble() ?? 72.7965515,
       geofenceRadiusMeters: (map['geofenceRadiusMeters'] as num?)?.toDouble() ?? 500.0,
-      officeName: map['officeName'] ?? 'Green Atria, Society, Anand Mahal Rd, beside Silver Park, in front of Sneh Sankul Wadi, Giriraj Society, Adajan, Surat, Gujarat 395009',
+      officeName: map['officeName'] ?? 'United Green Hospital, Anand Mahal Rd, Adajan, Surat, Gujarat 395009',
       updatedAt: map['updatedAt'] != null
           ? DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),

@@ -150,6 +150,11 @@ class NotificationService {
   Future<void> clearAll() async {
     _history.clear();
     await LocalStorageService().clearNotifications();
+    try {
+      await _localNotifications.cancelAll();
+    } catch (e) {
+      debugPrint('Error canceling system notifications: $e');
+    }
   }
 
   Future<void> _showSystemNotification(AppNotification notification) async {
@@ -212,13 +217,26 @@ class NotificationService {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 8,
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        backgroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
         content: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(iconData, color: iconColor, size: 28),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -227,16 +245,19 @@ class NotificationService {
                   Text(
                     notification.title,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
                       fontSize: 14,
+                      letterSpacing: -0.2,
                     ),
                   ),
+                  const SizedBox(height: 3),
                   Text(
                     notification.message,
                     style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
+                      color: Color(0xFF475569),
+                      fontSize: 12.5,
+                      height: 1.3,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

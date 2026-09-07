@@ -12,7 +12,7 @@ class ReportGeneratorScreen extends StatefulWidget {
 
   const ReportGeneratorScreen({
     super.key,
-    this.isEmbedded = false,
+    this.isEmbedded = true,
     this.initialReportType = 'monthly',
   });
 
@@ -119,7 +119,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.65,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -155,14 +155,17 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$label file ready for save / export.')),
-                  );
+                  final hr = context.read<HrProvider>();
+                  if (label.toLowerCase().contains('excel')) {
+                    await hr.exportAndShareExcel(context);
+                  } else {
+                    await hr.exportAndShareCsv(context);
+                  }
                 },
                 icon: const Icon(Icons.download, size: 18),
-                label: Text('Save $label File'),
+                label: Text('Export & Save $label File'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -649,6 +652,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
   }
 
   Widget _buildEmployeeCard(BuildContext context, MonthlyAttendanceReport rep, bool isDark) {
+    final hr = context.read<HrProvider>();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -693,11 +697,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 ),
               ),
               ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Individual audit compiled for ${rep.employeeName}.')),
-                  );
-                },
+                onPressed: () => hr.exportSingleEmployeeCsv(context, rep),
                 icon: const Icon(Icons.download, size: 14),
                 label: const Text('Export'),
                 style: ElevatedButton.styleFrom(
@@ -843,11 +843,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             description: 'Structured tabular data ready for Microsoft Excel, Google Sheets, and Payroll integration.',
             icon: Icons.table_chart_rounded,
             color: const Color(0xFF10B981),
-            buttonLabel: 'Preview & Export Excel',
-            onTap: () {
+            buttonLabel: 'Export Excel Sheet',
+            onTap: () => hr.exportAndShareExcel(context),
+            onPreviewTap: () {
               final excelData = hr.getExcelExportContent();
               _showCodePreview('MS Excel Tabular Data', excelData, 'Excel');
             },
+            isLoading: hr.isGeneratingReport,
           ),
 
           const SizedBox(height: 12),
@@ -860,11 +862,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             description: 'Standard comma-separated file format for database imports and custom analytics.',
             icon: Icons.grid_on_rounded,
             color: const Color(0xFF3B82F6),
-            buttonLabel: 'Preview & Export CSV',
-            onTap: () {
+            buttonLabel: 'Export CSV Sheet',
+            onTap: () => hr.exportAndShareCsv(context),
+            onPreviewTap: () {
               final csvData = hr.getCsvExportContent();
               _showCodePreview('Raw CSV Data Sheet', csvData, 'CSV');
             },
+            isLoading: hr.isGeneratingReport,
           ),
 
           const SizedBox(height: 12),
@@ -908,6 +912,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     required Color color,
     required String buttonLabel,
     required VoidCallback onTap,
+    VoidCallback? onPreviewTap,
     bool isLoading = false,
   }) {
     return Container(
@@ -947,22 +952,39 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: isLoading ? null : onTap,
-                  icon: isLoading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Icon(icon, size: 15),
-                  label: Text(buttonLabel),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: isLoading ? null : onTap,
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Icon(icon, size: 15),
+                      label: Text(buttonLabel),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    if (onPreviewTap != null) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: onPreviewTap,
+                        icon: const Icon(Icons.visibility_outlined, size: 14),
+                        label: const Text('Preview'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

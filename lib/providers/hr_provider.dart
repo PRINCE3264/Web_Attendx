@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
@@ -124,6 +128,44 @@ class HrProvider extends ChangeNotifier {
   void setReportPeriod(String period) {
     _selectedReportPeriod = period;
     notifyListeners();
+  }
+
+  List<UserModel> get allEmployees => List.unmodifiable(_users);
+
+  Future<bool> assignEmployeeToTL({
+    required String employeeId,
+    required UserModel tlUser,
+    required UserModel actor,
+  }) async {
+    try {
+      await _firestoreService.assignEmployeeToTL(
+        employeeId: employeeId,
+        tlUser: tlUser,
+        actor: actor,
+      );
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('HrProvider assignEmployeeToTL error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> unassignEmployeeFromTL({
+    required String employeeId,
+    required UserModel actor,
+  }) async {
+    try {
+      await _firestoreService.unassignEmployeeFromTL(
+        employeeId: employeeId,
+        actor: actor,
+      );
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('HrProvider unassignEmployeeFromTL error: $e');
+      return false;
+    }
   }
 
   List<UserModel> get filteredEmployees {
@@ -332,6 +374,222 @@ class HrProvider extends ChangeNotifier {
     return buffer.toString();
   }
 
+  Future<String?> _saveFileToDisk(String content, String filename) async {
+    try {
+      Directory? dir;
+      if (Platform.isAndroid) {
+        final downloadDir = Directory('/storage/emulated/0/Download');
+        if (await downloadDir.exists()) {
+          dir = downloadDir;
+        } else {
+          dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+        }
+      } else {
+        dir = await getApplicationDocumentsDirectory();
+      }
+
+      final file = File('${dir.path}/$filename');
+      await file.writeAsString(content);
+      return file.path;
+    } catch (e) {
+      debugPrint('Error saving file: $e');
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$filename');
+        await file.writeAsString(content);
+        return file.path;
+      } catch (e2) {
+        return null;
+      }
+    }
+  }
+
+  void _showExportSuccessDialog(BuildContext context, String fileType, String path, String content) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.task_alt_rounded, color: Color(0xFF10B981), size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$fileType Export Ready',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      Text(
+                        'File generated and saved to your device',
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.folder_outlined, size: 18, color: Color(0xFF2563EB)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Saved File Location:',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF1E293B)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    path,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Table contents auto-copied to Clipboard! Paste directly into Excel or Google Sheets.',
+                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF1E40AF)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: content));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Copied spreadsheet data to clipboard!')),
+                );
+              },
+              icon: const Icon(Icons.content_copy_rounded, size: 18),
+              label: const Text('Copy Data to Clipboard'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> exportAndShareCsv(BuildContext context) async {
+    _isGeneratingReport = true;
+    notifyListeners();
+
+    try {
+      final csvString = getCsvExportContent();
+      final filename = 'Attendance_${_selectedReportPeriod}_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      
+      await Clipboard.setData(ClipboardData(text: csvString));
+      final savedPath = await _saveFileToDisk(csvString, filename);
+
+      _isGeneratingReport = false;
+      notifyListeners();
+
+      if (context.mounted) {
+        _showExportSuccessDialog(context, 'CSV Data Sheet', savedPath ?? filename, csvString);
+      }
+    } catch (e) {
+      debugPrint('CSV Export Error: $e');
+      _isGeneratingReport = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> exportAndShareExcel(BuildContext context) async {
+    _isGeneratingReport = true;
+    notifyListeners();
+
+    try {
+      final excelString = getExcelExportContent();
+      final filename = 'Attendance_${_selectedReportPeriod}_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.tsv';
+      
+      await Clipboard.setData(ClipboardData(text: excelString));
+      final savedPath = await _saveFileToDisk(excelString, filename);
+
+      _isGeneratingReport = false;
+      notifyListeners();
+
+      if (context.mounted) {
+        _showExportSuccessDialog(context, 'MS Excel Sheet', savedPath ?? filename, excelString);
+      }
+    } catch (e) {
+      debugPrint('Excel Export Error: $e');
+      _isGeneratingReport = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> exportSingleEmployeeCsv(BuildContext context, MonthlyAttendanceReport rep) async {
+    _isGeneratingReport = true;
+    notifyListeners();
+
+    try {
+      final singleCsv = ReportService.generateCsvReport([rep]);
+      final filename = 'Attendance_${rep.employeeName.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+
+      await Clipboard.setData(ClipboardData(text: singleCsv));
+      final savedPath = await _saveFileToDisk(singleCsv, filename);
+
+      _isGeneratingReport = false;
+      notifyListeners();
+
+      if (context.mounted) {
+        _showExportSuccessDialog(context, '${rep.employeeName} Attendance', savedPath ?? filename, singleCsv);
+      }
+    } catch (e) {
+      debugPrint('Single Employee CSV Export Error: $e');
+      _isGeneratingReport = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> sendReportEmail({required String emailAddress}) async {
     _isGeneratingReport = true;
     notifyListeners();
@@ -349,3 +607,4 @@ class HrProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+

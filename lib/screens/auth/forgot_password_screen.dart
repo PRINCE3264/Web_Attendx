@@ -209,7 +209,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           children: [
                             Text(
                               _isCodeSent
-                                  ? 'Create New Password'
+                                  ? 'Check Your Email'
                                   : 'Reset Password',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.outfit(
@@ -221,8 +221,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             const SizedBox(height: 6),
                             Text(
                               _isCodeSent
-                                  ? 'Enter the 6-digit code sent to your email.'
-                                  : 'Enter your email to receive a reset code.',
+                                  ? 'We have sent a password reset link to your email. Please check your inbox (and spam folder). Click the link to reset your password, then return here to login.'
+                                  : 'Enter your email to receive a password reset link.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
@@ -266,121 +266,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                   ),
                                 ),
                               ),
-                            ] else ...[
-                              TextField(
-                                controller: _otpController,
-                                keyboardType: TextInputType.number,
-                                style: GoogleFonts.inter(fontSize: 14),
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(
-                                    Icons.pin_outlined,
-                                    color: Color(0xFF94A3B8),
-                                    size: 20,
-                                  ),
-                                  hintText: '6-digit Reset Code',
-                                  hintStyle: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 14,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF3B82F6),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: _newPasswordController,
-                                obscureText: _obscurePassword,
-                                style: GoogleFonts.inter(fontSize: 14),
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline,
-                                    color: Color(0xFF94A3B8),
-                                    size: 20,
-                                  ),
-                                  hintText: 'New Password',
-                                  hintStyle: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 14,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF3B82F6),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: const Color(0xFF94A3B8),
-                                      size: 20,
-                                    ),
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: _confirmPasswordController,
-                                obscureText: _obscurePassword,
-                                style: GoogleFonts.inter(fontSize: 14),
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(
-                                    Icons.lock_reset,
-                                    color: Color(0xFF94A3B8),
-                                    size: 20,
-                                  ),
-                                  hintText: 'Confirm Password',
-                                  hintStyle: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 14,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF3B82F6),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ],
 
                             const SizedBox(height: 16),
@@ -399,43 +284,63 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                               ),
 
-                            ElevatedButton(
-                              onPressed: auth.isLoading
-                                  ? null
-                                  : (_isCodeSent
-                                        ? _handleResetPassword
-                                        : _sendResetCode),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
+                            if (!_isCodeSent)
+                              ElevatedButton(
+                                onPressed: auth.isLoading
+                                    ? null
+                                    : _sendResetCode,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                child: auth.isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        'SEND RESET LINK',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                              )
+                            else
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'BACK TO LOGIN',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
-                              child: auth.isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      _isCodeSent
-                                          ? 'RESET PASSWORD'
-                                          : 'SEND RESET CODE',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                            ),
                           ],
                         ),
                       ),

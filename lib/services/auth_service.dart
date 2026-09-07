@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 import '../services/audit_service.dart';
@@ -44,7 +46,7 @@ class AuthService {
     return _currentUser;
   }
 
-  Future<void> _updateSessionUser(UserModel? user) async {
+  Future<void> updateSessionUser(UserModel? user) async {
     _currentUser = user;
     _authStateController.add(_currentUser);
     await LocalStorageService().saveSession(user);
@@ -60,7 +62,10 @@ class AuthService {
     }
   }
 
-  Future<UserModel> signInWithEmailAndPassword(String email, String password) async {
+  Future<UserModel> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     final cleanEmail = email.toLowerCase().trim();
     final enteredPass = password.trim();
 
@@ -82,10 +87,14 @@ class AuthService {
 
     // 2. Fetch User Profile from Firestore / local memory
     final users = FirestoreService().getAllUsers();
-    final userIndex = users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
+    final userIndex = users.indexWhere(
+      (u) => u.email.toLowerCase() == cleanEmail,
+    );
 
     if (userIndex == -1 && !isFirebaseAuthSuccess) {
-      throw Exception('No account found with email $cleanEmail. Please Create an Account first.');
+      throw Exception(
+        'No account found with email $cleanEmail. Please Create an Account first.',
+      );
     }
 
     UserModel user;
@@ -93,7 +102,9 @@ class AuthService {
       user = users[userIndex];
     } else {
       user = UserModel(
-        userId: FirebaseAuth.instance.currentUser?.uid ?? 'usr_${DateTime.now().millisecondsSinceEpoch}',
+        userId:
+            FirebaseAuth.instance.currentUser?.uid ??
+            'usr_${DateTime.now().millisecondsSinceEpoch}',
         name: cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
         email: cleanEmail,
         role: UserRole.employee,
@@ -109,9 +120,12 @@ class AuthService {
 
     // 3. Fallback password verification if Firebase Auth was skipped/offline
     if (!isFirebaseAuthSuccess) {
-      final storedPass = _passwords[cleanEmail] ?? user.initialPassword ?? 'password123';
+      final storedPass =
+          _passwords[cleanEmail] ?? user.initialPassword ?? 'password123';
       if (enteredPass != storedPass) {
-        throw Exception('Incorrect password. Please enter the password associated with your account.');
+        throw Exception(
+          'Incorrect password. Please enter the password associated with your account.',
+        );
       }
     }
 
@@ -122,7 +136,7 @@ class AuthService {
       throw Exception('This account has been disabled by Administrator.');
     }
 
-    await _updateSessionUser(user);
+    await updateSessionUser(user);
 
     AuditService().log(
       actor: user,
@@ -165,12 +179,15 @@ class AuthService {
         }
       }
 
-      if (email.isEmpty) {
+      if (email == null || email.isEmpty) {
         throw Exception('Could not retrieve Google account email.');
       }
+      final String validEmail = email;
 
       final users = FirestoreService().getAllUsers();
-      final userIndex = users.indexWhere((u) => u.email.toLowerCase() == email);
+      final userIndex = users.indexWhere(
+        (u) => u.email.toLowerCase() == validEmail,
+      );
 
       UserModel user;
       if (userIndex != -1) {
@@ -183,7 +200,9 @@ class AuthService {
         }
 
         // Auto-fetch and update user avatar from Google Account photo
-        if (photoUrl != null && photoUrl.isNotEmpty && user.avatarUrl != photoUrl) {
+        if (photoUrl != null &&
+            photoUrl.isNotEmpty &&
+            user.avatarUrl != photoUrl) {
           final updatedUser = user.copyWith(avatarUrl: photoUrl);
           await FirestoreService().updateEmployee(updatedUser, user);
           user = updatedUser;
@@ -194,8 +213,8 @@ class AuthService {
           userId: 'usr_${DateTime.now().millisecondsSinceEpoch}',
           name: (displayName != null && displayName.isNotEmpty)
               ? displayName
-              : email.split('@').first.replaceAll('.', ' ').toUpperCase(),
-          email: email,
+              : validEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          email: validEmail,
           role: UserRole.employee,
           employeeId: 'EMP-${1000 + users.length + 1}',
           department: 'Engineering',
@@ -209,12 +228,13 @@ class AuthService {
         user = newUser;
       }
 
-      await _updateSessionUser(user);
+      await updateSessionUser(user);
 
       AuditService().log(
         actor: user,
         actionType: 'GOOGLE_LOGIN',
-        description: '${user.name} logged in via Google Authentication ($email).',
+        description:
+            '${user.name} logged in via Google Authentication ($email).',
         targetEntityId: user.userId,
       );
 
@@ -248,8 +268,12 @@ class AuthService {
       throw Exception('An account with email $cleanEmail already exists.');
     }
 
-    if (users.any((u) => u.employeeId.toLowerCase() == employeeId.trim().toLowerCase())) {
-      throw Exception('Employee ID $employeeId is already assigned to another user.');
+    if (users.any(
+      (u) => u.employeeId.toLowerCase() == employeeId.trim().toLowerCase(),
+    )) {
+      throw Exception(
+        'Employee ID $employeeId is already assigned to another user.',
+      );
     }
 
     final newUser = UserModel(
@@ -258,8 +282,11 @@ class AuthService {
       email: cleanEmail,
       role: role,
       employeeId: employeeId.trim().toUpperCase(),
-      teamId: teamId ?? (role == UserRole.employee ? 'team_mobile' : 'team_mgmt'),
-      teamName: teamName ?? (role == UserRole.employee ? 'Mobile App Team' : 'Management'),
+      teamId:
+          teamId ?? (role == UserRole.employee ? 'team_mobile' : 'team_mgmt'),
+      teamName:
+          teamName ??
+          (role == UserRole.employee ? 'Mobile App Team' : 'Management'),
       managerId: managerId,
       managerName: managerName,
       department: department.trim(),
@@ -287,7 +314,9 @@ class AuthService {
     final users = FirestoreService().getAllUsers();
     final user = users.firstWhere(
       (u) => u.email.toLowerCase() == cleanEmail,
-      orElse: () => throw Exception('No registered account found with email $cleanEmail.'),
+      orElse: () => throw Exception(
+        'No registered account found with email $cleanEmail.',
+      ),
     );
 
     try {
@@ -298,7 +327,8 @@ class AuthService {
 
     NotificationService().sendNotification(
       title: 'Password Reset Email Sent 📧',
-      message: 'Official password reset link sent to ${user.email} via Firebase Auth.',
+      message:
+          'Official password reset link sent to ${user.email} via Firebase Auth.',
       type: 'info',
     );
 
@@ -350,18 +380,22 @@ class AuthService {
     String? newDepartment,
   }) async {
     if (_currentUser == null) return;
-    
+
     final updatedUser = _currentUser!.copyWith(
       name: newName.trim(),
-      email: (newEmail != null && newEmail.trim().isNotEmpty) ? newEmail.trim() : _currentUser!.email,
+      email: (newEmail != null && newEmail.trim().isNotEmpty)
+          ? newEmail.trim()
+          : _currentUser!.email,
       avatarUrl: newAvatarUrl,
-      department: (newDepartment != null && newDepartment.trim().isNotEmpty) ? newDepartment.trim() : _currentUser!.department,
+      department: (newDepartment != null && newDepartment.trim().isNotEmpty)
+          ? newDepartment.trim()
+          : _currentUser!.department,
     );
-    
+
     // We update in Firestore
     await FirestoreService().updateEmployee(updatedUser, _currentUser!);
-    
-    await _updateSessionUser(updatedUser);
+
+    await updateSessionUser(updatedUser);
 
     NotificationService().sendNotification(
       title: 'Profile Updated ✅',
@@ -371,7 +405,7 @@ class AuthService {
   }
 
   Future<void> switchUser(UserModel user) async {
-    await _updateSessionUser(user);
+    await updateSessionUser(user);
   }
 
   Future<UserModel> registerAccount({
@@ -390,17 +424,19 @@ class AuthService {
 
     String? firebaseUid;
     try {
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: cleanEmail,
-        password: password,
-      );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: cleanEmail,
+            password: password,
+          );
       firebaseUid = credential.user?.uid;
       await credential.user?.updateDisplayName(name);
     } catch (e) {
       debugPrint('Firebase Auth register info: $e');
     }
 
-    final userId = firebaseUid ?? 'usr_${DateTime.now().millisecondsSinceEpoch}';
+    final userId =
+        firebaseUid ?? 'usr_${DateTime.now().millisecondsSinceEpoch}';
     final empCode = 'EMP-${1000 + users.length + 1}';
 
     final newUser = UserModel(
@@ -409,7 +445,9 @@ class AuthService {
       email: cleanEmail,
       role: role,
       employeeId: empCode,
-      department: department.trim().isNotEmpty ? department.trim() : 'Engineering',
+      department: department.trim().isNotEmpty
+          ? department.trim()
+          : 'Engineering',
       teamId: 'unassigned',
       teamName: 'Unassigned (Pending TL Allocation)',
       isActive: true,
@@ -420,7 +458,7 @@ class AuthService {
 
     await FirestoreService().createEmployee(newUser, newUser);
 
-    await _updateSessionUser(null);
+    await updateSessionUser(null);
 
     AuditService().log(
       actor: newUser,
@@ -439,7 +477,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _updateSessionUser(null);
+    await updateSessionUser(null);
   }
 
   void initializeDefaultUser() {
