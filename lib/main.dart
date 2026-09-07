@@ -25,13 +25,6 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Sign in anonymously (useful for testing rules that require auth)
-    try {
-      await FirebaseAuth.instance.signInAnonymously();
-      debugPrint('✅ Signed in anonymously');
-    } catch (e) {
-      debugPrint('⚠️ Anonymous sign‑in failed: $e');
-    }
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
