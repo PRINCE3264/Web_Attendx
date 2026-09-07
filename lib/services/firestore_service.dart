@@ -274,6 +274,8 @@ class FirestoreService {
     if (_hasBoundListeners) return;
     _hasBoundListeners = true;
 
+    final DateTime streamStartTime = DateTime.now().subtract(const Duration(seconds: 10));
+
     // Seed data asynchronously if empty
     _seedFirestoreIfEmpty();
 
@@ -292,7 +294,7 @@ class FirestoreService {
             final isHrOrAdmin = currentUserRole == UserRole.hr ||
                 currentUserRole == UserRole.admin;
             for (final u in items) {
-              if (!existingIds.contains(u.userId) && isHrOrAdmin) {
+              if (u.createdAt.isAfter(streamStartTime) && !existingIds.contains(u.userId) && isHrOrAdmin) {
                 NotificationService().sendNotification(
                   title: '🆕 New Employee Joined: ${u.name}',
                   message:
@@ -448,7 +450,7 @@ class FirestoreService {
           if (!isFirstAnnouncementsSync && _announcements.isNotEmpty) {
             final existingIds = _announcements.map((a) => a.id).toSet();
             for (final ann in items) {
-              if (!existingIds.contains(ann.id)) {
+              if (ann.createdAt.isAfter(streamStartTime) && !existingIds.contains(ann.id)) {
                 NotificationService().sendNotification(
                   title: ann.type == 'holiday'
                       ? '🏖️ Holiday Announced: ${ann.title}'
@@ -485,7 +487,7 @@ class FirestoreService {
           if (!isFirstNotificationsSync && _notifications.isNotEmpty) {
             final existingIds = _notifications.map((n) => n.id).toSet();
             for (final notif in items) {
-              if (!existingIds.contains(notif.id)) {
+              if (notif.createdAt.isAfter(streamStartTime) && !existingIds.contains(notif.id)) {
                 NotificationService().sendNotification(
                   title: notif.title,
                   message: notif.message,
