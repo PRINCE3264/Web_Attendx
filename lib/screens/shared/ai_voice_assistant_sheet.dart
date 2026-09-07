@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -228,6 +229,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
 
   Future<void> _processVoiceAudio(String path) async {
     try {
+      if (kIsWeb) return;
       final file = File(path);
       final bytes = await file.readAsBytes();
       final base64Audio = base64Encode(bytes);

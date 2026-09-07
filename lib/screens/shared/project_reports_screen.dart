@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -489,7 +490,6 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
                 itemCount: report.screenshotUrls.length,
                 itemBuilder: (context, imgIdx) {
                   final imgPath = report.screenshotUrls[imgIdx];
-                  final isFile = File(imgPath).existsSync();
 
                   return GestureDetector(
                     onTap: () => _openImageLightbox(context, imgPath),
@@ -503,12 +503,7 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: isFile
-                            ? Image.file(File(imgPath), fit: BoxFit.cover)
-                            : Container(
-                                color: Colors.grey.shade300,
-                                child: const Icon(Icons.image, color: Colors.grey),
-                              ),
+                        child: _buildSmartImage(imgPath, fit: BoxFit.cover, width: 75, height: 75),
                       ),
                     ),
                   );
@@ -527,7 +522,7 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
             const SizedBox(height: 6),
             Column(
               children: report.videoUrls.map((vPath) {
-                final fileName = vPath.split(Platform.pathSeparator).last;
+                final fileName = vPath.split(RegExp(r'[/\\]')).last;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -583,14 +578,7 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
               constraints: const BoxConstraints(maxHeight: 500),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: File(imagePath).existsSync()
-                    ? Image.file(File(imagePath), fit: BoxFit.contain)
-                    : Container(
-                        color: Colors.black,
-                        child: const Center(
-                          child: Text('Image file unavailable locally', style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
+                child: _buildSmartImage(imagePath, fit: BoxFit.contain),
               ),
             ),
             IconButton(
@@ -600,6 +588,65 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSmartImage(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
+    if (path.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey.shade300,
+        child: const Icon(Icons.image, color: Colors.grey),
+      );
+    }
+
+    final lower = path.toLowerCase();
+    final isNetwork = lower.startsWith('http://') ||
+        lower.startsWith('https://') ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:');
+
+    if (isNetwork) {
+      return Image.network(
+        path,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    }
+
+    if (!kIsWeb) {
+      try {
+        final file = File(path);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: width,
+              height: height,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade300,
+      child: const Icon(Icons.image, color: Colors.grey),
     );
   }
 }

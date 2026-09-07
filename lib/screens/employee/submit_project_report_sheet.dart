@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -462,7 +463,6 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                     itemCount: _screenshotPaths.length,
                     itemBuilder: (context, index) {
                       final path = _screenshotPaths[index];
-                      final isFileExists = File(path).existsSync();
 
                       return Container(
                         margin: const EdgeInsets.only(right: 10),
@@ -477,17 +477,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: isFileExists
-                                  ? Image.file(
-                                      File(path),
-                                      width: 90,
-                                      height: 90,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Container(
-                                      color: Colors.grey.shade300,
-                                      child: const Icon(Icons.image, color: Colors.grey),
-                                    ),
+                              child: _buildSmartImage(path, fit: BoxFit.cover, width: 90, height: 90),
                             ),
                             Positioned(
                               top: 4,
@@ -528,7 +518,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                   children: _videoPaths.asMap().entries.map((entry) {
                     final index = entry.key;
                     final path = entry.value;
-                    final fileName = path.split(Platform.pathSeparator).last;
+                    final fileName = path.split(RegExp(r'[/\\]')).last;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -611,6 +601,64 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
           ),
         ),
       ),
+    );
+  }
+  Widget _buildSmartImage(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
+    if (path.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey.shade300,
+        child: const Icon(Icons.image, color: Colors.grey),
+      );
+    }
+
+    final lower = path.toLowerCase();
+    final isNetwork = lower.startsWith('http://') ||
+        lower.startsWith('https://') ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:');
+
+    if (isNetwork) {
+      return Image.network(
+        path,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    }
+
+    if (!kIsWeb) {
+      try {
+        final file = File(path);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: width,
+              height: height,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade300,
+      child: const Icon(Icons.image, color: Colors.grey),
     );
   }
 }
