@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'local_storage_service.dart';
+import 'auth_service.dart';
 
 class AppNotification {
   final String id;
@@ -129,6 +130,8 @@ class NotificationService {
     required String message,
     String type = 'info',
   }) {
+    if (AuthService().currentUser == null) return;
+
     final notification = AppNotification(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,

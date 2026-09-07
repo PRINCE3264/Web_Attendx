@@ -90,17 +90,18 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> with WidgetsBin
   void _startUsageTimer() {
     _usageTimer?.cancel();
     
-    // Also log start initially if user is signed in
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId != null) {
-      FirestoreService().logSessionStart(userId);
-    }
+    // Only run usage timer if user is logged in
+    final currentUser = AuthService().currentUser;
+    if (currentUser == null) return;
+    
+    FirestoreService().logSessionStart(currentUser.userId);
     
     // Set for 1 hour of continuous usage
     _usageTimer = Timer(const Duration(hours: 1), _triggerOneHourAlert);
   }
 
   void _triggerOneHourAlert() {
+    if (AuthService().currentUser == null) return;
     // Show local notification
     NotificationService().sendNotification(
       title: '1 Hour Alert ⏰',
@@ -117,9 +118,8 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> with WidgetsBin
     }
   }
 
-
-
   void _showInAppNotification(AppNotification notif) {
+    if (AuthService().currentUser == null) return;
     try {
       SystemSound.play(SystemSoundType.click);
       HapticFeedback.heavyImpact();
