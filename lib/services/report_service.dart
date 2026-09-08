@@ -1,7 +1,7 @@
-import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/report_model.dart';
@@ -9,6 +9,7 @@ import 'firestore_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 import 'audit_service.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,14 +23,17 @@ class ReportService {
     final periodStart = now.subtract(const Duration(days: 30));
     final periodEnd = now;
 
-    final allRecords = attendanceList ?? FirestoreService().getAttendanceForEmployee(employee.userId);
-    
+    final allRecords =
+        attendanceList ??
+        FirestoreService().getAttendanceForEmployee(employee.userId);
 
     // Filter within 30-day window
     final relevantRecords = allRecords.where((a) {
       final recordDate = DateTime.tryParse(a.date);
       if (recordDate == null) return false;
-      return recordDate.isAfter(periodStart.subtract(const Duration(days: 1))) &&
+      return recordDate.isAfter(
+            periodStart.subtract(const Duration(days: 1)),
+          ) &&
           recordDate.isBefore(periodEnd.add(const Duration(days: 1)));
     }).toList();
 
@@ -40,12 +44,16 @@ class ReportService {
     int totalMinutes = 0;
 
     for (final rec in relevantRecords) {
-      if (rec.status == AttendanceStatus.completed || rec.status == AttendanceStatus.approved) {
+      if (rec.status == AttendanceStatus.completed ||
+          rec.status == AttendanceStatus.approved) {
         presentDays++;
-        if (rec.clockInTime != null && rec.clockInTime!.hour >= 9 && rec.clockInTime!.minute > 30) {
+        if (rec.clockInTime != null &&
+            rec.clockInTime!.hour >= 9 &&
+            rec.clockInTime!.minute > 30) {
           lateArrivals++;
         }
-        totalMinutes += rec.totalWorkMinutes ?? (rec.grossDuration?.inMinutes ?? 480);
+        totalMinutes +=
+            rec.totalWorkMinutes ?? (rec.grossDuration?.inMinutes ?? 480);
       } else if (rec.status == AttendanceStatus.pending) {
         pendingDays++;
       } else if (rec.status == AttendanceStatus.rejected) {
@@ -54,15 +62,22 @@ class ReportService {
     }
 
     // Calculate working days from account creation date (createdAt) or 30 days ago up to today
-    final effectiveStart = (employee.createdAt != null && employee.createdAt!.isAfter(periodStart))
+    final effectiveStart =
+        (employee.createdAt != null && employee.createdAt!.isAfter(periodStart))
         ? employee.createdAt!
         : periodStart;
 
     int workingDays = 0;
     final todayTruncated = DateTime(now.year, now.month, now.day);
-    for (DateTime day = DateTime(effectiveStart.year, effectiveStart.month, effectiveStart.day);
-        !day.isAfter(todayTruncated);
-        day = day.add(const Duration(days: 1))) {
+    for (
+      DateTime day = DateTime(
+        effectiveStart.year,
+        effectiveStart.month,
+        effectiveStart.day,
+      );
+      !day.isAfter(todayTruncated);
+      day = day.add(const Duration(days: 1))
+    ) {
       if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
         workingDays++;
       }
@@ -73,17 +88,25 @@ class ReportService {
     if (relevantRecords.isEmpty) {
       absentDays = 0;
     } else {
-      absentDays = (workingDays - presentDays - pendingDays).clamp(0, workingDays);
+      absentDays = (workingDays - presentDays - pendingDays).clamp(
+        0,
+        workingDays,
+      );
     }
 
     final double attendancePercentage;
     if (relevantRecords.isEmpty && presentDays == 0) {
       attendancePercentage = 0.0;
     } else {
-      attendancePercentage = ((presentDays / workingDays) * 100).clamp(0.0, 100.0);
+      attendancePercentage = ((presentDays / workingDays) * 100).clamp(
+        0.0,
+        100.0,
+      );
     }
     final double totalHours = totalMinutes / 60.0;
-    final double averageDailyHours = presentDays > 0 ? totalHours / presentDays : 0.0;
+    final double averageDailyHours = presentDays > 0
+        ? totalHours / presentDays
+        : 0.0;
 
     return MonthlyAttendanceReport(
       reportId: 'rep_${employee.userId}_${DateFormat('yyyyMM').format(now)}',
@@ -98,7 +121,9 @@ class ReportService {
       absentDays: absentDays,
       pendingDays: pendingDays,
       rejectedDays: rejectedDays,
-      attendancePercentage: double.parse(attendancePercentage.toStringAsFixed(1)),
+      attendancePercentage: double.parse(
+        attendancePercentage.toStringAsFixed(1),
+      ),
       totalHoursWorked: double.parse(totalHours.toStringAsFixed(1)),
       averageDailyHours: double.parse(averageDailyHours.toStringAsFixed(1)),
       lateArrivals: lateArrivals,
@@ -110,12 +135,14 @@ class ReportService {
   static String generateCsvReport(List<MonthlyAttendanceReport> reports) {
     final StringBuffer buffer = StringBuffer();
     buffer.writeln(
-        'Report ID,Employee Name,Employee Code,Department,Period Start,Period End,Working Days,Present,Absent,Pending,Rejected,Attendance %,Total Hours,Avg Hours/Day,Late Arrivals');
+      'Report ID,Employee Name,Employee Code,Department,Period Start,Period End,Working Days,Present,Absent,Pending,Rejected,Attendance %,Total Hours,Avg Hours/Day,Late Arrivals',
+    );
 
     final df = DateFormat('yyyy-MM-dd');
     for (final r in reports) {
       buffer.writeln(
-          '${r.reportId},"${r.employeeName}",${r.employeeCode},"${r.department}",${df.format(r.periodStart)},${df.format(r.periodEnd)},${r.totalWorkingDays},${r.presentDays},${r.absentDays},${r.pendingDays},${r.rejectedDays},${r.attendancePercentage}%,${r.totalHoursWorked},${r.averageDailyHours},${r.lateArrivals}');
+        '${r.reportId},"${r.employeeName}",${r.employeeCode},"${r.department}",${df.format(r.periodStart)},${df.format(r.periodEnd)},${r.totalWorkingDays},${r.presentDays},${r.absentDays},${r.pendingDays},${r.rejectedDays},${r.attendancePercentage}%,${r.totalHoursWorked},${r.averageDailyHours},${r.lateArrivals}',
+      );
     }
 
     return buffer.toString();
@@ -164,9 +191,17 @@ class ReportService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Date: ${df.format(now)}', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text('Generated by HR System',
-                        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                    pw.Text(
+                      'Date: ${df.format(now)}',
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                    pw.Text(
+                      'Generated by HR System',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -189,9 +224,14 @@ class ReportService {
                 fontSize: 9,
                 color: PdfColors.white,
               ),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo700),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.indigo700,
+              ),
               cellStyle: const pw.TextStyle(fontSize: 8.5),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+              cellPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 5,
+              ),
               headers: [
                 'Employee',
                 'Code',
@@ -235,7 +275,10 @@ class ReportService {
                   pw.Expanded(
                     child: pw.Text(
                       'Automated Firebase Cloud calculation based on geo-verified photo clock-ins and Manager authorizations. Approved for payroll & HR compliance.',
-                      style: const pw.TextStyle(fontSize: 8, color: PdfColors.indigo900),
+                      style: const pw.TextStyle(
+                        fontSize: 8,
+                        color: PdfColors.indigo900,
+                      ),
                     ),
                   ),
                 ],
@@ -261,14 +304,14 @@ class ReportService {
       final Uri emailUri = Uri(
         scheme: 'mailto',
         path: emailTo,
-        queryParameters: {
-          'subject': subject,
-          'body': reportSummary,
-        },
+        queryParameters: {'subject': subject, 'body': reportSummary},
       );
 
       if (await canLaunchUrl(emailUri)) {
-        launched = await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+        launched = await launchUrl(
+          emailUri,
+          mode: LaunchMode.externalApplication,
+        );
       } else {
         launched = await launchUrl(emailUri);
       }
@@ -278,7 +321,8 @@ class ReportService {
 
     NotificationService().sendNotification(
       title: 'Report Emailed Successfully ✉️',
-      message: '30-Day Attendance report dispatched to ${recipients.join(", ")}.',
+      message:
+          '30-Day Attendance report dispatched to ${recipients.join(", ")}.',
       type: 'report',
     );
 
@@ -294,8 +338,12 @@ class ReportService {
     String? hrEmailOverride,
   }) async {
     final allUsers = users ?? FirestoreService().getAllUsers();
-    final employees = allUsers.where((u) => u.role == UserRole.employee).toList();
-    final hrAndAdmins = allUsers.where((u) => u.role == UserRole.hr || u.role == UserRole.admin).toList();
+    final employees = allUsers
+        .where((u) => u.role == UserRole.employee)
+        .toList();
+    final hrAndAdmins = allUsers
+        .where((u) => u.role == UserRole.hr || u.role == UserRole.admin)
+        .toList();
 
     final currentUser = AuthService().currentUser;
     final List<String> recipients = [];
@@ -307,7 +355,10 @@ class ReportService {
       }
     }
 
-    if (currentUser != null && currentUser.email.trim().isNotEmpty && (currentUser.role == UserRole.hr || currentUser.role == UserRole.admin)) {
+    if (currentUser != null &&
+        currentUser.email.trim().isNotEmpty &&
+        (currentUser.role == UserRole.hr ||
+            currentUser.role == UserRole.admin)) {
       final clean = currentUser.email.trim();
       if (!recipients.contains(clean)) {
         recipients.add(clean);
@@ -320,7 +371,9 @@ class ReportService {
       }
     }
 
-    if (recipients.isEmpty && currentUser != null && currentUser.email.trim().isNotEmpty) {
+    if (recipients.isEmpty &&
+        currentUser != null &&
+        currentUser.email.trim().isNotEmpty) {
       recipients.add(currentUser.email.trim());
     }
 
@@ -330,9 +383,13 @@ class ReportService {
     int totalWorkingDaysSum = 0;
 
     for (final emp in employees) {
-      final empAttendance = attendanceList?.where((a) => a.employeeId == emp.userId).toList() ??
+      final empAttendance =
+          attendanceList?.where((a) => a.employeeId == emp.userId).toList() ??
           FirestoreService().getAttendanceForEmployee(emp.userId);
-      final rep = calculate30DayReport(employee: emp, attendanceList: empAttendance);
+      final rep = calculate30DayReport(
+        employee: emp,
+        attendanceList: empAttendance,
+      );
       reports.add(rep);
       totalPresentDays += rep.presentDays;
       totalAbsentDays += rep.absentDays;
@@ -340,7 +397,8 @@ class ReportService {
     }
 
     final double companyAvgRate = employees.isNotEmpty
-        ? (reports.fold(0.0, (sum, r) => sum + r.attendancePercentage) / employees.length)
+        ? (reports.fold(0.0, (sum, r) => sum + r.attendancePercentage) /
+              employees.length)
         : 100.0;
 
     final csvContent = generateCsvReport(reports);
@@ -349,8 +407,9 @@ class ReportService {
       title: 'Automated 30-Day HR Attendance & Payroll Audit',
     );
 
-    final subject = '📊 [Automated HR Audit] 30-Day Attendance & Absenteeism Report (${DateFormat('dd MMM yyyy').format(DateTime.now())})';
-    
+    final subject =
+        '📊 [Automated HR Audit] 30-Day Attendance & Absenteeism Report (${DateFormat('dd MMM yyyy').format(DateTime.now())})';
+
     final StringBuffer bodyBuf = StringBuffer();
     bodyBuf.writeln('AUTOMATED 30-DAY ATTENDANCE & PAYROLL AUDIT REPORT');
     bodyBuf.writeln('==================================================');
@@ -358,13 +417,19 @@ class ReportService {
     bodyBuf.writeln('Total Working Days Audited: $totalWorkingDaysSum');
     bodyBuf.writeln('Total Present Days Logged: $totalPresentDays');
     bodyBuf.writeln('Total Absent Days Recorded: $totalAbsentDays');
-    bodyBuf.writeln('Overall Workforce Attendance Rate: ${companyAvgRate.toStringAsFixed(1)}%\n');
+    bodyBuf.writeln(
+      'Overall Workforce Attendance Rate: ${companyAvgRate.toStringAsFixed(1)}%\n',
+    );
     bodyBuf.writeln('EMPLOYEE BREAKDOWN (PRESENT vs ABSENT):');
     for (final r in reports) {
-      bodyBuf.writeln('• ${r.employeeName} (${r.employeeCode} - ${r.department}): Present: ${r.presentDays}/${r.totalWorkingDays} days | Absent: ${r.absentDays} days | Rate: ${r.attendancePercentage}% | Logged Hours: ${r.totalHoursWorked}h');
+      bodyBuf.writeln(
+        '• ${r.employeeName} (${r.employeeCode} - ${r.department}): Present: ${r.presentDays}/${r.totalWorkingDays} days | Absent: ${r.absentDays} days | Rate: ${r.attendancePercentage}% | Logged Hours: ${r.totalHoursWorked}h',
+      );
     }
     bodyBuf.writeln('\n==================================================');
-    bodyBuf.writeln('Attached Files: 30_Day_Attendance_Summary.xlsx & 30_Day_Attendance_Audit.pdf');
+    bodyBuf.writeln(
+      'Attached Files: 30_Day_Attendance_Summary.xlsx & 30_Day_Attendance_Audit.pdf',
+    );
     bodyBuf.writeln('Recipients Notified: ${recipients.join(', ')}');
 
     final reportSummary = bodyBuf.toString();
@@ -379,23 +444,24 @@ class ReportService {
       final actorUser = hrAndAdmins.isNotEmpty
           ? hrAndAdmins.first
           : (allUsers.isNotEmpty
-              ? allUsers.first
-              : UserModel(
-                  userId: 'system_auto',
-                  employeeId: 'EMP-SYS',
-                  name: 'System Auto-Cron',
-                  email: 'system@company.com',
-                  role: UserRole.hr,
-                  department: 'HR',
-                  teamId: 'team_hr',
-                ));
+                ? allUsers.first
+                : UserModel(
+                    userId: 'system_auto',
+                    employeeId: 'EMP-SYS',
+                    name: 'System Auto-Cron',
+                    email: 'system@company.com',
+                    role: UserRole.hr,
+                    department: 'HR',
+                    teamId: 'team_hr',
+                  ));
 
       AuditService().log(
         actor: actorUser,
         actionType: 'AUTOMATED_30DAY_HR_EMAIL_REPORT',
         description:
             'Automated 30-day employee attendance report dispatched (Employees: ${employees.length}, Present: $totalPresentDays, Absent: $totalAbsentDays, Rate: ${companyAvgRate.toStringAsFixed(1)}%) to ${recipients.join(", ")} with Excel & PDF attachments.',
-        targetEntityId: 'report_30day_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        targetEntityId:
+            'report_30day_${DateFormat('yyyyMMdd').format(DateTime.now())}',
       );
     } catch (e) {
       debugPrint('Audit log notice for 30-day report: $e');

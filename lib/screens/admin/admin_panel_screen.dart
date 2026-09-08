@@ -16,6 +16,9 @@ import '../../services/report_service.dart';
 import '../shared/custom_widgets.dart';
 import '../manager/leave_approval_screen.dart';
 import '../hr/create_announcement_sheet.dart';
+import '../shared/project_reports_screen.dart';
+import 'departments_management_screen.dart';
+import 'teams_management_screen.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   final String initialRoleFilter; // 'All', 'Employee', 'TL', 'HR', 'Admin'
@@ -2092,6 +2095,145 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
 
               const SizedBox(height: 10),
 
+              // Organization Management Quick Actions (Departments & Teams)
+              Row(
+                children: [
+                  Expanded(
+                    child: Material(
+                      color: isDark ? AppTheme.cardDark : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DepartmentsManagementScreen(isEmbedded: false),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.domain_rounded,
+                                  color: Color(0xFF8B5CF6),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Departments',
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Manage Depts',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10.5,
+                                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Material(
+                      color: isDark ? AppTheme.cardDark : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TeamsManagementScreen(isEmbedded: false),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.groups_rounded,
+                                  color: Color(0xFF0EA5E9),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Teams & TLs',
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Configure Teams',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10.5,
+                                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
               // Leave Approvals Quick Action Button for Admin
               Builder(
                 builder: (ctx) {
@@ -2183,6 +2325,81 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                               )
                             else
                               const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 10),
+
+              // Daily Project Work Reports Quick Action Button for Admin
+              Builder(
+                builder: (ctx) {
+                  final hrProv = ctx.watch<HrProvider>();
+                  final reportCount = hrProv.dailyProjectReports.length;
+
+                  return Material(
+                    color: isDark ? AppTheme.cardDark : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProjectReportsScreen(isEmbedded: false),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isDark ? AppTheme.cardDark : AppTheme.primarySoft,
+                          border: Border.all(
+                            color: AppTheme.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.assignment_turned_in_outlined,
+                                color: AppTheme.primary,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Employee Work Reports Feed ($reportCount Submitted)',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    'View all employee project work updates, screenshots & proof',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primary),
                           ],
                         ),
                       ),

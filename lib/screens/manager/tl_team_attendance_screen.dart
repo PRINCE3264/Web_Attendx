@@ -66,7 +66,8 @@ class _TlTeamAttendanceScreenState extends State<TlTeamAttendanceScreen>
       final byName = e.managerName != null &&
           e.managerName!.isNotEmpty &&
           e.managerName!.trim().toLowerCase() == tl.name.trim().toLowerCase();
-      return byId || byName;
+      final byTeam = tl.teamId.isNotEmpty && tl.teamId != 'unassigned' && e.teamId == tl.teamId;
+      return byId || byName || byTeam;
     }).toList();
   }
 

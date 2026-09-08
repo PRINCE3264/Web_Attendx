@@ -37,29 +37,39 @@ class StorageService {
     }
   }
 
-  Future<XFile?> captureSelfiePhoto() async {
+  Future<XFile?> captureSelfiePhoto({ImageSource source = ImageSource.camera}) async {
     try {
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-      return photo;
-    } catch (e) {
-      // Fallback for desktop or environments without camera access
-      try {
-        final XFile? galleryPhoto = await _picker.pickImage(
+      if (source == ImageSource.gallery) {
+        return await _picker.pickImage(
           source: ImageSource.gallery,
           maxWidth: 1024,
           maxHeight: 1024,
           imageQuality: 85,
         );
-        return galleryPhoto;
-      } catch (err) {
-        return null;
       }
+
+      // Try front camera first
+      try {
+        final XFile? photo = await _picker.pickImage(
+          source: ImageSource.camera,
+          preferredCameraDevice: CameraDevice.front,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        return photo;
+      } catch (frontErr) {
+        debugPrint('Front camera pick notice, falling back to default camera: $frontErr');
+        return await _picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+      }
+    } catch (e) {
+      debugPrint('Camera pick error: $e');
+      return null;
     }
   }
 
@@ -104,6 +114,36 @@ class StorageService {
       debugPrint('Firebase Storage profile upload fallback: $e');
       final base64String = base64Encode(bytes);
       return 'data:image/jpeg;base64,$base64String';
+    }
+  }
+
+  Future<String> uploadProjectReportMedia({
+    required String reportId,
+    required String userId,
+    required String fileName,
+    required XFile file,
+  }) async {
+    final Uint8List bytes = await file.readAsBytes();
+    final extension = fileName.split('.').last.toLowerCase();
+    final contentType = extension == 'mp4' ? 'video/mp4' : 'image/jpeg';
+
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('project_reports/$userId/$reportId/$fileName');
+      final metadata = SettableMetadata(contentType: contentType);
+      final uploadTask = await ref.putData(bytes, metadata);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('Firebase Storage report media upload fallback: $e');
+      // On failure to upload, return the local file path as a fallback or a data URL
+      // If video, we can't easily do data URL without taking huge memory, so just return path
+      if (contentType.startsWith('video')) {
+        return file.path;
+      }
+      final base64String = base64Encode(bytes);
+      return 'data:$contentType;base64,$base64String';
     }
   }
 }

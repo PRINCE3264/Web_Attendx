@@ -81,7 +81,7 @@ class AIAssistantService {
           '👥 How many active users?',
           '🛡️ System health & 17 collections',
           '📜 Audit logs summary',
-          '⚙️ Current policy & 500m geofence rules',
+          '⚙️ Current policy & 300m geofence rules',
           '🏢 Staff hierarchy & roles',
         ];
     }
@@ -218,8 +218,8 @@ class AIAssistantService {
         return AIResponse(
           text: '⏰ **Today\'s Status (${DateFormat('EEEE, dd MMM').format(now)}):**\n\n'
               '• Status: **Not Clocked In Yet** ❌\n'
-              '• Geofence Requirement: **Within 500m of Office** 📍\n'
-              '• Standard Office Start: **09:30 AM** (15 min grace period)\n\n'
+              '• Assigned Shift: **${user.shiftName}** 🕒\n'
+              '• Geofence Requirement: **Within 300m of Office** 📍\n\n'
               'Please go to the Dashboard to clock in with a camera selfie.',
           actionType: AIActionType.clockIn,
           actionLabel: 'GO TO CLOCK IN',
@@ -236,10 +236,11 @@ class AIAssistantService {
 
       return AIResponse(
         text: '⏰ **Today\'s Clock-In & Shift Log:**\n\n'
+            '• **Assigned Shift:** **${user.shiftName}**\n'
             '• **Clock-In Time:** **$inTimeStr** ($timingNote)\n'
             '• **Clock-Out Time:** **$outTimeStr**\n'
             '• **Net Duration Worked:** **${todayRec.formattedNetDuration}**\n'
-            '• **Geofence Zone:** ${todayRec.isWithinGeofence ? 'Verified (Office 500m Zone) 📍' : 'Warning (Outside Geofence) ⚠️'}\n\n'
+            '• **Geofence Zone:** ${todayRec.isWithinGeofence ? 'Verified (Office 300m Zone) 📍' : 'Warning (Outside Geofence) ⚠️'}\n\n'
             '🔔 *Reminder: Don\'t forget to clock out when your shift ends.*',
       );
     }
@@ -547,7 +548,7 @@ class AIAssistantService {
             '• **Firestore Status:** **17 Collections Synchronized & Active ✅**\n'
             '• **Cloud Storage:** Active (Photos, Selfies & Avatars)\n'
             '• **Audit Logging:** Enabled (Immutable Real-time Collection)\n'
-            '• **Geofencing Engine:** Enforcing **500m office perimeter**\n'
+            '• **Geofencing Engine:** Enforcing **300m office perimeter**\n'
             '• **Security Rules:** Level 2 Role-Enforced\n\n'
             'You can run Firebase 1-Tap Cloud Sync from the Admin Panel.',
       );
@@ -569,14 +570,14 @@ class AIAssistantService {
       );
     }
 
-    // 4. "Policy rules" / "500m geofence"
+    // 4. "Policy rules" / "300m geofence"
     if (q.contains('policy') || q.contains('rule') || q.contains('geofence') || q.contains('start time') || q.contains('timing')) {
       return AIResponse(
         text: '⚙️ **Active Attendance Policy & Geofence Rules:**\n\n'
             '• **Office Name:** **${policy.officeName}**\n'
             '• **Office Shift Start:** **${policy.officeStartTime} AM**\n'
             '• **Grace Period:** **${policy.gracePeriodMinutes} minutes** (Late threshold: ${policy.lateThresholdTime})\n'
-            '• **Geofencing Radius:** **${policy.geofenceRadiusMeters.toStringAsFixed(0)} meters (Strict 500m Enforcement 📍)**\n'
+            '• **Geofencing Radius:** **${policy.geofenceRadiusMeters.toStringAsFixed(0)} meters (Strict 300m Enforcement 📍)**\n'
             '• **Office Coordinates:** ${policy.officeLatitude}, ${policy.officeLongitude}\n'
             '• **Min Work Hours:** ${policy.minimumWorkingHours} hrs/day\n\n'
             'Open Policy Settings to update attendance parameters.',
@@ -592,7 +593,7 @@ class AIAssistantService {
           '• *"How many active employees?"*\n'
           '• *"What is the system health & Firestore status?"*\n'
           '• *"Show recent audit logs summary"*\n'
-          '• *"Explain current attendance policy & 500m geofence rules"*',
+          '• *"Explain current attendance policy & 300m geofence rules"*',
     );
   }
 }

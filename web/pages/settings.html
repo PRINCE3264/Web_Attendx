@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttendX - System Settings">
+  <title>AttendX - System Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="../js/layout.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <main class="main-wrapper">
+      <div class="content-body">
+
+        <div class="grid-2">
+          <!-- Shift Policy Settings -->
+          <div class="glass-card">
+            <h3 class="card-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-clock"></i> Shift & Policy Settings</h3>
+            <form id="form-policy-settings">
+              <div class="form-group"><label>Shift Start Time</label><input type="time" class="form-control" value="09:00"></div>
+              <div class="form-group"><label>Shift End Time</label><input type="time" class="form-control" value="18:00"></div>
+              <div class="form-group"><label>Grace Time Allowed (Minutes)</label><input type="number" class="form-control" value="15"></div>
+              <div class="form-group"><label>Maximum Break Duration (Minutes)</label><input type="number" class="form-control" value="60"></div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Shift Settings</button>
+            </form>
+          </div>
+
+          <!-- Geofence Settings -->
+          <div class="glass-card">
+            <h3 class="card-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-location-dot"></i> Geofence Settings</h3>
+            <form id="form-geofence-settings">
+              <div class="form-group"><label>Office Latitude</label><input type="text" class="form-control" value="28.6139"></div>
+              <div class="form-group"><label>Office Longitude</label><input type="text" class="form-control" value="77.2090"></div>
+              <div class="form-group"><label>Geofence Radius (meters)</label><input type="number" class="form-control" value="200"></div>
+              <div class="form-group">
+                <label>Enforce Geofence for Punch-In</label>
+                <select class="form-control">
+                  <option value="yes">Yes - Required</option>
+                  <option value="no">No - Optional</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Geofence Settings</button>
+            </form>
+          </div>
+
+          <!-- Notification Settings -->
+          <div class="glass-card">
+            <h3 class="card-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-bell"></i> Notification Preferences</h3>
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+              <span>Punch-In Reminders</span>
+              <label style="position:relative; display:inline-block; width:50px; height:26px; cursor:pointer;">
+                <input type="checkbox" checked style="opacity:0;width:0;height:0;">
+                <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#10b981;border-radius:13px;transition:0.3s;"></span>
+              </label>
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+              <span>Leave Approval Alerts</span>
+              <label style="position:relative; display:inline-block; width:50px; height:26px; cursor:pointer;">
+                <input type="checkbox" checked style="opacity:0;width:0;height:0;">
+                <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#10b981;border-radius:13px;transition:0.3s;"></span>
+              </label>
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+              <span>Weekly Summary Email</span>
+              <label style="position:relative; display:inline-block; width:50px; height:26px; cursor:pointer;">
+                <input type="checkbox" style="opacity:0;width:0;height:0;">
+                <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;border-radius:13px;transition:0.3s;"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/firebase-config.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    $(document).ready(function() {
+      AttendXLayout.init('System Settings');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttendX - Clock & Today Dashboard">
+  <title>AttendX - Clock & Today</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="../js/layout.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <main class="main-wrapper">
+      <div class="content-body">
+
+        <!-- Stat Cards -->
+        <div class="grid-4">
+          <div class="glass-card stat-card">
+            <div class="stat-details">
+              <h4>Today's Status</h4>
+              <div class="stat-value" style="color: var(--accent-emerald);">PRESENT</div>
+              <div class="stat-subtext"><i class="fa-regular fa-clock"></i> In at 09:15 AM</div>
+            </div>
+            <div class="stat-icon success"><i class="fa-solid fa-circle-check"></i></div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-details">
+              <h4>Monthly On-Time</h4>
+              <div class="stat-value">94.2%</div>
+              <div class="stat-subtext" style="color: var(--accent-emerald);"><i class="fa-solid fa-arrow-trend-up"></i> +2.5% vs last mo</div>
+            </div>
+            <div class="stat-icon primary"><i class="fa-solid fa-bolt"></i></div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-details">
+              <h4>Leave Balance</h4>
+              <div class="stat-value">18 Days</div>
+              <div class="stat-subtext"><i class="fa-solid fa-umbrella"></i> 12 Casual, 6 Sick</div>
+            </div>
+            <div class="stat-icon purple"><i class="fa-solid fa-calendar-day"></i></div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-details">
+              <h4>Total Work Hours</h4>
+              <div class="stat-value">168.5 hrs</div>
+              <div class="stat-subtext"><i class="fa-solid fa-briefcase"></i> Sep 2026 Shift</div>
+            </div>
+            <div class="stat-icon warning"><i class="fa-solid fa-stopwatch"></i></div>
+          </div>
+        </div>
+
+        <!-- Punch Hero Card -->
+        <div class="punch-hero-card">
+          <div>
+            <span class="status-indicator-badge out" id="punch-status-badge">
+              <i class="fa-solid fa-circle-xmark"></i> OUT OF OFFICE
+            </span>
+            <h2 style="font-size: 1.5rem; font-weight: 700;">Smart Attendance Terminal</h2>
+            <div class="punch-stopwatch" id="punch-stopwatch-display">00:00:00</div>
+            <div class="shift-info-row">
+              <span><i class="fa-solid fa-building" style="color: var(--primary);"></i> HQ Geofence (200m radius)</span>
+              <span><i class="fa-solid fa-business-time" style="color: var(--primary);"></i> Shift: 09:00 AM - 06:00 PM</span>
+            </div>
+          </div>
+          <div class="punch-hero-actions">
+            <button class="btn btn-success" id="btn-punch-in">
+              <i class="fa-solid fa-fingerprint"></i> PUNCH IN NOW
+            </button>
+            <button class="btn btn-danger" id="btn-punch-out" style="display: none;">
+              <i class="fa-solid fa-right-from-bracket"></i> PUNCH OUT
+            </button>
+            <button class="btn btn-warning" id="btn-start-break" style="display: none;">
+              <i class="fa-solid fa-coffee"></i> Take Break
+            </button>
+          </div>
+        </div>
+
+        <!-- Recent Attendance Table -->
+        <div class="glass-card">
+          <div class="card-header-flex">
+            <h3 class="card-title"><i class="fa-solid fa-list-check"></i> Recent Attendance Records</h3>
+            <button class="btn btn-outline btn-sm" data-modal="modal-correction-request">
+              <i class="fa-solid fa-wrench"></i> Request Correction
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr><th>Date</th><th>Employee</th><th>In Time</th><th>Out Time</th><th>Hours</th><th>Status</th></tr>
+              </thead>
+              <tbody id="table-recent-attendance">
+                <!-- Dynamic rendering -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/firebase-config.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    $(document).ready(function() {
+      AttendXLayout.init('Clock & Today');
+    });
+  </script>
+</body>
+</html>

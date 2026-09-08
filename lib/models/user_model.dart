@@ -71,6 +71,8 @@ class UserModel {
   final String? assignedProjectId;
   final String? assignedProjectName;
   final String? deviceId;
+  final String shiftId;
+  final String shiftName;
 
   UserModel({
     required this.userId,
@@ -92,6 +94,8 @@ class UserModel {
     this.assignedProjectId,
     this.assignedProjectName,
     this.deviceId,
+    this.shiftId = 'shift_general',
+    this.shiftName = 'General Shift (09:30 AM - 06:30 PM)',
   });
 
   Map<String, dynamic> toMap() {
@@ -115,6 +119,8 @@ class UserModel {
       'assignedProjectId': assignedProjectId,
       'assignedProjectName': assignedProjectName,
       'deviceId': deviceId,
+      'shiftId': shiftId,
+      'shiftName': shiftName,
     };
   }
 
@@ -141,6 +147,8 @@ class UserModel {
       assignedProjectId: map['assignedProjectId'],
       assignedProjectName: map['assignedProjectName'],
       deviceId: map['deviceId'],
+      shiftId: map['shiftId'] ?? 'shift_general',
+      shiftName: map['shiftName'] ?? 'General Shift (09:30 AM - 06:30 PM)',
     );
   }
 
@@ -165,6 +173,8 @@ class UserModel {
     String? assignedProjectName,
     String? deviceId,
     bool resetDeviceId = false,
+    String? shiftId,
+    String? shiftName,
   }) {
     return UserModel(
       userId: userId ?? this.userId,
@@ -186,6 +196,8 @@ class UserModel {
       assignedProjectId: assignedProjectId ?? this.assignedProjectId,
       assignedProjectName: assignedProjectName ?? this.assignedProjectName,
       deviceId: resetDeviceId ? null : (deviceId ?? this.deviceId),
+      shiftId: shiftId ?? this.shiftId,
+      shiftName: shiftName ?? this.shiftName,
     );
   }
 }

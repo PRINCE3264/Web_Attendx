@@ -20,7 +20,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _isCodeSent = false;
-  final bool _obscurePassword = true;
+  bool _obscurePassword = true;
   String? _localError;
 
   @override
@@ -47,44 +47,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  void _handleResetPassword() async {
-    setState(() => _localError = null);
-    final email = _emailController.text.trim();
-    final newPass = _newPasswordController.text;
-    final confirmPass = _confirmPasswordController.text;
 
-    if (_otpController.text.trim().isEmpty) {
-      setState(() => _localError = 'Please enter the 6-digit reset code.');
-      return;
-    }
-
-    if (newPass.length < 6) {
-      setState(
-        () => _localError = 'Password must be at least 6 characters long.',
-      );
-      return;
-    }
-
-    if (newPass != confirmPass) {
-      setState(() => _localError = 'Passwords do not match.');
-      return;
-    }
-
-    final auth = context.read<AuthProvider>();
-    final success = await auth.resetPassword(
-      email: email,
-      newPassword: newPass,
-    );
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password updated successfully! Please sign in.'),
-        ),
-      );
-      Navigator.pop(context);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

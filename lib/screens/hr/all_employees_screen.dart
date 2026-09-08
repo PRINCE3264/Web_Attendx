@@ -12,6 +12,8 @@ import '../../services/firestore_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/report_service.dart';
 import '../shared/custom_widgets.dart';
+import '../../models/department_model.dart';
+import '../../models/team_model.dart';
 import 'add_employee_sheet.dart';
 
 class AllEmployeesScreen extends StatefulWidget {
@@ -32,6 +34,7 @@ class AllEmployeesScreen extends StatefulWidget {
 
 class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
   late String _statusFilter;
+
   late String _roleFilter;
   String _tlTeamScope = 'my_team'; // 'my_team' or 'all'
 
@@ -231,32 +234,70 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
               ),
             ),
 
-            // Department Filters (only for HR/Admin)
-            if (currentUser?.role != UserRole.manager)
+            // Department & Team Filters (only for HR/Admin)
+            if (currentUser?.role != UserRole.manager) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['All', 'Engineering', 'Design & UI'].map((dept) {
-                      final isSelected = hr.selectedDepartmentFilter == dept;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(
-                            dept,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) hr.setDepartmentFilter(dept);
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                child: StreamBuilder<List<DepartmentModel>>(
+                  stream: FirestoreService().departmentsStream,
+                  builder: (context, snapshot) {
+                    final depts = snapshot.data ?? FirestoreService().getAllDepartments();
+                    final deptNames = ['All', ...depts.map((d) => d.name)];
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: deptNames.map((dept) {
+                          final isSelected = hr.selectedDepartmentFilter == dept;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(dept, style: const TextStyle(fontSize: 12)),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                if (selected) hr.setDepartmentFilter(dept);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    );
+                  }
                 ),
               ),
+              if (hr.selectedDepartmentFilter != 'All')
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: StreamBuilder<List<TeamModel>>(
+                    stream: FirestoreService().teamsStream,
+                    builder: (context, snapshot) {
+                      final depts = FirestoreService().getAllDepartments();
+                      final selectedDeptId = depts.firstWhere((d) => d.name == hr.selectedDepartmentFilter, orElse: () => depts.first).departmentId;
+                      final allTeams = snapshot.data ?? FirestoreService().getAllTeams();
+                      final teams = allTeams.where((t) => t.departmentId == selectedDeptId).toList();
+                      final teamNames = ['All', ...teams.map((t) => t.name)];
+
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: teamNames.map((teamName) {
+                            final isSelected = hr.selectedTeamFilter == teamName;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(teamName, style: const TextStyle(fontSize: 12)),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (selected) hr.setTeamFilter(teamName);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    }
+                  ),
+                ),
+            ],
 
             const SizedBox(height: 4),
 
@@ -568,9 +609,14 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                   ),
                   _buildCardActionButton(
                     icon: Icons.phonelink_erase_rounded,
-                    label: emp.deviceId != null ? 'Reset Device Lock' : 'Device Unlocked',
-                    color: emp.deviceId != null ? Colors.orange : const Color(0xFF64748B),
-                    onTap: () => _resetEmployeeDeviceLock(context, emp, currentUser!),
+                    label: emp.deviceId != null
+                        ? 'Reset Device Lock'
+                        : 'Device Unlocked',
+                    color: emp.deviceId != null
+                        ? Colors.orange
+                        : const Color(0xFF64748B),
+                    onTap: () =>
+                        _resetEmployeeDeviceLock(context, emp, currentUser!),
                   ),
                 ],
                 if (currentUser?.role == UserRole.manager &&
@@ -1992,15 +2038,17 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     );
   }
 
-  void _resetEmployeeDeviceLock(BuildContext context, UserModel emp, UserModel actor) async {
+  void _resetEmployeeDeviceLock(
+    BuildContext context,
+    UserModel emp,
+    UserModel actor,
+  ) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -2041,10 +2089,14 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     height: 1.45,
-                    color: isDark ? AppTheme.textMutedDark : const Color(0xFF64748B),
+                    color: isDark
+                        ? AppTheme.textMutedDark
+                        : const Color(0xFF64748B),
                   ),
                   children: [
-                    const TextSpan(text: 'Are you sure you want to reset the registered phone device lock for '),
+                    const TextSpan(
+                      text: 'Are you sure you want to reset the registered phone device lock for ',
+                    ),
                     TextSpan(
                       text: emp.name,
                       style: TextStyle(
@@ -2052,7 +2104,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                         color: isDark ? Colors.white : const Color(0xFF1E293B),
                       ),
                     ),
-                    const TextSpan(text: '? They will be able to register a new phone device on their next login.'),
+                    const TextSpan(
+                      text: '? They will be able to register a new phone device on their next login.',
+                    ),
                   ],
                 ),
               ),
@@ -2067,7 +2121,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         side: BorderSide(
-                          color: isDark ? AppTheme.borderDark : const Color(0xFFCBD5E1),
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : const Color(0xFFCBD5E1),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -2078,7 +2134,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
-                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          color: isDark
+                              ? Colors.white70
+                              : const Color(0xFF475569),
                         ),
                       ),
                     ),
@@ -2119,7 +2177,9 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Phone Device Lock successfully reset for ${emp.name}.'),
+            content: Text(
+              'Phone Device Lock successfully reset for ${emp.name}.',
+            ),
             backgroundColor: AppTheme.success,
           ),
         );

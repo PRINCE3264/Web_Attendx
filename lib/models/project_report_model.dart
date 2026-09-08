@@ -60,7 +60,12 @@ class ProjectReportModel {
       projectName: map['projectName'] ?? 'General Project',
       date: map['date'] ?? '',
       submittedAt: map['submittedAt'] != null
-          ? DateTime.tryParse(map['submittedAt'].toString()) ?? DateTime.now()
+          ? (map['submittedAt'] is DateTime
+              ? map['submittedAt']
+              : (map['submittedAt'].runtimeType.toString().contains('Timestamp') ||
+                      map['submittedAt'].toString().startsWith('Timestamp'))
+                  ? (map['submittedAt'] as dynamic).toDate()
+                  : DateTime.tryParse(map['submittedAt'].toString()) ?? DateTime.now())
           : DateTime.now(),
       workSummary: map['workSummary'] ?? '',
       hoursSpent: (map['hoursSpent'] is num) ? (map['hoursSpent'] as num).toDouble() : 0.0,

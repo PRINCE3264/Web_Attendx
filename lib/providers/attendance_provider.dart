@@ -49,15 +49,16 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       final user = AuthService().currentUser;
       if (user != null) {
-        // Employee: only their own records
-        // Manager/TL: only their own personal clock-in records
-        //   (team attendance is fetched separately via getTeamAttendanceForTL)
         if (user.role == UserRole.employee || user.role == UserRole.manager) {
-          final validIds = {user.userId, user.employeeId};
+          final validIds = <String>{
+            user.userId.toLowerCase(),
+            if (user.employeeId.isNotEmpty) user.employeeId.toLowerCase(),
+            if (user.email.isNotEmpty) user.email.toLowerCase(),
+          };
           return records.where((r) =>
-            validIds.contains(r.employeeId) ||
-            validIds.contains(r.employeeCode) ||
-            validIds.contains(r.uid)).toList();
+            validIds.contains(r.employeeId.toLowerCase()) ||
+            validIds.contains(r.employeeCode.toLowerCase()) ||
+            validIds.contains(r.uid.toLowerCase())).toList();
         }
       }
     } catch (_) {}
@@ -81,29 +82,44 @@ class AttendanceProvider extends ChangeNotifier {
   AttendanceModel? getTodayAttendance(String? identifier) {
     if (identifier == null) return null;
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final user = AuthService().currentUser;
-    final validIds = {
-      identifier,
-      if (user != null) user.userId,
-      if (user != null) user.employeeId,
+    final targetUser = _firestoreService.getUserById(identifier) ?? AuthService().currentUser;
+    final validIds = <String>{
+      identifier.toLowerCase(),
+      if (targetUser != null) targetUser.userId.toLowerCase(),
+      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase(),
+      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase(),
     };
 
     try {
       return _allAttendance.firstWhere(
-        (a) => (validIds.contains(a.employeeId) || validIds.contains(a.employeeCode) || validIds.contains(a.uid)) && a.date == todayStr,
+        (a) => (validIds.contains(a.employeeId.toLowerCase()) ||
+                validIds.contains(a.employeeCode.toLowerCase()) ||
+                validIds.contains(a.uid.toLowerCase())) &&
+            a.date == todayStr,
       );
     } catch (_) {
-      // Fallback directly to FirestoreService storage cache if provider stream hasn't filtered yet
       return _firestoreService.getTodayAttendance(identifier);
     }
   }
 
-  List<AttendanceModel> getEmployeeHistory(String? employeeId) {
-    if (employeeId == null) return [];
-    return _allAttendance
-        .where((a) => a.employeeId == employeeId)
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+  List<AttendanceModel> getEmployeeHistory(String? identifier) {
+    if (identifier == null) return [];
+    final targetUser = _firestoreService.getUserById(identifier) ?? AuthService().currentUser;
+    final validIds = <String>{
+      identifier.toLowerCase(),
+      if (targetUser != null) targetUser.userId.toLowerCase(),
+      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase(),
+      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase(),
+    };
+
+    final list = _allAttendance.where((a) {
+      return validIds.contains(a.employeeId.toLowerCase()) ||
+          validIds.contains(a.employeeCode.toLowerCase()) ||
+          validIds.contains(a.uid.toLowerCase());
+    }).toList();
+
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
   }
 
   List<AttendanceModel> getPendingApprovals() {
@@ -134,13 +150,13 @@ class AttendanceProvider extends ChangeNotifier {
     return _allAttendance.where((a) => a.date == dateStr).toList();
   }
 
-  Future<bool> captureSelfie() async {
+  Future<bool> captureSelfie({ImageSource source = ImageSource.camera}) async {
     try {
       _isProcessing = true;
       _errorMessage = null;
       notifyListeners();
 
-      final photo = await _storageService.captureSelfiePhoto();
+      final photo = await _storageService.captureSelfiePhoto(source: source);
       if (photo == null) {
         _isProcessing = false;
         notifyListeners();
@@ -148,18 +164,27 @@ class AttendanceProvider extends ChangeNotifier {
       }
 
       _tempPhotoFile = photo;
+      _tempPhotoDataUrl = photo.path;
+      _isProcessing = false;
+      notifyListeners();
+
+      // Upload photo in background without blocking UI
       final now = DateTime.now();
       final dateStr = DateFormat('yyyy-MM-dd').format(now);
-
-      _tempPhotoDataUrl = await _storageService.uploadAttendancePhoto(
+      _storageService.uploadAttendancePhoto(
         userId: 'temp_user',
         date: dateStr,
         type: 'clockIn',
         file: photo,
-      );
+      ).then((uploadedUrl) {
+        if (uploadedUrl.isNotEmpty && _tempPhotoFile == photo) {
+          _tempPhotoDataUrl = uploadedUrl;
+          notifyListeners();
+        }
+      }).catchError((err) {
+        debugPrint('Background attendance photo upload notice: $err');
+      });
 
-      _isProcessing = false;
-      notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = 'Failed to capture photo: $e';
@@ -169,9 +194,16 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
+  void resetProcessing() {
+    _isProcessing = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void clearTempPhoto() {
     _tempPhotoFile = null;
     _tempPhotoDataUrl = null;
+    _isProcessing = false;
     notifyListeners();
   }
 

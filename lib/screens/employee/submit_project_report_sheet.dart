@@ -13,6 +13,8 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 
+import '../../services/storage_service.dart';
+
 class SubmitProjectReportSheet extends StatefulWidget {
   const SubmitProjectReportSheet({super.key});
 
@@ -113,11 +115,58 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
     setState(() => _isSubmitting = true);
 
     final user = context.read<AuthProvider>().currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _isSubmitting = false);
+      return;
+    }
 
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final projectId = 'proj_${_selectedProject!.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
     final reportId = 'rep_${const Uuid().v4()}';
+
+    final storageService = StorageService();
+    final uploadedScreenshotUrls = <String>[];
+    final uploadedVideoUrls = <String>[];
+
+    for (int i = 0; i < _screenshotPaths.length; i++) {
+      final path = _screenshotPaths[i];
+      if (!path.startsWith('http') && !path.startsWith('data:')) {
+        try {
+          final url = await storageService.uploadProjectReportMedia(
+            reportId: reportId,
+            userId: user.userId,
+            fileName: 'screenshot_$i.jpg',
+            file: XFile(path),
+          );
+          uploadedScreenshotUrls.add(url);
+        } catch (e) {
+          debugPrint('Screenshot upload notice: $e');
+          uploadedScreenshotUrls.add(path);
+        }
+      } else {
+        uploadedScreenshotUrls.add(path);
+      }
+    }
+
+    for (int i = 0; i < _videoPaths.length; i++) {
+      final path = _videoPaths[i];
+      if (!path.startsWith('http') && !path.startsWith('data:')) {
+        try {
+          final url = await storageService.uploadProjectReportMedia(
+            reportId: reportId,
+            userId: user.userId,
+            fileName: 'video_$i.mp4',
+            file: XFile(path),
+          );
+          uploadedVideoUrls.add(url);
+        } catch (e) {
+          debugPrint('Video upload notice: $e');
+          uploadedVideoUrls.add(path);
+        }
+      } else {
+        uploadedVideoUrls.add(path);
+      }
+    }
 
     final report = ProjectReportModel(
       reportId: reportId,
@@ -131,8 +180,8 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       workSummary: _workSummaryController.text.trim(),
       hoursSpent: _hoursSpent,
       blockers: _blockersController.text.trim().isEmpty ? null : _blockersController.text.trim(),
-      screenshotUrls: _screenshotPaths,
-      videoUrls: _videoPaths,
+      screenshotUrls: uploadedScreenshotUrls,
+      videoUrls: uploadedVideoUrls,
       status: 'submitted',
     );
 

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../config/app_theme.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/firestore_service.dart';
 import '../shared/custom_widgets.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
@@ -28,14 +30,27 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startCapture();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = context.read<AttendanceProvider>();
+      provider.clearTempPhoto();
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _startCapture(source: ImageSource.camera);
+      }
     });
   }
 
-  void _startCapture() async {
+  void _startCapture({ImageSource source = ImageSource.camera}) async {
     final provider = context.read<AttendanceProvider>();
-    await provider.captureSelfie();
+    final success = await provider.captureSelfie(source: source);
+    if (!success && mounted && provider.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage!),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+    }
   }
 
   void _submit() async {
@@ -164,7 +179,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                 // Interactive Camera Capture Box
                 Center(
                   child: InkWell(
-                    onTap: attendance.isProcessing ? null : _startCapture,
+                    onTap: attendance.isProcessing ? null : () => _startCapture(source: ImageSource.camera),
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
                       width: 280,
@@ -189,13 +204,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(22),
                         child: attendance.isProcessing
-                            ? const Center(
+                            ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    CircularProgressIndicator(strokeWidth: 3),
-                                    SizedBox(height: 12),
-                                    Text('Opening Camera...', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    const CircularProgressIndicator(strokeWidth: 3),
+                                    const SizedBox(height: 12),
+                                    const Text('Opening Camera...', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 8),
+                                    TextButton(
+                                      onPressed: () => attendance.resetProcessing(),
+                                      child: const Text(
+                                        'Cancel / Reset',
+                                        style: TextStyle(color: AppTheme.danger, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               )
@@ -274,41 +297,42 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                 const SizedBox(height: 20),
 
                 // Office Location Selector
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedLocation,
-                      isExpanded: true,
-                      icon: const Icon(Icons.location_on, color: AppTheme.primary, size: 20),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'HQ Office - Floor 3',
-                          child: Text('🏢 HQ Office - Floor 3 (Mobile Engineering)'),
+                Builder(
+                  builder: (context) {
+                    final policyOfficeName = FirestoreService().currentPolicy.officeName;
+                    final currentVal = (_selectedLocation == 'HQ Office - Floor 3' || _selectedLocation.isEmpty)
+                        ? policyOfficeName
+                        : _selectedLocation;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: currentVal,
+                          isExpanded: true,
+                          icon: const Icon(Icons.location_on, color: AppTheme.primary, size: 20),
+                          items: [
+                            DropdownMenuItem(
+                              value: policyOfficeName,
+                              child: Text('🏢 $policyOfficeName', overflow: TextOverflow.ellipsis),
+                            ),
+                            const DropdownMenuItem(
+                              value: 'Remote / Work From Home',
+                              child: Text('🏠 Authorized Work From Home (WFH)'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedLocation = val);
+                          },
                         ),
-                        DropdownMenuItem(
-                          value: 'HQ Office - Floor 4',
-                          child: Text('🏢 HQ Office - Floor 4 (Backend Wing)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Branch Office - West Hub',
-                          child: Text('🏢 Branch Office - West Hub'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Remote / Work From Home',
-                          child: Text('🏠 Authorized Work From Home (WFH)'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => _selectedLocation = val);
-                      },
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
 
                 if (attendance.errorMessage != null) ...[
@@ -327,37 +351,50 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: attendance.isProcessing ? null : _startCapture,
+                        onPressed: attendance.isProcessing ? null : () => _startCapture(source: ImageSource.camera),
                         icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                        label: const Text('Open Camera'),
+                        label: const Text('Camera'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: attendance.tempPhotoDataUrl == null || attendance.isProcessing
-                            ? null
-                            : _submit,
-                        icon: attendance.isProcessing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : Icon(isClockIn ? Icons.login : Icons.logout, size: 18),
-                        label: Text(isClockIn ? 'Submit Clock-In' : 'Submit Clock-Out'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isClockIn ? AppTheme.primary : AppTheme.success,
+                      child: OutlinedButton.icon(
+                        onPressed: attendance.isProcessing ? null : () => _startCapture(source: ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library_outlined, size: 18),
+                        label: const Text('Gallery'),
+                        style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: attendance.tempPhotoDataUrl == null || attendance.isProcessing
+                        ? null
+                        : _submit,
+                    icon: attendance.isProcessing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Icon(isClockIn ? Icons.login : Icons.logout, size: 18),
+                    label: Text(isClockIn ? 'Submit Clock-In' : 'Submit Clock-Out'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isClockIn ? AppTheme.primary : AppTheme.success,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
               ],
             ),

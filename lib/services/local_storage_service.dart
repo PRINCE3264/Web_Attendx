@@ -7,6 +7,7 @@ import '../models/attendance_model.dart';
 import '../models/leave_model.dart';
 import '../models/correction_model.dart';
 import '../models/policy_model.dart';
+import '../models/project_report_model.dart';
 
 class LocalStorageService {
   static final LocalStorageService _instance = LocalStorageService._internal();
@@ -288,6 +289,7 @@ class LocalStorageService {
         'attendx_leaves.json',
         'attendx_corrections.json',
         'attendx_projects.json',
+        'attendx_project_reports.json',
       ];
       for (final name in filenames) {
         final file = await _getFile(name);
@@ -297,6 +299,34 @@ class LocalStorageService {
       }
     } catch (e) {
       debugPrint('Error clearing local storage data: $e');
+    }
+  }
+
+  // --- Project Reports Persistence ---
+  Future<void> saveProjectReports(List<ProjectReportModel> reports) async {
+    try {
+      final file = await _getFile('attendx_project_reports.json');
+      if (file == null) return;
+      final jsonList = reports.map((r) => r.toMap()).toList();
+      await file.writeAsString(jsonEncode(jsonList));
+    } catch (e) {
+      debugPrint('Error saving project reports to local storage: $e');
+    }
+  }
+
+  Future<List<ProjectReportModel>?> loadProjectReports() async {
+    try {
+      final file = await _getFile('attendx_project_reports.json');
+      if (file == null || !await file.exists()) return null;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      final List<dynamic> jsonList = jsonDecode(content);
+      return jsonList
+          .map((m) => ProjectReportModel.fromMap(m as Map<String, dynamic>, (m['reportId'] ?? '').toString()))
+          .toList();
+    } catch (e) {
+      debugPrint('Error loading project reports from local storage: $e');
+      return null;
     }
   }
 }

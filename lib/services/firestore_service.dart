@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/team_model.dart';
+import '../models/department_model.dart';
 import '../models/break_model.dart';
 import '../models/leave_model.dart';
 import '../models/correction_model.dart';
@@ -36,6 +37,10 @@ class FirestoreService {
     } catch (e) {
       debugPrint('Auth listener init error: $e');
     }
+    // Start periodic background auto-sync timer for continuous long-term cloud & local persistence
+    Timer.periodic(const Duration(minutes: 5), (_) {
+      syncLocalDataToFirestore();
+    });
   }
 
   FirebaseFirestore? get _db {
@@ -49,6 +54,7 @@ class FirestoreService {
   final List<UserModel> _users = [];
   final List<AttendanceModel> _attendance = [];
   final List<TeamModel> _teams = [];
+  final List<DepartmentModel> _departments = [];
   final List<LeaveRequestModel> _leaves = [];
   final List<LeaveBalanceModel> _leaveBalances = [];
   final List<AttendanceCorrectionModel> _corrections = [];
@@ -62,6 +68,7 @@ class FirestoreService {
       StreamController<List<AttendanceModel>>.broadcast();
   final _usersStreamController = StreamController<List<UserModel>>.broadcast();
   final _teamsStreamController = StreamController<List<TeamModel>>.broadcast();
+  final _departmentsStreamController = StreamController<List<DepartmentModel>>.broadcast();
   final _leavesStreamController =
       StreamController<List<LeaveRequestModel>>.broadcast();
   final _correctionsStreamController =
@@ -81,6 +88,7 @@ class FirestoreService {
       _attendanceStreamController.stream;
   Stream<List<UserModel>> get usersStream => _usersStreamController.stream;
   Stream<List<TeamModel>> get teamsStream => _teamsStreamController.stream;
+  Stream<List<DepartmentModel>> get departmentsStream => _departmentsStreamController.stream;
   Stream<List<LeaveRequestModel>> get leavesStream =>
       _leavesStreamController.stream;
   Stream<List<AttendanceCorrectionModel>> get correctionsStream =>
@@ -96,11 +104,45 @@ class FirestoreService {
   Stream<List<ProjectModel>> get projectsStream =>
       _projectsStreamController.stream;
 
+  List<UserModel> getAllUsers() => List.unmodifiable(_users);
+  List<TeamModel> getAllTeams() => List.unmodifiable(_teams);
+  List<DepartmentModel> getAllDepartments() => List.unmodifiable(_departments);
+  List<AttendanceModel> getAllAttendance() => List.unmodifiable(_attendance);
   List<ProjectReportModel> getAllProjectReports() =>
       List.unmodifiable(_projectReports);
 
   List<ProjectModel> getAllProjects() =>
       List.unmodifiable(_projects);
+
+  Future<void> saveDepartment(DepartmentModel dept) async {
+    final index = _departments.indexWhere((d) => d.departmentId == dept.departmentId);
+    if (index >= 0) {
+      _departments[index] = dept;
+    } else {
+      _departments.add(dept);
+    }
+    _departmentsStreamController.add(List.unmodifiable(_departments));
+    try {
+      await _db?.collection('departments').doc(dept.departmentId).set(dept.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error saving department: $e');
+    }
+  }
+
+  Future<void> saveTeam(TeamModel team) async {
+    final index = _teams.indexWhere((t) => t.teamId == team.teamId);
+    if (index >= 0) {
+      _teams[index] = team;
+    } else {
+      _teams.add(team);
+    }
+    _teamsStreamController.add(List.unmodifiable(_teams));
+    try {
+      await _db?.collection('teams').doc(team.teamId).set(team.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error saving team: $e');
+    }
+  }
 
   bool _hasBoundListeners = false;
 
@@ -289,7 +331,6 @@ class FirestoreService {
 
           if (!isFirstUsersSync && _users.isNotEmpty) {
             final existingIds = _users.map((u) => u.userId).toSet();
-            // Only notify HR and Admin about new employee joins
             final currentUserRole = AuthService().currentUser?.role;
             final isHrOrAdmin = currentUserRole == UserRole.hr ||
                 currentUserRole == UserRole.admin;
@@ -306,17 +347,54 @@ class FirestoreService {
           }
           isFirstUsersSync = false;
 
+          final Map<String, UserModel> map = {for (final u in _users) u.userId: u};
+          for (final u in items) {
+            map[u.userId] = u;
+          }
           _users.clear();
-          _users.addAll(items);
+          _users.addAll(map.values);
           _usersStreamController.add(List.unmodifiable(_users));
           LocalStorageService().saveUsers(_users);
         } else {
           isFirstUsersSync = false;
-          _users.clear();
-          _usersStreamController.add(List.unmodifiable(_users));
-          LocalStorageService().saveUsers(_users);
+          if (_users.isNotEmpty) {
+            _usersStreamController.add(List.unmodifiable(_users));
+            LocalStorageService().saveUsers(_users);
+          }
         }
       }, onError: (e) => debugPrint('Live users sync info: $e'));
+
+      // Departments live stream from Firestore
+      db.collection('departments').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs
+              .map((d) => DepartmentModel.fromMap(d.data(), d.id))
+              .toList();
+          final Map<String, DepartmentModel> map = {for (final d in _departments) d.departmentId: d};
+          for (final d in items) {
+            map[d.departmentId] = d;
+          }
+          _departments.clear();
+          _departments.addAll(map.values);
+        } else {
+          if (_departments.isEmpty) {
+            _departments.addAll(MockDataSeeder.getSeedDepartments());
+          }
+          for (final d in _departments) {
+            db
+                .collection('departments')
+                .doc(d.departmentId)
+                .set(d.toMap(), SetOptions(merge: true));
+          }
+        }
+        _departmentsStreamController.add(List.unmodifiable(_departments));
+      }, onError: (e) {
+        debugPrint('Live departments sync info: $e');
+        if (_departments.isEmpty) {
+          _departments.addAll(MockDataSeeder.getSeedDepartments());
+        }
+        _departmentsStreamController.add(List.unmodifiable(_departments));
+      });
 
       // Teams live stream from Firestore
       db.collection('teams').snapshots().listen((snap) {
@@ -324,10 +402,16 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => TeamModel.fromMap(d.data(), d.id))
               .toList();
+          final Map<String, TeamModel> map = {for (final t in _teams) t.teamId: t};
+          for (final t in items) {
+            map[t.teamId] = t;
+          }
           _teams.clear();
-          _teams.addAll(items);
-          _teamsStreamController.add(List.unmodifiable(_teams));
-        } else if (_teams.isNotEmpty) {
+          _teams.addAll(map.values);
+        } else {
+          if (_teams.isEmpty) {
+            _teams.addAll(MockDataSeeder.getSeedTeams());
+          }
           for (final t in _teams) {
             db
                 .collection('teams')
@@ -335,7 +419,14 @@ class FirestoreService {
                 .set(t.toMap(), SetOptions(merge: true));
           }
         }
-      }, onError: (e) => debugPrint('Live teams sync info: $e'));
+        _teamsStreamController.add(List.unmodifiable(_teams));
+      }, onError: (e) {
+        debugPrint('Live teams sync info: $e');
+        if (_teams.isEmpty) {
+          _teams.addAll(MockDataSeeder.getSeedTeams());
+        }
+        _teamsStreamController.add(List.unmodifiable(_teams));
+      });
 
       // Attendance live stream from Firestore
       db.collection('attendance').snapshots().listen((snap) {
@@ -343,12 +434,15 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceModel.fromMap(d.data(), d.id))
               .toList();
+          final Map<String, AttendanceModel> map = {for (final a in _attendance) a.attendanceId: a};
+          for (final a in items) {
+            map[a.attendanceId] = a;
+          }
           _attendance.clear();
-          _attendance.addAll(items);
+          _attendance.addAll(map.values);
           _attendanceStreamController.add(List.unmodifiable(_attendance));
           LocalStorageService().saveAttendance(_attendance);
-        } else {
-          _attendance.clear();
+        } else if (_attendance.isNotEmpty) {
           _attendanceStreamController.add(List.unmodifiable(_attendance));
           LocalStorageService().saveAttendance(_attendance);
         }
@@ -360,12 +454,15 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => LeaveRequestModel.fromMap(d.data(), d.id))
               .toList();
+          final Map<String, LeaveRequestModel> map = {for (final l in _leaves) l.leaveId: l};
+          for (final l in items) {
+            map[l.leaveId] = l;
+          }
           _leaves.clear();
-          _leaves.addAll(items);
+          _leaves.addAll(map.values);
           _leavesStreamController.add(List.unmodifiable(_leaves));
           LocalStorageService().saveLeaves(_leaves);
-        } else {
-          _leaves.clear();
+        } else if (_leaves.isNotEmpty) {
           _leavesStreamController.add(List.unmodifiable(_leaves));
           LocalStorageService().saveLeaves(_leaves);
         }
@@ -377,12 +474,15 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceCorrectionModel.fromMap(d.data(), d.id))
               .toList();
+          final Map<String, AttendanceCorrectionModel> map = {for (final c in _corrections) c.correctionId: c};
+          for (final c in items) {
+            map[c.correctionId] = c;
+          }
           _corrections.clear();
-          _corrections.addAll(items);
+          _corrections.addAll(map.values);
           _correctionsStreamController.add(List.unmodifiable(_corrections));
           LocalStorageService().saveCorrections(_corrections);
-        } else {
-          _corrections.clear();
+        } else if (_corrections.isNotEmpty) {
           _correctionsStreamController.add(List.unmodifiable(_corrections));
           LocalStorageService().saveCorrections(_corrections);
         }
@@ -394,13 +494,18 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => ProjectReportModel.fromMap(d.data(), d.id))
               .toList();
+          final Map<String, ProjectReportModel> map = {for (final r in _projectReports) r.reportId: r};
+          for (final r in items) {
+            map[r.reportId] = r;
+          }
           _projectReports.clear();
-          _projectReports.addAll(items);
+          _projectReports.addAll(map.values);
           _projectReports.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
           _projectReportsStreamController.add(List.unmodifiable(_projectReports));
-        } else {
-          _projectReports.clear();
+          LocalStorageService().saveProjectReports(_projectReports);
+        } else if (_projectReports.isNotEmpty) {
           _projectReportsStreamController.add(List.unmodifiable(_projectReports));
+          LocalStorageService().saveProjectReports(_projectReports);
         }
       }, onError: (e) => debugPrint('Live project reports sync info: $e'));
 
@@ -539,6 +644,8 @@ class FirestoreService {
     _users.addAll(MockDataSeeder.getSeedUsers());
     _teams.clear();
     _teams.addAll(MockDataSeeder.getSeedTeams());
+    _departments.clear();
+    _departments.addAll(MockDataSeeder.getSeedDepartments());
     _attendance.clear();
     _attendance.addAll(MockDataSeeder.getSeedAttendanceHistory());
     _leaves.clear();
@@ -624,6 +731,18 @@ class FirestoreService {
         _notifications.addAll(map.values);
         _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
+      final savedProjectReports = await local.loadProjectReports();
+      if (savedProjectReports != null && savedProjectReports.isNotEmpty) {
+        final Map<String, ProjectReportModel> map = {
+          for (final r in _projectReports) r.reportId: r,
+        };
+        for (final r in savedProjectReports) {
+          map[r.reportId] = r;
+        }
+        _projectReports.clear();
+        _projectReports.addAll(map.values);
+        _projectReports.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      }
       if (savedPolicy != null) {
         _policy = savedPolicy;
       }
@@ -637,17 +756,20 @@ class FirestoreService {
     _attendanceStreamController.add(List.unmodifiable(_attendance));
     _usersStreamController.add(List.unmodifiable(_users));
     _teamsStreamController.add(List.unmodifiable(_teams));
+    _departmentsStreamController.add(List.unmodifiable(_departments));
     _leavesStreamController.add(List.unmodifiable(_leaves));
     _correctionsStreamController.add(List.unmodifiable(_corrections));
     _policyStreamController.add(_policy);
     _announcementsStreamController.add(List.unmodifiable(_announcements));
     _notificationsStreamController.add(List.unmodifiable(_notifications));
+    _projectReportsStreamController.add(List.unmodifiable(_projectReports));
     _projectsStreamController.add(List.unmodifiable(_projects));
   }
 
   void resetToDefaultSeed() {
     _users.clear();
     _teams.clear();
+    _departments.clear();
     _attendance.clear();
     _leaves.clear();
     _leaveBalances.clear();
@@ -698,7 +820,6 @@ class FirestoreService {
   }
 
   // User management (Admin)
-  List<UserModel> getAllUsers() => List.unmodifiable(_users);
   List<UserModel> getEmployees() =>
       _users.where((u) => u.role == UserRole.employee).toList();
 
@@ -1023,7 +1144,6 @@ class FirestoreService {
   }
 
   // Attendance Queries
-  List<AttendanceModel> getAllAttendance() => List.unmodifiable(_attendance);
 
   UserModel? _findUserByIdentifier(String identifier) {
     try {
@@ -1206,10 +1326,18 @@ class FirestoreService {
       );
     }
 
-    // 4. Policy Timing & Late calculation (09:30 AM start, 15m grace period -> 09:45 AM threshold)
+    // 4. Shift & Policy Timing calculation (General Shift: 09:30 AM - 06:30 PM, Morning Shift: 07:00 AM - 04:00 PM)
     TimingStatus timingStatus = TimingStatus.onTime;
     int lateMinutes = 0;
-    final startParts = _policy.officeStartTime.split(':');
+
+    String effectiveStartTime = _policy.officeStartTime;
+    if (user.shiftId == 'shift_morning' || user.shiftName.toLowerCase().contains('morning')) {
+      effectiveStartTime = '07:00';
+    } else if (user.shiftId == 'shift_general' || user.shiftName.toLowerCase().contains('general')) {
+      effectiveStartTime = '09:30';
+    }
+
+    final startParts = effectiveStartTime.split(':');
     final startHour = int.tryParse(startParts[0]) ?? 9;
     final startMin = int.tryParse(startParts[1]) ?? 30;
 
@@ -2233,6 +2361,7 @@ class FirestoreService {
   ) async {
     _projectReports.insert(0, report);
     _projectReportsStreamController.add(List.unmodifiable(_projectReports));
+    LocalStorageService().saveProjectReports(_projectReports);
 
     try {
       await _db
@@ -2243,9 +2372,25 @@ class FirestoreService {
       debugPrint('Firestore submit project report error: $e');
     }
 
+    // Broadcast in-app notification to Admin, HR, and TLs
+    final notif = NotificationModel(
+      id: 'notif_rep_${DateTime.now().millisecondsSinceEpoch}',
+      userId: 'ALL',
+      title: '📝 Daily Work Report Submitted',
+      message: '${report.employeeName} submitted work report for "${report.projectName}" (${report.hoursSpent} hrs logged).',
+      type: 'announcement',
+      createdAt: DateTime.now(),
+    );
+    _notifications.insert(0, notif);
+    _notificationsStreamController.add(List.unmodifiable(_notifications));
+    LocalStorageService().saveFirestoreNotifications(_notifications.map((n) => n.toMap()).toList());
+    try {
+      await _db?.collection('notifications').doc(notif.id).set(notif.toMap(), SetOptions(merge: true));
+    } catch (_) {}
+
     AuditService().log(
       actor: _users.firstWhere(
-        (u) => u.userId == report.employeeId,
+        (u) => u.userId == report.employeeId || u.employeeId == report.employeeId,
         orElse: () => _users.first,
       ),
       actionType: 'PROJECT_REPORT_SUBMIT',

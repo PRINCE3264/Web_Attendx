@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AttendX - Manager & TL Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div id="app-container">
+    <aside class="sidebar">
+      <div>
+        <div class="brand-header">
+          <div class="brand-logo"><i class="fa-solid fa-users-viewfinder"></i></div>
+          <div>
+            <div class="brand-title">AttendX</div>
+            <span class="brand-badge">TL / MANAGER</span>
+          </div>
+        </div>
+        <ul class="nav-menu">
+          <li class="nav-item active"><a href="#"><i class="fa-solid fa-clipboard-check"></i> Team Overview</a></li>
+          <li class="nav-item"><a href="#"><i class="fa-solid fa-check-double"></i> Leave Approvals</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main-wrapper">
+      <header class="topbar">
+        <h2 class="page-header-title"><i class="fa-solid fa-user-tie"></i> Team Leader & Manager Portal</h2>
+        <a href="../index.html" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> Main Portal Hub</a>
+      </header>
+      <div class="content-body">
+        <div class="grid-4">
+          <div class="glass-card stat-card">
+            <div class="stat-details"><h4>Team Present</h4><div class="stat-value" style="color:var(--accent-emerald);">14 / 15</div></div>
+            <div class="stat-icon success"><i class="fa-solid fa-users"></i></div>
+          </div>
+          <div class="glass-card stat-card">
+            <div class="stat-details"><h4>Pending Approvals</h4><div class="stat-value" style="color:var(--accent-amber);">3 Requests</div></div>
+            <div class="stat-icon warning"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <h3 class="card-title" style="margin-bottom: 1rem;"><i class="fa-solid fa-list-check"></i> Pending Team Leave Approvals</h3>
+          <div class="glass-card" style="margin-bottom: 1rem; border-left: 4px solid var(--primary);">
+            <div class="card-header-flex">
+              <div>
+                <h4>Casual Leave - Vikas Singh (EMP-1028)</h4>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Sep 15 - Sep 16 • Reason: Family Function</span>
+              </div>
+              <span class="badge badge-warning">Pending</span>
+            </div>
+            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+              <button class="btn btn-success btn-sm"><i class="fa-solid fa-check"></i> Approve</button>
+              <button class="btn btn-danger btn-sm"><i class="fa-solid fa-xmark"></i> Reject</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

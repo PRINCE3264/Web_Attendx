@@ -64,7 +64,7 @@ class _PolicySettingsScreenState extends State<PolicySettingsScreen> {
       maxBreakMinutes: int.tryParse(_maxBreakController.text.trim()) ?? 60,
       officeLatitude: double.tryParse(_latController.text.trim()) ?? 21.1986872,
       officeLongitude: double.tryParse(_lngController.text.trim()) ?? 72.7965515,
-      geofenceRadiusMeters: double.tryParse(_radiusController.text.trim()) ?? 500.0,
+      geofenceRadiusMeters: double.tryParse(_radiusController.text.trim()) ?? 300.0,
       officeName: _officeNameController.text.trim().isEmpty ? 'HQ Office' : _officeNameController.text.trim(),
     );
 

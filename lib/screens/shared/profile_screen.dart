@@ -193,13 +193,43 @@ class ProfileScreen extends StatelessWidget {
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                '${user.role.name} • ${user.department}',
+                                user.teamName.isNotEmpty && user.teamName != 'Unassigned'
+                                    ? '${user.role.name} • ${user.department} • ${user.teamName}'
+                                    : '${user.role.name} • ${user.department}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                   color: roleColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time_filled_rounded, size: 14, color: AppTheme.primary),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                user.shiftName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primary,
                                 ),
                               ),
                             ),
@@ -288,6 +318,13 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _buildDivider(isDark),
                 _buildInfoRow(
+                  label: 'Work Shift',
+                  value: user.shiftName,
+                  icon: Icons.schedule_rounded,
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
+                _buildInfoRow(
                   label: 'Reporting Manager',
                   value: user.managerName ?? 'Direct Executive',
                   icon: Icons.person_outline,
@@ -347,7 +384,7 @@ class ProfileScreen extends StatelessWidget {
                     'GPS Geofence Validation',
                     style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
-                  subtitle: const Text('Verified within 300m radius', style: TextStyle(fontSize: 12)),
+                  subtitle: const Text('Verified within 3 km (3000m) radius', style: TextStyle(fontSize: 12)),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(

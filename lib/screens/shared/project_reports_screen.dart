@@ -36,38 +36,44 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
 
     // Filter by TL if logged in as TL
     if (currentUser?.role == UserRole.manager && currentUser != null) {
-      final teamEmpIds = hrProv.allEmployees
-          .where((e) {
-            final assignedByManagerId =
-                e.managerId == currentUser.userId ||
-                (currentUser.employeeId.isNotEmpty && e.managerId == currentUser.employeeId) ||
-                (currentUser.name.isNotEmpty && e.managerId == currentUser.name) ||
-                (currentUser.email.isNotEmpty && e.managerId == currentUser.email);
-            final assignedByManagerName =
-                e.managerName != null &&
-                e.managerName!.isNotEmpty &&
-                e.managerName!.trim().toLowerCase() == currentUser.name.trim().toLowerCase();
-            final sameTeam = e.teamId.isNotEmpty && e.teamId == currentUser.teamId;
-            return assignedByManagerId || assignedByManagerName || sameTeam;
-          })
-          .map((e) => e.userId)
-          .toSet();
-      teamEmpIds.add(currentUser.userId);
-      if (currentUser.employeeId.isNotEmpty) {
-        teamEmpIds.add(currentUser.employeeId);
+      final teamEmpKeys = <String>{};
+      for (final e in hrProv.allEmployees) {
+        final assignedByManagerId =
+            e.managerId == currentUser.userId ||
+            (currentUser.employeeId.isNotEmpty && e.managerId == currentUser.employeeId) ||
+            (currentUser.name.isNotEmpty && e.managerId == currentUser.name) ||
+            (currentUser.email.isNotEmpty && e.managerId == currentUser.email);
+        final assignedByManagerName =
+            e.managerName != null &&
+            e.managerName!.isNotEmpty &&
+            e.managerName!.trim().toLowerCase() == currentUser.name.trim().toLowerCase();
+        final sameTeam = e.teamId.isNotEmpty && e.teamId == currentUser.teamId;
+        final sameProject = currentUser.assignedProjectName != null &&
+            currentUser.assignedProjectName!.isNotEmpty &&
+            e.assignedProjectName != null &&
+            e.assignedProjectName!.toLowerCase() == currentUser.assignedProjectName!.toLowerCase();
+
+        if (assignedByManagerId || assignedByManagerName || sameTeam || sameProject) {
+          teamEmpKeys.add(e.userId);
+          if (e.employeeId.isNotEmpty) teamEmpKeys.add(e.employeeId);
+          if (e.name.isNotEmpty) teamEmpKeys.add(e.name.toLowerCase());
+        }
       }
-      final filtered = reports.where((r) =>
-        teamEmpIds.contains(r.employeeId) ||
-        teamEmpIds.contains(r.employeeName) ||
-        r.employeeId.startsWith('emp_') ||
-        teamEmpIds.isEmpty
+      teamEmpKeys.add(currentUser.userId);
+      if (currentUser.employeeId.isNotEmpty) teamEmpKeys.add(currentUser.employeeId);
+      if (currentUser.name.isNotEmpty) teamEmpKeys.add(currentUser.name.toLowerCase());
+
+      reports = reports.where((r) =>
+        teamEmpKeys.contains(r.employeeId) ||
+        teamEmpKeys.contains(r.employeeName.toLowerCase())
       ).toList();
-      if (filtered.isNotEmpty) {
-        reports = filtered;
-      }
     } else if (currentUser?.role == UserRole.employee && currentUser != null) {
       // Filter for Employee to only see their own reports
-      reports = reports.where((r) => r.employeeId == currentUser.userId).toList();
+      reports = reports.where((r) =>
+        r.employeeId == currentUser.userId ||
+        (currentUser.employeeId.isNotEmpty && r.employeeId == currentUser.employeeId) ||
+        r.employeeName.toLowerCase() == currentUser.name.toLowerCase()
+      ).toList();
     }
 
     // Filter by Project

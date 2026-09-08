@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttendX - Break Tracker">
+  <title>AttendX - Break Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="../js/layout.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <main class="main-wrapper">
+      <div class="content-body">
+
+        <div class="glass-card" style="max-width: 600px;">
+          <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="fa-solid fa-mug-hot"></i> Daily Break Tracker</h3>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <button class="btn btn-outline" style="flex-direction: column; padding: 1.25rem;">
+              <i class="fa-solid fa-mug-saucer" style="font-size: 1.8rem; color: var(--accent-amber); margin-bottom: 0.5rem;"></i> Tea Break (15m)
+            </button>
+            <button class="btn btn-outline" style="flex-direction: column; padding: 1.25rem;">
+              <i class="fa-solid fa-utensils" style="font-size: 1.8rem; color: var(--accent-emerald); margin-bottom: 0.5rem;"></i> Lunch Break (45m)
+            </button>
+            <button class="btn btn-outline" style="flex-direction: column; padding: 1.25rem;">
+              <i class="fa-solid fa-user-clock" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem;"></i> Personal Break
+            </button>
+          </div>
+          <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-md);">
+            <h4 style="font-size: 0.9rem; color: var(--text-muted);">Today's Total Break Duration</h4>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--text-main);">00h 25m 10s</div>
+          </div>
+        </div>
+
+        <!-- Break History Table -->
+        <div class="glass-card" style="margin-top: 1.5rem;">
+          <h3 class="card-title" style="margin-bottom: 1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Today's Break Log</h3>
+          <table class="custom-table">
+            <thead>
+              <tr><th>Break Type</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>☕ Tea Break</td><td>11:00 AM</td><td>11:15 AM</td><td>15 min</td><td><span class="badge badge-success">Completed</span></td></tr>
+              <tr><td>🍽️ Lunch Break</td><td>01:00 PM</td><td>01:40 PM</td><td>40 min</td><td><span class="badge badge-success">Completed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/firebase-config.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    $(document).ready(function() {
+      AttendXLayout.init('Break Tracker');
+    });
+  </script>
+</body>
+</html>

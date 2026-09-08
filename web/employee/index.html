@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AttendX - Employee Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <aside class="sidebar">
+      <div>
+        <div class="brand-header">
+          <div class="brand-logo"><i class="fa-solid fa-fingerprint"></i></div>
+          <div>
+            <div class="brand-title">AttendX</div>
+            <span class="brand-badge">EMPLOYEE PORTAL</span>
+          </div>
+        </div>
+        <ul class="nav-menu">
+          <li class="nav-item active"><a href="../index.html"><i class="fa-solid fa-house"></i> Overview Dashboard</a></li>
+          <li class="nav-item"><a href="../index.html#history"><i class="fa-solid fa-calendar-check"></i> Attendance Logs</a></li>
+          <li class="nav-item"><a href="../index.html#leaves"><i class="fa-solid fa-plane-departure"></i> My Leave Applications</a></li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-profile-card">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Avatar" class="user-avatar">
+          <div class="user-info">
+            <span class="user-name">Rahul Sharma</span>
+            <span class="user-role-badge">EMPLOYEE</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-wrapper">
+      <header class="topbar">
+        <h2 class="page-header-title"><i class="fa-solid fa-user"></i> Employee Dashboard</h2>
+        <a href="../index.html" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> Main Portal Hub</a>
+      </header>
+      <div class="content-body">
+        <!-- Punch Action Hero Card -->
+        <div class="punch-hero-card">
+          <div>
+            <span class="status-indicator-badge out" id="emp-status-badge"><i class="fa-solid fa-circle-xmark"></i> OUT OF OFFICE</span>
+            <h2>Smart Attendance Punch Terminal</h2>
+            <div class="punch-stopwatch" id="emp-stopwatch">00:00:00</div>
+            <div class="shift-info-row">
+              <span><i class="fa-solid fa-building"></i> HQ Geofence (Verified)</span>
+              <span><i class="fa-solid fa-clock"></i> Shift: 09:00 AM - 06:00 PM</span>
+            </div>
+          </div>
+          <div class="punch-hero-actions">
+            <button class="btn btn-success" id="btn-emp-punch-in"><i class="fa-solid fa-fingerprint"></i> PUNCH IN NOW</button>
+            <button class="btn btn-danger" id="btn-emp-punch-out" style="display:none;"><i class="fa-solid fa-right-from-bracket"></i> PUNCH OUT</button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <h3 class="card-title" style="margin-bottom: 1rem;"><i class="fa-solid fa-clock-rotate-left"></i> My Attendance Records</h3>
+          <table class="custom-table">
+            <thead>
+              <tr><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Hours</th><th>Status</th></tr>
+            </thead>
+            <tbody id="table-emp-logs">
+              <tr><td>2026-09-08</td><td>09:15 AM</td><td>--</td><td>Running</td><td><span class="badge badge-success">Present</span></td></tr>
+              <tr><td>2026-09-07</td><td>09:02 AM</td><td>06:15 PM</td><td>9h 13m</td><td><span class="badge badge-success">Present</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

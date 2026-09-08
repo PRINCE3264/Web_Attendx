@@ -9,10 +9,13 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _isInitialized = false;
+
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _currentUser != null;
+  bool get isInitialized => _isInitialized;
 
   AuthProvider() {
     _init();
@@ -20,15 +23,17 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _init() async {
     _currentUser = await _authService.loadSavedSession();
+    _isInitialized = true;
     notifyListeners();
     _authService.authStateChanges.listen((user) {
       _currentUser = user;
+      _isInitialized = true;
       notifyListeners();
     });
     FirestoreService().usersStream.listen((users) {
       if (_currentUser != null) {
         try {
-          final updated = users.firstWhere((u) => u.userId == _currentUser!.userId);
+          final updated = users.firstWhere((u) => u.userId == _currentUser!.userId || (u.email.isNotEmpty && u.email.toLowerCase() == _currentUser!.email.toLowerCase()));
           if (updated.toMap().toString() != _currentUser!.toMap().toString()) {
             _currentUser = updated;
             _authService.updateSessionUser(updated);
@@ -101,6 +106,8 @@ class AuthProvider extends ChangeNotifier {
     String? managerName,
     DateTime? joiningDate,
     String? phoneNumber,
+    String? shiftId,
+    String? shiftName,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -120,6 +127,8 @@ class AuthProvider extends ChangeNotifier {
         managerName: managerName,
         joiningDate: joiningDate,
         phoneNumber: phoneNumber,
+        shiftId: shiftId,
+        shiftName: shiftName,
       );
       _isLoading = false;
       notifyListeners();

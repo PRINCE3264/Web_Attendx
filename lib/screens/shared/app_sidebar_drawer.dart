@@ -25,6 +25,8 @@ import '../admin/policy_settings_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/admin_panel_screen.dart';
 import '../admin/projects_management_screen.dart';
+import '../admin/departments_management_screen.dart';
+import '../admin/teams_management_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'system_settings_screen.dart';
@@ -224,6 +226,16 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     onTap: () => _navigateToScreen(const AdminPanelScreen(), 'Admin Dashboard', defaultTabIndex: 0),
                   ),
                   _buildNavItem(
+                    icon: Icons.domain_rounded,
+                    title: 'Departments Management',
+                    onTap: () => _navigateToScreen(const DepartmentsManagementScreen(isEmbedded: true), 'Department Directory'),
+                  ),
+                  _buildNavItem(
+                    icon: Icons.groups_rounded,
+                    title: 'Teams Management',
+                    onTap: () => _navigateToScreen(const TeamsManagementScreen(isEmbedded: true), 'Team Directory'),
+                  ),
+                  _buildNavItem(
                     icon: Icons.folder_special_rounded,
                     title: 'Project Management',
                     onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'Project Master Directory'),
@@ -359,7 +371,8 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     icon: Icons.settings_outlined,
                     children: [
                       _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Roles & Permissions', defaultTabIndex: 1)),
-                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const AllEmployeesScreen(isEmbedded: true), 'Department Directory')),
+                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const DepartmentsManagementScreen(isEmbedded: true), 'Department Directory')),
+                      _buildSubItem('Teams', onTap: () => _navigateToScreen(const TeamsManagementScreen(isEmbedded: true), 'Team Directory')),
                       _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Attendance Rules', defaultTabIndex: 1)),
                       _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'App & System Settings')),
                       _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: true), 'Audit Logs', defaultTabIndex: 2)),

@@ -20,14 +20,6 @@ class AuthService {
   final _authStateController = StreamController<UserModel?>.broadcast();
   final Map<String, String> _passwords = {};
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  bool _isGoogleSignInInitialized = false;
-
-  Future<void> _ensureGoogleSignInInitialized() async {
-    if (!_isGoogleSignInInitialized) {
-      await _googleSignIn.initialize();
-      _isGoogleSignInInitialized = true;
-    }
-  }
 
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
   UserModel? get currentUser => _currentUser;
@@ -181,7 +173,6 @@ class AuthService {
         photoUrl = fallbackPhotoUrl;
       } else {
         try {
-          await _ensureGoogleSignInInitialized();
           final googleUser = await _googleSignIn.authenticate();
           email = googleUser.email.toLowerCase().trim();
           displayName = googleUser.displayName;
@@ -277,6 +268,8 @@ class AuthService {
     String? managerName,
     DateTime? joiningDate,
     String? phoneNumber,
+    String? shiftId,
+    String? shiftName,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final users = FirestoreService().getAllUsers();
@@ -311,6 +304,8 @@ class AuthService {
       isActive: true,
       createdAt: joiningDate ?? DateTime.now(),
       initialPassword: password.trim(),
+      shiftId: shiftId ?? 'shift_general',
+      shiftName: shiftName ?? 'General Shift (09:30 AM - 06:30 PM)',
     );
 
     _passwords[cleanEmail] = password.trim();

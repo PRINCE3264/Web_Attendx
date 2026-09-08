@@ -39,25 +39,34 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _controller.forward();
+    _navigateNext();
+  }
 
-    // Navigate to Login Screen after splash delay
-    Timer(const Duration(milliseconds: 2000), () {
-      if (!mounted) return;
-      final auth = context.read<AuthProvider>();
-      final nextScreen = auth.isAuthenticated
-          ? const MainNavigationScreen()
-          : const LoginScreen();
+  Future<void> _navigateNext() async {
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, anim, secAnim) => nextScreen,
-          transitionsBuilder: (context, animation, secAnim, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 600),
-        ),
-      );
-    });
+    final auth = context.read<AuthProvider>();
+    int waited = 0;
+    while (!auth.isInitialized && waited < 2000) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      waited += 100;
+    }
+    if (!mounted) return;
+
+    final nextScreen = auth.isAuthenticated
+        ? const MainNavigationScreen()
+        : const LoginScreen();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, anim, secAnim) => nextScreen,
+        transitionsBuilder: (context, animation, secAnim, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
   }
 
   @override

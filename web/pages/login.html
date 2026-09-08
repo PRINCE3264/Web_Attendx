@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttendX - Login to your attendance portal">
+  <title>AttendX - Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <!-- Branded Header -->
+    <div class="auth-card-header">
+      <div class="auth-logo">
+        <i class="fa-solid fa-fingerprint"></i>
+      </div>
+      <h1>AttendX</h1>
+      <p>Smart Attendance Portal</p>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-card-body">
+      <div class="auth-error-msg" id="login-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="login-error-text"></span>
+      </div>
+
+      <form id="form-login">
+        <div class="form-group">
+          <label>Email Address</label>
+          <div class="auth-input-icon-wrap">
+            <i class="fa-regular fa-envelope"></i>
+            <input type="email" class="form-control" id="login-email" placeholder="you@company.com" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <div class="auth-input-icon-wrap">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" class="form-control" id="login-password" placeholder="Enter your password" required minlength="6">
+          </div>
+        </div>
+
+        <div class="auth-links">
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-weight: 500; color: var(--text-muted);">
+            <input type="checkbox" id="login-remember" style="accent-color: var(--primary);"> Remember me
+          </label>
+          <a href="forgot-password.html">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="auth-btn" id="btn-login">
+          <span class="spinner" id="login-spinner"></span>
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span id="login-btn-text">Sign In</span>
+        </button>
+      </form>
+
+      <!-- Demo Credentials Info -->
+      <div style="margin-top: 1.25rem; padding: 0.85rem; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <div style="font-size: 0.75rem; font-weight: 700; color: var(--primary); margin-bottom: 0.4rem;">
+          <i class="fa-solid fa-circle-info"></i> Demo Credentials
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.6;">
+          <strong>Employee:</strong> employee@attendx.com<br>
+          <strong>Manager:</strong> manager@attendx.com<br>
+          <strong>HR:</strong> hr@attendx.com<br>
+          <strong>Admin:</strong> admin@attendx.com<br>
+          <strong>Password:</strong> password (any 6+ chars)
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="auth-footer">
+      Don't have an account? <a href="register.html">Create Account</a>
+    </div>
+  </div>
+
+  <script src="../js/firebase-config.js"></script>
+  <script>
+    $(document).ready(function () {
+      // If already logged in, redirect to dashboard
+      if (AttendXAuth.isLoggedIn()) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      $('#form-login').on('submit', async function (e) {
+        e.preventDefault();
+        
+        const email = $('#login-email').val().trim();
+        const password = $('#login-password').val();
+
+        // Show loading
+        $('#btn-login').prop('disabled', true);
+        $('#login-spinner').show();
+        $('#login-btn-text').text('Signing in...');
+        $('#login-error').removeClass('visible');
+
+        const result = await AttendXAuth.login(email, password);
+
+        if (result.success) {
+          window.location.href = 'dashboard.html';
+        } else {
+          $('#login-error-text').text(result.error);
+          $('#login-error').addClass('visible');
+          $('#btn-login').prop('disabled', false);
+          $('#login-spinner').hide();
+          $('#login-btn-text').text('Sign In');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

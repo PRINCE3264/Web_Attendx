@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_theme.dart';
 import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
+import '../../services/firestore_service.dart';
+import '../../models/department_model.dart';
+import '../../models/team_model.dart';
 
 class ReportGeneratorScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -27,6 +31,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
   late final TextEditingController _emailController;
   final _searchController = TextEditingController();
   String _selectedDept = 'All';
+  String _selectedTeam = 'All';
 
   @override
   void initState() {
@@ -65,7 +70,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             const SizedBox(width: 10),
             Text(
               'Dispatch Email Report',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -75,7 +83,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
           children: [
             Text(
               'Trigger automated email delivery of the attendance audit to executive management & finance.',
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -95,18 +106,20 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
-              await hr.sendReportEmail(emailAddress: _emailController.text.trim());
+              await hr.sendReportEmail(
+                emailAddress: _emailController.text.trim(),
+              );
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Report dispatched successfully!')),
+                  const SnackBar(
+                    content: Text('Report dispatched successfully!'),
+                  ),
                 );
               }
             },
             icon: const Icon(Icons.send, size: 16),
             label: const Text('Send Email'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
           ),
         ],
       ),
@@ -156,7 +169,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                     color: const Color(0xFF10B981).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF10B981), size: 28),
+                  child: const Icon(
+                    Icons.mark_email_read_rounded,
+                    color: Color(0xFF10B981),
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -174,7 +191,9 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                         'Calculates employee Present/Absent counts & sends Excel + PDF to HR',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : AppTheme.textMutedLight,
                         ),
                       ),
                     ],
@@ -204,23 +223,38 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.schedule_rounded, size: 16, color: AppTheme.primary),
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 16,
+                            color: AppTheme.primary,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Cycle: Every 30 Days',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primary),
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppTheme.primary,
+                            ),
                           ),
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.successSoft,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
                           'STATUS: ACTIVE',
-                          style: TextStyle(color: AppTheme.success, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: AppTheme.success,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -228,7 +262,12 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'HR & Admin Profile Emails: ${hr.allEmployees.where((u) => u.role == UserRole.hr || u.role == UserRole.admin).map((u) => u.email.trim()).where((e) => e.isNotEmpty).toSet().join(', ')}',
-                    style: GoogleFonts.inter(fontSize: 11.5, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      color: isDark
+                          ? AppTheme.textMutedDark
+                          : AppTheme.textMutedLight,
+                    ),
                   ),
                 ],
               ),
@@ -247,11 +286,18 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       children: [
                         Text(
                           '$totalPresent Days',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.success),
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppTheme.success,
+                          ),
                         ),
                         const Text(
                           'Total Present Days',
-                          style: TextStyle(fontSize: 11, color: AppTheme.success),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.success,
+                          ),
                         ),
                       ],
                     ),
@@ -269,11 +315,18 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       children: [
                         Text(
                           '$totalAbsent Days',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.danger),
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppTheme.danger,
+                          ),
                         ),
                         const Text(
                           'Total Absent Days',
-                          style: TextStyle(fontSize: 11, color: AppTheme.danger),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.danger,
+                          ),
                         ),
                       ],
                     ),
@@ -291,11 +344,18 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       children: [
                         Text(
                           '${hr.companyAttendanceRate.toStringAsFixed(1)}%',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primary),
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppTheme.primary,
+                          ),
                         ),
                         const Text(
                           'Workforce Rate',
-                          style: TextStyle(fontSize: 11, color: AppTheme.primary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -306,13 +366,18 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             const SizedBox(height: 16),
             Text(
               'Employee 30-Day Attendance Breakdown',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
@@ -321,7 +386,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: reports.length,
-                  separatorBuilder: (_, __) => const Divider(height: 12),
+                  separatorBuilder: (_, _) => const Divider(height: 12),
                   itemBuilder: (ctx, idx) {
                     final r = reports[idx];
                     return Row(
@@ -333,11 +398,17 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                             children: [
                               Text(
                                 r.employeeName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                               Text(
                                 '${r.employeeCode} • ${r.department}',
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
@@ -345,26 +416,40 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.successSoft,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'Present: ${r.presentDays}',
-                                style: const TextStyle(color: AppTheme.success, fontSize: 11, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  color: AppTheme.success,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.dangerSoft,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'Absent: ${r.absentDays}',
-                                style: const TextStyle(color: AppTheme.danger, fontSize: 11, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  color: AppTheme.danger,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -385,7 +470,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                     SnackBar(
                       content: Row(
                         children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -403,7 +492,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
                 elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -418,7 +510,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.mark_email_read_rounded, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.mark_email_read_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Flexible(
@@ -473,9 +569,15 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -537,8 +639,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               title: Text(
                 _currentType == 'monthly'
                     ? 'Monthly Attendance Report'
-                    : (_currentType == 'employee' ? 'Employee Performance Audit' : 'Export & Data Center'),
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                    : (_currentType == 'employee'
+                          ? 'Employee Performance Audit'
+                          : 'Export & Data Center'),
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
       body: SafeArea(
@@ -581,7 +688,12 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                child: _buildBodyForCurrentType(context, isDark, hr, allReports),
+                child: _buildBodyForCurrentType(
+                  context,
+                  isDark,
+                  hr,
+                  allReports,
+                ),
               ),
             ),
           ],
@@ -607,16 +719,22 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
       avatar: Icon(
         icon,
         size: 16,
-        color: isSelected ? Colors.white : (isDark ? Colors.white70 : AppTheme.primary),
+        color: isSelected
+            ? Colors.white
+            : (isDark ? Colors.white70 : AppTheme.primary),
       ),
       label: Text(label),
       labelStyle: GoogleFonts.outfit(
         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
         fontSize: 13,
-        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+        color: isSelected
+            ? Colors.white
+            : (isDark ? Colors.white70 : Colors.black87),
       ),
       selectedColor: AppTheme.primary,
-      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF334155)
+          : const Color(0xFFF1F5F9),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
@@ -688,7 +806,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.analytics_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -719,7 +841,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildBannerStat('Workforce Rate', '${avgRate.toStringAsFixed(1)}%'),
+                  _buildBannerStat(
+                    'Workforce Rate',
+                    '${avgRate.toStringAsFixed(1)}%',
+                  ),
                   _buildBannerStat('Total Audited', '$totalEmp Employees'),
                   _buildBannerStat('Cycle Days', '30 Days'),
                 ],
@@ -739,13 +864,20 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   'Employee Attendance Breakdown',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${reports.length} Records',
-                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -776,7 +908,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
       children: [
         Text(
           val,
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
         ),
         Text(
           label,
@@ -786,7 +922,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     );
   }
 
-  Widget _buildMonthlyCard(BuildContext context, MonthlyAttendanceReport rep, bool isDark) {
+  Widget _buildMonthlyCard(
+    BuildContext context,
+    MonthlyAttendanceReport rep,
+    bool isDark,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -808,7 +948,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   children: [
                     Text(
                       rep.employeeName,
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -817,7 +960,9 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                       '${rep.employeeCode} • ${rep.department}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -827,7 +972,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: rep.attendancePercentage >= 90
                       ? AppTheme.successSoft
@@ -842,7 +990,9 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 child: Text(
                   '${rep.attendancePercentage}% Rate',
                   style: TextStyle(
-                    color: rep.attendancePercentage >= 90 ? AppTheme.success : AppTheme.warning,
+                    color: rep.attendancePercentage >= 90
+                        ? AppTheme.success
+                        : AppTheme.warning,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -853,10 +1003,34 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _buildStatCell('Present Days', '${rep.presentDays} / ${rep.totalWorkingDays}', AppTheme.success)),
-              Expanded(child: _buildStatCell('Absent Days', '${rep.absentDays}', AppTheme.danger)),
-              Expanded(child: _buildStatCell('Logged Hours', '${rep.totalHoursWorked} hrs', AppTheme.primary)),
-              Expanded(child: _buildStatCell('Avg Shift', '${rep.averageDailyHours} hrs', AppTheme.secondary)),
+              Expanded(
+                child: _buildStatCell(
+                  'Present Days',
+                  '${rep.presentDays} / ${rep.totalWorkingDays}',
+                  AppTheme.success,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Absent Days',
+                  '${rep.absentDays}',
+                  AppTheme.danger,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Logged Hours',
+                  '${rep.totalHoursWorked} hrs',
+                  AppTheme.primary,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Avg Shift',
+                  '${rep.averageDailyHours} hrs',
+                  AppTheme.secondary,
+                ),
+              ),
             ],
           ),
         ],
@@ -873,13 +1047,30 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     HrProvider hr,
     List<MonthlyAttendanceReport> reports,
   ) {
-    // Filter by Search & Dept
+    // Filter by Search & Dept & Team
     final filtered = reports.where((r) {
-      final matchesSearch = _searchController.text.isEmpty ||
-          r.employeeName.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-          r.employeeCode.toLowerCase().contains(_searchController.text.toLowerCase());
-      final matchesDept = _selectedDept == 'All' || r.department.toLowerCase() == _selectedDept.toLowerCase();
-      return matchesSearch && matchesDept;
+      final matchesSearch =
+          _searchController.text.isEmpty ||
+          r.employeeName.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          ) ||
+          r.employeeCode.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          );
+          
+      final user = FirestoreService().getAllUsers().cast<UserModel?>().firstWhere((u) => u?.userId == r.employeeId, orElse: () => null);
+      final deptName = user?.department ?? r.department;
+      final teamName = user?.teamName ?? '';
+
+      final matchesDept =
+          _selectedDept == 'All' ||
+          deptName.toLowerCase() == _selectedDept.toLowerCase();
+          
+      final matchesTeam = 
+          _selectedTeam == 'All' || 
+          teamName.toLowerCase() == _selectedTeam.toLowerCase();
+
+      return matchesSearch && matchesDept && matchesTeam;
     }).toList();
 
     return Column(
@@ -914,8 +1105,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                         )
                       : null,
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  fillColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -923,33 +1119,82 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: ['All', 'Development', 'HR', 'Mobile', 'Backend', 'UI/Design'].map((dept) {
-                    final isSel = _selectedDept == dept;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        selected: isSel,
-                        label: Text(dept),
-                        labelStyle: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                          color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                        ),
-                        selectedColor: AppTheme.primary,
-                        backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedDept = dept;
-                          });
-                        },
+              StreamBuilder<List<DepartmentModel>>(
+                stream: FirestoreService().departmentsStream,
+                builder: (context, snapshot) {
+                  final depts = snapshot.data ?? FirestoreService().getAllDepartments();
+                  final deptNames = ['All', ...depts.map((d) => d.name)];
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: deptNames.map((dept) {
+                        final isSel = _selectedDept == dept;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilterChip(
+                            selected: isSel,
+                            label: Text(dept),
+                            labelStyle: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                            selectedColor: AppTheme.primary,
+                            backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedDept = dept;
+                                _selectedTeam = 'All'; // reset team filter
+                              });
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }
+              ),
+              if (_selectedDept != 'All') ...[
+                const SizedBox(height: 10),
+                StreamBuilder<List<TeamModel>>(
+                  stream: FirestoreService().teamsStream,
+                  builder: (context, snapshot) {
+                    final depts = FirestoreService().getAllDepartments();
+                    final selectedDeptId = depts.firstWhere((d) => d.name == _selectedDept, orElse: () => depts.first).departmentId;
+                    final allTeams = snapshot.data ?? FirestoreService().getAllTeams();
+                    final teams = allTeams.where((t) => t.departmentId == selectedDeptId).toList();
+                    final teamNames = ['All', ...teams.map((t) => t.name)];
+
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: teamNames.map((teamName) {
+                          final isSel = _selectedTeam == teamName;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: FilterChip(
+                              selected: isSel,
+                              label: Text(teamName),
+                              labelStyle: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                              ),
+                              selectedColor: AppTheme.primary,
+                              backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedTeam = teamName;
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
                       ),
                     );
-                  }).toList(),
+                  }
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -965,13 +1210,20 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   'Individual Employee Performance',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${filtered.length} Found',
-                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -996,7 +1248,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     );
   }
 
-  Widget _buildEmployeeCard(BuildContext context, MonthlyAttendanceReport rep, bool isDark) {
+  Widget _buildEmployeeCard(
+    BuildContext context,
+    MonthlyAttendanceReport rep,
+    bool isDark,
+  ) {
     final hr = context.read<HrProvider>();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1017,8 +1273,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 radius: 20,
                 backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
                 child: Text(
-                  rep.employeeName.isNotEmpty ? rep.employeeName[0].toUpperCase() : 'E',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  rep.employeeName.isNotEmpty
+                      ? rep.employeeName[0].toUpperCase()
+                      : 'E',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1028,13 +1289,21 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                   children: [
                     Text(
                       rep.employeeName,
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       'ID: ${rep.employeeCode} • Dept: ${rep.department}',
-                      style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1047,7 +1316,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                 label: const Text('Export'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -1059,10 +1331,34 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildStatCell('Rate', '${rep.attendancePercentage}%', AppTheme.primary)),
-              Expanded(child: _buildStatCell('Present', '${rep.presentDays} days', AppTheme.success)),
-              Expanded(child: _buildStatCell('Late', '${rep.lateArrivals} times', AppTheme.warning)),
-              Expanded(child: _buildStatCell('Total Hours', '${rep.totalHoursWorked} hrs', AppTheme.secondary)),
+              Expanded(
+                child: _buildStatCell(
+                  'Rate',
+                  '${rep.attendancePercentage}%',
+                  AppTheme.primary,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Present',
+                  '${rep.presentDays} days',
+                  AppTheme.success,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Late',
+                  '${rep.lateArrivals} times',
+                  AppTheme.warning,
+                ),
+              ),
+              Expanded(
+                child: _buildStatCell(
+                  'Total Hours',
+                  '${rep.totalHoursWorked} hrs',
+                  AppTheme.secondary,
+                ),
+              ),
             ],
           ),
         ],
@@ -1114,7 +1410,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.import_export_rounded, color: Colors.white, size: 28),
+                      child: const Icon(
+                        Icons.import_export_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1160,7 +1460,10 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
 
           Text(
             'Select Export Format',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -1244,7 +1547,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1287,14 +1594,19 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   description,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                    color: isDark
+                        ? AppTheme.textMutedDark
+                        : AppTheme.textMutedLight,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1309,16 +1621,25 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : Icon(icon, size: 15),
                       label: Text(
                         buttonLabel,
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5),
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: color,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -1329,10 +1650,16 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                         icon: const Icon(Icons.visibility_outlined, size: 14),
                         label: Text(
                           'Preview',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5),
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                          ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
@@ -1354,7 +1681,11 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.find_in_page_outlined, size: 48, color: Colors.grey),
+            const Icon(
+              Icons.find_in_page_outlined,
+              size: 48,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
             Text(
               msg,
@@ -1373,12 +1704,13 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
       children: [
         Text(
           value,
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: color,
+          ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );
   }

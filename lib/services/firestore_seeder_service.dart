@@ -6,11 +6,15 @@ import 'package:flutter/foundation.dart';
 class FirestoreSeederService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<void> seedAll17Collections({Function(String status)? onProgress}) async {
+  Future<void> seedAll17Collections({
+    Function(String status)? onProgress,
+  }) async {
     try {
       if (FirebaseAuth.instance.currentUser == null) {
         onProgress?.call('Authenticating with Firebase...');
-        await FirebaseAuth.instance.signInAnonymously().timeout(const Duration(seconds: 3));
+        await FirebaseAuth.instance.signInAnonymously().timeout(
+          const Duration(seconds: 3),
+        );
       }
     } catch (e) {
       debugPrint('Firebase Auth initialization note: $e');
@@ -121,7 +125,10 @@ class FirestoreSeederService {
       },
     ];
     for (var d in depts) {
-      batch.set(_firestore.collection('departments').doc(d['departmentId'] as String), d);
+      batch.set(
+        _firestore.collection('departments').doc(d['departmentId'] as String),
+        d,
+      );
     }
     await batch.commit();
   }
@@ -178,10 +185,13 @@ class FirestoreSeederService {
         'wifiBSSIDs': [],
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
-      }
+      },
     ];
     for (var l in locs) {
-      batch.set(_firestore.collection('officeLocations').doc(l['locationId'] as String), l);
+      batch.set(
+        _firestore.collection('officeLocations').doc(l['locationId'] as String),
+        l,
+      );
     }
     await batch.commit();
   }
@@ -210,7 +220,7 @@ class FirestoreSeederService {
         'fullDayThresholdMinutes': 480,
         'workDays': [1, 2, 3, 4, 5, 6],
         'isNightShift': false,
-      }
+      },
     ];
     for (var s in shifts) {
       batch.set(_firestore.collection('shifts').doc(s['shiftId'] as String), s);
@@ -231,10 +241,15 @@ class FirestoreSeederService {
         'maxBreakMinutesPerDay': 60,
         'consecutiveLatePenaltyDays': 3,
         'isDefault': true,
-      }
+      },
     ];
     for (var p in policies) {
-      batch.set(_firestore.collection('attendancePolicies').doc(p['policyId'] as String), p);
+      batch.set(
+        _firestore
+            .collection('attendancePolicies')
+            .doc(p['policyId'] as String),
+        p,
+      );
     }
     await batch.commit();
   }
@@ -268,10 +283,13 @@ class FirestoreSeederService {
         'carryForward': true,
         'isPaid': true,
         'isActive': true,
-      }
+      },
     ];
     for (var lt in types) {
-      batch.set(_firestore.collection('leaveTypes').doc(lt['leaveTypeId'] as String), lt);
+      batch.set(
+        _firestore.collection('leaveTypes').doc(lt['leaveTypeId'] as String),
+        lt,
+      );
     }
     await batch.commit();
   }
@@ -305,10 +323,13 @@ class FirestoreSeederService {
         'isOptional': false,
         'locationIds': ['ALL'],
         'createdAt': FieldValue.serverTimestamp(),
-      }
+      },
     ];
     for (var h in holidays) {
-      batch.set(_firestore.collection('holidays').doc(h['holidayId'] as String), h);
+      batch.set(
+        _firestore.collection('holidays').doc(h['holidayId'] as String),
+        h,
+      );
     }
     await batch.commit();
   }
@@ -316,16 +337,6 @@ class FirestoreSeederService {
   Future<void> _seedUsers() async {
     final batch = _firestore.batch();
     final users = [
-      {
-        'userId': 'emp_01',
-        'email': 'rahul.sharma@attendx.com',
-        'name': 'Rahul Sharma',
-        'role': 'employee',
-        'employeeId': 'EMP-1024',
-        'isActive': true,
-        'avatarUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        'createdAt': FieldValue.serverTimestamp(),
-      },
       {
         'userId': 'mgr_01',
         'email': 'vikram.mehta@attendx.com',
@@ -336,26 +347,6 @@ class FirestoreSeederService {
         'avatarUrl': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
         'createdAt': FieldValue.serverTimestamp(),
       },
-      {
-        'userId': 'hr_01',
-        'email': 'pooja.verma@attendx.com',
-        'name': 'Pooja Verma (HR)',
-        'role': 'hr',
-        'employeeId': 'EMP-1003',
-        'isActive': true,
-        'avatarUrl': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-      {
-        'userId': 'admin_01',
-        'email': 'rajesh.sharma@attendx.com',
-        'name': 'Rajesh Sharma (Admin)',
-        'role': 'admin',
-        'employeeId': 'EMP-1004',
-        'isActive': true,
-        'avatarUrl': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-        'createdAt': FieldValue.serverTimestamp(),
-      }
     ];
     for (var u in users) {
       batch.set(_firestore.collection('users').doc(u['userId'] as String), u);
@@ -366,26 +357,6 @@ class FirestoreSeederService {
   Future<void> _seedEmployees() async {
     final batch = _firestore.batch();
     final employees = [
-      {
-        'employeeId': 'EMP-1024',
-        'userId': 'emp_01',
-        'fullName': 'Rahul Sharma',
-        'workEmail': 'rahul.sharma@attendx.com',
-        'phoneNumber': '+919876543210',
-        'departmentId': 'dept_eng',
-        'departmentName': 'Engineering & Technology',
-        'teamId': 'team_mobile',
-        'teamName': 'Mobile Apps Team (Flutter)',
-        'managerId': 'EMP-1002',
-        'managerName': 'Vikram Mehta (TL)',
-        'shiftId': 'shift_general',
-        'officeLocationId': 'loc_hq_delhi',
-        'policyId': 'policy_standard',
-        'avatarUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        'leaveBalance': {'casual': 9, 'sick': 6, 'earned': 10},
-        'status': 'active',
-        'createdAt': FieldValue.serverTimestamp(),
-      },
       {
         'employeeId': 'EMP-1002',
         'userId': 'mgr_01',
@@ -405,10 +376,13 @@ class FirestoreSeederService {
         'leaveBalance': {'casual': 12, 'sick': 8, 'earned': 15},
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
-      }
+      },
     ];
     for (var emp in employees) {
-      batch.set(_firestore.collection('employees').doc(emp['employeeId'] as String), emp);
+      batch.set(
+        _firestore.collection('employees').doc(emp['employeeId'] as String),
+        emp,
+      );
     }
     await batch.commit();
   }
@@ -420,7 +394,8 @@ class FirestoreSeederService {
       'employeeId': 'EMP-1024',
       'employeeName': 'Rahul Sharma',
       'employeeCode': 'EMP-1024',
-      'employeeAvatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      'employeeAvatar':
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       'departmentId': 'dept_eng',
       'departmentName': 'Engineering & Technology',
       'teamId': 'team_mobile',
@@ -429,7 +404,8 @@ class FirestoreSeederService {
       'shiftId': 'shift_general',
       'date': '2026-08-30',
       'clockInTime': DateTime.parse('2026-08-30T09:28:15Z'),
-      'clockInPhotoUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
+      'clockInPhotoUrl':
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
       'clockInLocation': const GeoPoint(21.1986872, 72.7965515),
       'clockInAddress': 'Green Atria, Anand Mahal Rd, Adajan, Surat',
       'clockInDistanceMeters': 14.5,
@@ -450,7 +426,10 @@ class FirestoreSeederService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    batch.set(_firestore.collection('attendance').doc('EMP-1024_2026-08-30'), att);
+    batch.set(
+      _firestore.collection('attendance').doc('EMP-1024_2026-08-30'),
+      att,
+    );
     await batch.commit();
   }
 
@@ -464,12 +443,18 @@ class FirestoreSeederService {
       'teamId': 'team_mobile',
       'managerId': 'EMP-1002',
       'date': '2026-08-30',
-      'selfieUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
+      'selfieUrl':
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
       'distanceMeters': 14.5,
       'status': 'approved',
       'createdAt': FieldValue.serverTimestamp(),
     };
-    batch.set(_firestore.collection('attendanceApprovals').doc('appr_EMP-1024_2026-08-30'), appr);
+    batch.set(
+      _firestore
+          .collection('attendanceApprovals')
+          .doc('appr_EMP-1024_2026-08-30'),
+      appr,
+    );
     await batch.commit();
   }
 
@@ -488,7 +473,10 @@ class FirestoreSeederService {
       'reviewedBy': 'EMP-1002',
       'createdAt': FieldValue.serverTimestamp(),
     };
-    batch.set(_firestore.collection('attendanceCorrections').doc('corr_20260828_01'), corr);
+    batch.set(
+      _firestore.collection('attendanceCorrections').doc('corr_20260828_01'),
+      corr,
+    );
     await batch.commit();
   }
 
@@ -529,10 +517,15 @@ class FirestoreSeederService {
         'entityId': 'EMP-1024_2026-08-30',
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
-      }
+      },
     ];
     for (var n in notifs) {
-      batch.set(_firestore.collection('notifications').doc(n['notificationId'] as String), n);
+      batch.set(
+        _firestore
+            .collection('notifications')
+            .doc(n['notificationId'] as String),
+        n,
+      );
     }
     await batch.commit();
   }
@@ -557,6 +550,26 @@ class FirestoreSeederService {
       'createdAt': FieldValue.serverTimestamp(),
     };
     batch.set(_firestore.collection('reports').doc('rep_EMP-1024_202608'), rep);
+
+    // Seed sample Project Work Reports in Firestore collection 'projectReports'
+    final projRep1 = {
+      'reportId': 'rep_proj_001',
+      'employeeId': 'EMP-1024',
+      'employeeName': 'Rahul Sharma',
+      'employeeAvatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+      'projectId': 'proj_mobile_app',
+      'projectName': 'Mobile App Revamp',
+      'date': DateTime.now().toIso8601String().substring(0, 10),
+      'submittedAt': DateTime.now().toIso8601String(),
+      'workSummary': 'Completed Authentication screens, JWT token refresh flow, and unit tests for Attendance Provider.',
+      'hoursSpent': 8.0,
+      'blockers': null,
+      'screenshotUrls': [],
+      'videoUrls': [],
+      'status': 'submitted',
+    };
+    batch.set(_firestore.collection('projectReports').doc('rep_proj_001'), projRep1);
+
     await batch.commit();
   }
 
@@ -583,7 +596,10 @@ class FirestoreSeederService {
       'settingKey': 'general',
       'companyName': 'Envision Beyond India Pvt Ltd',
       'supportEmail': 'hr@envisionbeyond.com',
-      'autoEmailReportsTo': ['pooja.verma@attendx.com', 'rajesh.sharma@attendx.com'],
+      'autoEmailReportsTo': [
+        'pooja.verma@attendx.com',
+        'rajesh.sharma@attendx.com',
+      ],
       'allowMockLocation': false,
       'enforceBiometrics': true,
       'timeZone': 'Asia/Kolkata',

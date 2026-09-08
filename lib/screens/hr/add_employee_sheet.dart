@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 import '../../services/firestore_service.dart';
+import '../../models/department_model.dart';
+import '../../models/team_model.dart';
 
 class AddEmployeeSheet extends StatefulWidget {
   final UserRole? initialRole;
@@ -23,13 +25,16 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController(text: 'Pass@2026');
   final _employeeIdController = TextEditingController();
-  final _departmentController = TextEditingController();
 
+  DepartmentModel? _selectedDepartment;
+  TeamModel? _selectedTeam;
   UserModel? _selectedTL;
   String? _selectedProject;
   DateTime _joiningDate = DateTime.now();
   late UserRole _selectedRole;
   bool _obscurePassword = true;
+  String _selectedShiftId = 'shift_general';
+  String _selectedShiftName = 'General Shift (09:30 AM - 06:30 PM)';
 
   @override
   void initState() {
@@ -43,7 +48,6 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     _emailController.dispose();
     _passwordController.dispose();
     _employeeIdController.dispose();
-    _departmentController.dispose();
     super.dispose();
   }
 
@@ -68,7 +72,10 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final empId = _employeeIdController.text.trim();
-    final dept = _departmentController.text.trim().isEmpty ? 'General' : _departmentController.text.trim();
+    final dept = _selectedDepartment?.name ?? 'General';
+    final departmentId = _selectedDepartment?.departmentId ?? 'dept_general';
+    final teamId = _selectedTeam?.teamId ?? 'team_general';
+    final teamName = _selectedTeam?.name ?? 'Unassigned';
 
     final success = await auth.adminCreateEmployeeAccount(
       name: name,
@@ -77,9 +84,13 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
       role: _selectedRole,
       employeeId: empId,
       department: dept,
+      teamId: teamId,
+      teamName: teamName,
       managerId: _selectedTL != null ? _selectedTL!.userId : 'unassigned',
       managerName: _selectedTL != null ? _selectedTL!.name : 'Unassigned',
       joiningDate: _joiningDate,
+      shiftId: _selectedShiftId,
+      shiftName: _selectedShiftName,
     );
 
     if (success && mounted) {
@@ -166,13 +177,85 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextFormField(
-                      controller: _departmentController,
-                      decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                    child: StreamBuilder<List<DepartmentModel>>(
+                      stream: FirestoreService().departmentsStream,
+                      builder: (context, snapshot) {
+                        final depts = snapshot.data ?? [];
+                        return DropdownButtonFormField<DepartmentModel>(
+                          initialValue: _selectedDepartment,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
+                          items: depts.map((d) => DropdownMenuItem(value: d, child: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedDepartment = v;
+                              _selectedTeam = null; // Reset team when department changes
+                            });
+                          },
+                          validator: (v) => v == null ? 'Required' : null,
+                        );
+                      }
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              StreamBuilder<List<TeamModel>>(
+                stream: FirestoreService().teamsStream,
+                builder: (context, snapshot) {
+                  var teams = snapshot.data ?? [];
+                  if (_selectedDepartment != null) {
+                    teams = teams.where((t) => t.departmentId == _selectedDepartment!.departmentId).toList();
+                  }
+                  return DropdownButtonFormField<TeamModel>(
+                    initialValue: _selectedTeam,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Team', border: OutlineInputBorder()),
+                    hint: const Text('Select Team'),
+                    items: teams.map((t) => DropdownMenuItem(value: t, child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedTeam = v;
+                        // Auto-select TL if possible
+                        if (v != null && v.managerId.isNotEmpty) {
+                          final allUsers = FirestoreService().getAllUsers();
+                          final tl = allUsers.cast<UserModel?>().firstWhere((u) => u?.userId == v.managerId, orElse: () => null);
+                          if (tl != null) _selectedTL = tl;
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedShiftId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Assigned Shift Schedule',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.schedule_rounded),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'shift_general',
+                    child: Text('🏢 General Shift (09:30 AM - 06:30 PM)', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'shift_morning',
+                    child: Text('🌅 Morning Shift (07:00 AM - 04:00 PM)', overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedShiftId = val;
+                      _selectedShiftName = val == 'shift_morning'
+                          ? 'Morning Shift (07:00 AM - 04:00 PM)'
+                          : 'General Shift (09:30 AM - 06:30 PM)';
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(

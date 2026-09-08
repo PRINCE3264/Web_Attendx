@@ -28,6 +28,7 @@ class HrProvider extends ChangeNotifier {
   bool _is30DayAutomationActive = true;
   DateTime? _last30DayReportSentAt = DateTime.now();
   String _selectedDepartmentFilter = 'All';
+  String _selectedTeamFilter = 'All';
   String _searchQuery = '';
   String _selectedReportPeriod = '30-Day'; // 'Daily', 'Weekly', 'Monthly', '30-Day'
 
@@ -114,7 +115,19 @@ class HrProvider extends ChangeNotifier {
   }
 
   List<ProjectReportModel> getReportsForEmployee(String userId) {
-    return _dailyProjectReports.where((r) => r.employeeId == userId).toList();
+    final matchedUser = _users.firstWhere(
+      (u) => u.userId == userId || u.employeeId == userId,
+      orElse: () => UserModel(userId: userId, name: '', email: '', role: UserRole.employee, employeeId: '', teamId: '', department: ''),
+    );
+    final targetIds = {userId};
+    if (matchedUser.employeeId.isNotEmpty) targetIds.add(matchedUser.employeeId);
+    if (matchedUser.name.isNotEmpty) targetIds.add(matchedUser.name.toLowerCase());
+
+    return _dailyProjectReports.where((r) {
+      final empId = r.employeeId;
+      final empName = r.employeeName.toLowerCase();
+      return targetIds.contains(empId) || targetIds.contains(empName);
+    }).toList();
   }
 
   List<ProjectReportModel> getReportsForProject(String projectName) {
@@ -124,11 +137,18 @@ class HrProvider extends ChangeNotifier {
 
   bool get isGeneratingReport => _isGeneratingReport;
   String get selectedDepartmentFilter => _selectedDepartmentFilter;
+  String get selectedTeamFilter => _selectedTeamFilter;
   String get searchQuery => _searchQuery;
   String get selectedReportPeriod => _selectedReportPeriod;
 
   void setDepartmentFilter(String dept) {
     _selectedDepartmentFilter = dept;
+    _selectedTeamFilter = 'All'; // reset team filter when dept changes
+    notifyListeners();
+  }
+
+  void setTeamFilter(String team) {
+    _selectedTeamFilter = team;
     notifyListeners();
   }
 
@@ -184,10 +204,13 @@ class HrProvider extends ChangeNotifier {
     return _users.where((e) {
       final matchesDept = _selectedDepartmentFilter == 'All' ||
           e.department.toLowerCase() == _selectedDepartmentFilter.toLowerCase();
+      final matchesTeam = _selectedTeamFilter == 'All' ||
+          e.teamId == _selectedTeamFilter ||
+          e.teamName.toLowerCase() == _selectedTeamFilter.toLowerCase();
       final matchesSearch = _searchQuery.isEmpty ||
           e.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           e.employeeId.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesDept && matchesSearch;
+      return matchesDept && matchesTeam && matchesSearch;
     }).toList();
   }
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AttendX - HR Administration Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div id="app-container">
+    <aside class="sidebar">
+      <div>
+        <div class="brand-header">
+          <div class="brand-logo"><i class="fa-solid fa-user-gear"></i></div>
+          <div>
+            <div class="brand-title">AttendX</div>
+            <span class="brand-badge">HR PORTAL</span>
+          </div>
+        </div>
+        <ul class="nav-menu">
+          <li class="nav-item active"><a href="#"><i class="fa-solid fa-users"></i> Employee Directory</a></li>
+          <li class="nav-item"><a href="#"><i class="fa-solid fa-bullhorn"></i> Announcements</a></li>
+          <li class="nav-item"><a href="#"><i class="fa-solid fa-chart-pie"></i> Attendance Reports</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main-wrapper">
+      <header class="topbar">
+        <h2 class="page-header-title"><i class="fa-solid fa-building-user"></i> HR Administration Portal</h2>
+        <a href="../index.html" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> Main Portal Hub</a>
+      </header>
+      <div class="content-body">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="card-header-flex">
+            <h3 class="card-title"><i class="fa-solid fa-users-gear"></i> Corporate Employee Directory</h3>
+            <a href="../index.html#hr-employees" class="btn btn-primary btn-sm"><i class="fa-solid fa-user-plus"></i> Add Employee</a>
+          </div>
+          <table class="custom-table">
+            <thead>
+              <tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Role</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>EMP-1024</td><td>Rahul Sharma</td><td>Engineering</td><td><span class="badge badge-info">Employee</span></td><td><span class="badge badge-success">Active</span></td></tr>
+              <tr><td>EMP-1025</td><td>Priya Patel</td><td>Engineering</td><td><span class="badge badge-purple">Manager</span></td><td><span class="badge badge-success">Active</span></td></tr>
+              <tr><td>EMP-1026</td><td>Amit Kumar</td><td>Human Resources</td><td><span class="badge badge-warning">HR</span></td><td><span class="badge badge-success">Active</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

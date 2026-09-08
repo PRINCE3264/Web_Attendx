@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttendX - AI Chatbot Assistant">
+  <title>AttendX - AI Chatbot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="../js/layout.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <main class="main-wrapper">
+      <div class="content-body">
+
+        <div class="glass-card" style="max-width: 750px;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center;">
+              <i class="fa-solid fa-robot" style="font-size: 1.4rem; color: var(--primary);"></i>
+            </div>
+            <div>
+              <h3 class="card-title" style="margin-bottom: 0.1rem;">AttendX AI Assistant</h3>
+              <span style="font-size: 0.75rem; color: var(--accent-emerald);"><i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Online • Firestore Connected</span>
+            </div>
+          </div>
+
+          <div id="page-ai-chat-body" style="height: 420px; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem; overflow-y: auto; background: var(--bg-secondary);">
+            <div class="chat-bubble bot"><i class="fa-solid fa-robot" style="color: var(--primary); margin-right: 0.3rem;"></i> Hello Prince! I am your AttendX AI Assistant. I can help with:</div>
+            <div class="chat-bubble bot" style="margin-top: 0.5rem;">
+              <strong>Quick Actions:</strong><br>
+              • Check attendance status<br>
+              • View leave balances<br>
+              • Get policy information<br>
+              • Generate reports
+            </div>
+          </div>
+
+          <!-- Quick Action Chips -->
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+            <button class="btn btn-outline btn-sm ai-quick-action" data-msg="What is my attendance status?">📊 My Status</button>
+            <button class="btn btn-outline btn-sm ai-quick-action" data-msg="How many leaves do I have?">🏖️ Leave Balance</button>
+            <button class="btn btn-outline btn-sm ai-quick-action" data-msg="What are the shift timings?">⏰ Shift Info</button>
+            <button class="btn btn-outline btn-sm ai-quick-action" data-msg="Generate my weekly report">📋 Weekly Report</button>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" class="form-control" id="page-ai-chat-input" placeholder="Type your question to AI assistant...">
+            <button class="btn btn-primary" id="btn-page-send-ai"><i class="fa-solid fa-paper-plane"></i></button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/firebase-config.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    $(document).ready(function() {
+      AttendXLayout.init('AI Chatbot');
+
+      // Page-level AI chat handler
+      function sendPageAIMessage(text) {
+        if (!text) text = $('#page-ai-chat-input').val().trim();
+        if (!text) return;
+
+        $('#page-ai-chat-body').append('<div class="chat-bubble user">' + text + '</div>');
+        $('#page-ai-chat-input').val('');
+
+        var $body = $('#page-ai-chat-body');
+        $body.scrollTop($body[0].scrollHeight);
+
+        setTimeout(function() {
+          var reply = "I can fetch attendance logs, leave balances, or policy settings directly from Firestore DB!";
+          var lower = text.toLowerCase();
+          if (lower.includes('status') || lower.includes('punch')) {
+            reply = "Your current punch status is <strong>CLOCKED OUT</strong>. You can go to the Dashboard to clock in.";
+          } else if (lower.includes('leave') || lower.includes('balance')) {
+            reply = "You have <strong>12 Casual Leaves</strong>, <strong>6 Sick Leaves</strong>, and <strong>15 Earned Leaves</strong> remaining.";
+          } else if (lower.includes('shift') || lower.includes('time')) {
+            reply = "Your shift is <strong>09:00 AM - 06:00 PM</strong> with a 15-minute grace period. Break allowance: 60 minutes total.";
+          } else if (lower.includes('report') || lower.includes('weekly')) {
+            reply = "📊 <strong>Weekly Summary:</strong> You worked <strong>42.5 hours</strong> this week across 2 projects. On-time rate: <strong>94%</strong>.";
+          }
+          $('#page-ai-chat-body').append('<div class="chat-bubble bot"><i class="fa-solid fa-robot" style="color:var(--primary); margin-right:0.3rem;"></i> ' + reply + '</div>');
+          $body.scrollTop($body[0].scrollHeight);
+        }, 600);
+      }
+
+      $('#btn-page-send-ai').on('click', function() { sendPageAIMessage(); });
+      $('#page-ai-chat-input').on('keypress', function(e) { if (e.which === 13) sendPageAIMessage(); });
+      $('.ai-quick-action').on('click', function() { sendPageAIMessage($(this).attr('data-msg')); });
+    });
+  </script>
+</body>
+</html>
