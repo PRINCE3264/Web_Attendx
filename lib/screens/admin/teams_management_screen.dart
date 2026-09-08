@@ -319,30 +319,30 @@ class _TeamsManagementScreenState extends State<TeamsManagementScreen> {
           return Scaffold(
             appBar: AppBar(
               title: Text('Team Directory', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                  onPressed: () => _showAddTeamModal(context),
-                  tooltip: 'Add Team',
-                ),
-              ],
             ),
             body: content,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () => _showAddTeamModal(context),
+              backgroundColor: const Color(0xFF0EA5E9),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.group_add_rounded),
+              label: Text('Add Team', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ),
           );
         }
 
         return Scaffold(
           appBar: AppBar(
             title: Text('Teams Management', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                onPressed: () => _showAddTeamModal(context),
-                tooltip: 'Add Team',
-              ),
-            ],
           ),
           body: content,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddTeamModal(context),
+            backgroundColor: const Color(0xFF0EA5E9),
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.group_add_rounded),
+            label: Text('Add Team', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
         );
       },
     );

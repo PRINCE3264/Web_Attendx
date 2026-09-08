@@ -5,12 +5,15 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
+import '../../models/department_model.dart';
+import '../../models/team_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hr_provider.dart';
 import '../../providers/leave_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/firestore_service.dart';
 import '../../services/firestore_seeder_service.dart';
 import '../../services/report_service.dart';
 import '../shared/custom_widgets.dart';
@@ -1525,13 +1528,24 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
     final nameController = TextEditingController(text: targetUser.name);
     final emailController = TextEditingController(text: targetUser.email);
     final empIdController = TextEditingController(text: targetUser.employeeId);
-    final deptController = TextEditingController(text: targetUser.department);
     final newPasswordController = TextEditingController();
     UserRole selectedRole = targetUser.role;
     bool obscureCurrentPass = true;
     bool obscureNewPass = true;
     bool isSavingPassword = false;
     final formKey = GlobalKey<FormState>();
+
+    // Pre-select department and team based on current user data
+    final allDepts = FirestoreService().getAllDepartments();
+    final allTeams = FirestoreService().getAllTeams();
+    DepartmentModel? selectedDept = allDepts.cast<DepartmentModel?>().firstWhere(
+      (d) => d?.name == targetUser.department,
+      orElse: () => null,
+    );
+    TeamModel? selectedTeam = allTeams.cast<TeamModel?>().firstWhere(
+      (t) => t?.teamId == targetUser.teamId,
+      orElse: () => null,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -1607,19 +1621,83 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Employee ID is required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: deptController,
-                        decoration: const InputDecoration(
-                          labelText: 'Department *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.business),
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Department is required' : null,
+
+                      // ── Department Dropdown ──
+                      StreamBuilder<List<DepartmentModel>>(
+                        stream: FirestoreService().departmentsStream,
+                        builder: (context, snapshot) {
+                          var depts = snapshot.data ?? [];
+                          if (depts.isEmpty) {
+                            depts = FirestoreService().getAllDepartments();
+                          }
+                          // Validate selectedDept is still in the list
+                          if (selectedDept != null && !depts.any((d) => d.departmentId == selectedDept!.departmentId)) {
+                            selectedDept = null;
+                          }
+                          return DropdownButtonFormField<DepartmentModel>(
+                            value: selectedDept,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Department *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.domain_rounded),
+                            ),
+                            hint: const Text('Select Department'),
+                            items: depts.where((d) => d.isActive).map((d) => DropdownMenuItem(
+                              value: d,
+                              child: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            )).toList(),
+                            onChanged: (v) {
+                              setModalState(() {
+                                selectedDept = v;
+                                selectedTeam = null; // Reset team when department changes
+                              });
+                            },
+                            validator: (v) => v == null ? 'Department is required' : null,
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
+
+                      // ── Team Dropdown ──
+                      StreamBuilder<List<TeamModel>>(
+                        stream: FirestoreService().teamsStream,
+                        builder: (context, snapshot) {
+                          var teams = snapshot.data ?? [];
+                          if (teams.isEmpty) {
+                            teams = FirestoreService().getAllTeams();
+                          }
+                          if (selectedDept != null) {
+                            teams = teams.where((t) => t.departmentId == selectedDept!.departmentId).toList();
+                          }
+                          // Validate selectedTeam is still in the filtered list
+                          if (selectedTeam != null && !teams.any((t) => t.teamId == selectedTeam!.teamId)) {
+                            selectedTeam = null;
+                          }
+                          return DropdownButtonFormField<TeamModel>(
+                            value: selectedTeam,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Team',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.groups_rounded),
+                            ),
+                            hint: const Text('Select Team'),
+                            items: teams.where((t) => t.isActive).map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            )).toList(),
+                            onChanged: (v) {
+                              setModalState(() => selectedTeam = v);
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
                       DropdownButtonFormField<UserRole>(
                         isExpanded: true,
-                        initialValue: selectedRole,
+                        value: selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'User Role *',
                           border: OutlineInputBorder(),
@@ -1654,7 +1732,11 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                             name: nameController.text.trim(),
                             email: emailController.text.trim(),
                             employeeId: empIdController.text.trim(),
-                            department: deptController.text.trim(),
+                            department: selectedDept?.name ?? targetUser.department,
+                            teamId: selectedTeam?.teamId ?? targetUser.teamId,
+                            teamName: selectedTeam?.name ?? targetUser.teamName,
+                            managerId: selectedTeam?.managerId ?? targetUser.managerId,
+                            managerName: selectedTeam?.managerName ?? targetUser.managerName,
                             role: selectedRole,
                           );
 
@@ -1678,6 +1760,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                           }
                         },
                       ),
+
 
                       // ── Password Management Section (Admin only) ──────────────
                       Consumer<AuthProvider>(

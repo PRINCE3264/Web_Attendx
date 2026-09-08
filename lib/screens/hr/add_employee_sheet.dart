@@ -180,9 +180,12 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                     child: StreamBuilder<List<DepartmentModel>>(
                       stream: FirestoreService().departmentsStream,
                       builder: (context, snapshot) {
-                        final depts = snapshot.data ?? [];
+                        var depts = snapshot.data ?? [];
+                        if (depts.isEmpty) {
+                          depts = FirestoreService().getAllDepartments();
+                        }
                         return DropdownButtonFormField<DepartmentModel>(
-                          initialValue: _selectedDepartment,
+                          value: _selectedDepartment,
                           isExpanded: true,
                           decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
                           items: depts.map((d) => DropdownMenuItem(value: d, child: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
@@ -197,6 +200,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                       }
                     ),
                   ),
+
                 ],
               ),
               const SizedBox(height: 12),
@@ -204,11 +208,14 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
                 stream: FirestoreService().teamsStream,
                 builder: (context, snapshot) {
                   var teams = snapshot.data ?? [];
+                  if (teams.isEmpty) {
+                    teams = FirestoreService().getAllTeams();
+                  }
                   if (_selectedDepartment != null) {
                     teams = teams.where((t) => t.departmentId == _selectedDepartment!.departmentId).toList();
                   }
                   return DropdownButtonFormField<TeamModel>(
-                    initialValue: _selectedTeam,
+                    value: _selectedTeam,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Team', border: OutlineInputBorder()),
                     hint: const Text('Select Team'),
@@ -229,7 +236,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _selectedShiftId,
+                value: _selectedShiftId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Assigned Shift Schedule',
@@ -294,7 +301,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
               const SizedBox(height: 12),
               if (currentUser?.role == UserRole.admin) ...[
                 DropdownButtonFormField<UserRole>(
-                  initialValue: _selectedRole,
+                  value: _selectedRole,
                   decoration: const InputDecoration(labelText: 'User Role', border: OutlineInputBorder()),
                   items: UserRole.values.map((r) {
                     return DropdownMenuItem(
@@ -310,7 +317,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
               ],
               if (_selectedRole == UserRole.employee) ...[
                 DropdownButtonFormField<UserModel>(
-                  initialValue: _selectedTL,
+                  value: _selectedTL,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'TL / Manager', border: OutlineInputBorder()),
                   hint: const Text('Select TL'),
@@ -321,7 +328,7 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
               ],
               if (_selectedRole == UserRole.employee || _selectedRole == UserRole.manager) ...[
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedProject,
+                  value: _selectedProject,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Assigned Project',

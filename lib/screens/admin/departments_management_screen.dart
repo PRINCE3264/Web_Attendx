@@ -278,30 +278,30 @@ class _DepartmentsManagementScreenState extends State<DepartmentsManagementScree
           return Scaffold(
             appBar: AppBar(
               title: Text('Department Directory', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                  onPressed: () => _showAddDepartmentModal(context),
-                  tooltip: 'Add Department',
-                ),
-              ],
             ),
             body: content,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () => _showAddDepartmentModal(context),
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: Text('Add Department', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ),
           );
         }
 
         return Scaffold(
           appBar: AppBar(
             title: Text('Departments Management', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                onPressed: () => _showAddDepartmentModal(context),
-                tooltip: 'Add Department',
-              ),
-            ],
           ),
           body: content,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddDepartmentModal(context),
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add_rounded),
+            label: Text('Add Department', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
         );
       },
     );
