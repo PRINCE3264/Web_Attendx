@@ -201,26 +201,6 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
 
-          // AI Chatbot Icon
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                size: 18,
-                color: Color(0xFF2563EB),
-              ),
-            ),
-            onPressed: () => AIVoiceAssistantSheet.show(context),
-            tooltip: 'AttendX AI Chatbot',
-          ),
           // Notification Icon
           IconButton(
             icon: const Icon(

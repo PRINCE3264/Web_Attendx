@@ -285,31 +285,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                   ],
                 ),
                 actions: [
-                  IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Image.asset(
-                        'assets/ai.png',
-                        width: 18,
-                        height: 18,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, err, stack) => const Icon(
-                          Icons.smart_toy_rounded,
-                          size: 18,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                    ),
-                    onPressed: () => AIVoiceAssistantSheet.show(context),
-                    tooltip: 'AttendX AI Chatbot',
-                  ),
                   Badge(
                     isLabelVisible: notifProvider.unreadCount > 0,
                     backgroundColor: AppTheme.danger,

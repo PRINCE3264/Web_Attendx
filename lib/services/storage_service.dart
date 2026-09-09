@@ -132,13 +132,11 @@ class StorageService {
           .ref()
           .child('project_reports/$userId/$reportId/$fileName');
       final metadata = SettableMetadata(contentType: contentType);
-      final uploadTask = await ref.putData(bytes, metadata);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      await ref.putData(bytes, metadata).timeout(const Duration(seconds: 10));
+      final downloadUrl = await ref.getDownloadURL().timeout(const Duration(seconds: 5));
       return downloadUrl;
     } catch (e) {
       debugPrint('Firebase Storage report media upload fallback: $e');
-      // On failure to upload, return the local file path as a fallback or a data URL
-      // If video, we can't easily do data URL without taking huge memory, so just return path
       if (contentType.startsWith('video')) {
         return file.path;
       }

@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import 'auth_gate.dart';
-import 'main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,7 +15,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -33,10 +35,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       curve: Curves.easeOut,
     );
 
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    );
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
     _controller.forward();
     _navigateNext();
@@ -106,7 +105,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.secondary.withValues(alpha: isDark ? 0.12 : 0.07),
+                color: AppTheme.secondary.withValues(
+                  alpha: isDark ? 0.12 : 0.07,
+                ),
               ),
             ),
           ),
@@ -125,7 +126,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: isDark ? 0.4 : 0.2),
+                          color: AppTheme.primary.withValues(
+                            alpha: isDark ? 0.4 : 0.2,
+                          ),
                           blurRadius: 36,
                           offset: const Offset(0, 12),
                         ),
@@ -166,7 +169,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         style: GoogleFonts.outfit(
                           fontSize: 15.5,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? AppTheme.primaryLight : AppTheme.primary,
+                          color: isDark
+                              ? AppTheme.primaryLight
+                              : AppTheme.primary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -176,7 +181,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         style: GoogleFonts.inter(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                          color: isDark
+                              ? AppTheme.textMutedDark
+                              : AppTheme.textMutedLight,
                         ),
                       ),
                     ],
@@ -200,7 +207,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -208,7 +217,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     'GPS Verified • AI Face Verification',
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                      color: isDark
+                          ? AppTheme.textMutedDark
+                          : AppTheme.textMutedLight,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

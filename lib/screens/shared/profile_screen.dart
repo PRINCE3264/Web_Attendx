@@ -10,6 +10,7 @@ import '../../providers/leave_provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/report_service.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import 'custom_widgets.dart';
 import 'edit_profile_sheet.dart';
 
@@ -439,26 +440,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Logout Button
             OutlinedButton.icon(
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Confirm Logout'),
-                    content: const Text('Are you sure you want to log out from this device?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
-                        child: const Text('Logout'),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirm == true) {
-                  await auth.logout();
-                }
+              onPressed: () {
+                LogoutConfirmationDialog.show(context);
               },
               icon: const Icon(Icons.logout, color: AppTheme.danger, size: 20),
               label: Text(

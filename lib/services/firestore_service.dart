@@ -2452,7 +2452,10 @@ class FirestoreService {
         await db
             .collection('projectReports')
             .doc(report.reportId)
-            .set(report.toMap(), SetOptions(merge: true));
+            .set(report.toMap(), SetOptions(merge: true))
+            .timeout(const Duration(seconds: 8), onTimeout: () {
+          debugPrint('⚠️ Firestore project report write timed out; stored in local memory & offline cache.');
+        });
         debugPrint('🔥 Project report successfully written to Cloud Firestore DB: ${report.reportId}');
       } else {
         debugPrint('⚠️ Cloud Firestore DB reference is null during report submit');

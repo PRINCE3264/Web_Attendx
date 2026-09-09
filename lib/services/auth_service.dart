@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,9 +19,7 @@ class AuthService {
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
   final Map<String, String> _passwords = {};
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
   UserModel? get currentUser => _currentUser;
@@ -91,7 +88,8 @@ class AuthService {
           teamId: 'team_security',
         ),
         actionType: 'SECURITY_ALERT',
-        description: 'BRUTE_FORCE_BLOCKED: Account $cleanEmail locked for 2 mins after 5 failed password attempts.',
+        description:
+            'BRUTE_FORCE_BLOCKED: Account $cleanEmail locked for 2 mins after 5 failed password attempts.',
         targetEntityId: cleanEmail,
       );
     }
@@ -418,7 +416,9 @@ class AuthService {
     _passwords[cleanEmail] = newPassword.trim();
 
     // Persist the new password in Firestore via initialPassword field
-    final updatedUser = targetUser.copyWith(initialPassword: newPassword.trim());
+    final updatedUser = targetUser.copyWith(
+      initialPassword: newPassword.trim(),
+    );
     await FirestoreService().updateEmployee(updatedUser, actor);
 
     AuditService().log(
@@ -587,7 +587,8 @@ class AuthService {
       AuditService().log(
         actor: actor,
         actionType: 'RESET_DEVICE_BINDING',
-        description: 'Reset registered phone device lock for ${user.name} (${user.employeeId}).',
+        description:
+            'Reset registered phone device lock for ${user.name} (${user.employeeId}).',
         targetEntityId: user.userId,
       );
     }

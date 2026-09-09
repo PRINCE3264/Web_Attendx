@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_theme.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/attendance_provider.dart';
@@ -33,7 +34,6 @@ import 'notifications_screen.dart';
 import 'system_settings_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
 import 'community_eb_screen.dart';
-import '../auth/login_screen.dart';
 
 class AppSidebarDrawer extends StatefulWidget {
   final int currentIndex;
@@ -887,13 +887,8 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () async {
-              final nav = Navigator.of(context);
-              await auth.logout();
-              nav.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+            onTap: () {
+              LogoutConfirmationDialog.show(context);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

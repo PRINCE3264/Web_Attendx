@@ -515,6 +515,76 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
     );
   }
 
+  Widget _buildMobileHorizontalGroupTabs(
+    BuildContext context,
+    List<CommunityGroupModel> visibleGroups,
+    CommunityGroupModel activeGroup,
+    bool isDark,
+  ) {
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+        ),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        itemCount: visibleGroups.length,
+        separatorBuilder: (ctx, i) => const SizedBox(width: 6),
+        itemBuilder: (ctx, idx) {
+          final group = visibleGroups[idx];
+          final isSelected = group.groupId == activeGroup.groupId;
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedGroupId = group.groupId;
+                _lastReadTimestamps[group.groupId] = DateTime.now();
+              });
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.primary
+                    : (isDark ? const Color(0xFF0F172A) : Colors.white),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? AppTheme.primary
+                      : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildGroupAvatarSmall(group, isSelected),
+                  const SizedBox(width: 6),
+                  Text(
+                    group.name,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildChatArea(
     BuildContext context,
     CommunityGroupModel activeGroup,
@@ -522,6 +592,8 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
     UserModel currentUser,
     bool isDark,
   ) {
+    final isWide = MediaQuery.of(context).size.width > 700;
+
     return Column(
       children: [
         // Active Selected Group Header Bar with Actions
@@ -533,9 +605,19 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
           isDark,
         ),
 
-        // Live Chat Messages Body
+        // Mobile Horizontal Quick Group Switcher Tabs
+        if (!isWide && visibleGroups.length > 1)
+          _buildMobileHorizontalGroupTabs(
+            context,
+            visibleGroups,
+            activeGroup,
+            isDark,
+          ),
+
+        // Live Chat Messages Body (Keyed by activeGroup.groupId to force clean stream rebuild)
         Expanded(
           child: StreamBuilder<List<CommunityMessageModel>>(
+            key: ValueKey(activeGroup.groupId),
             stream: FirestoreService().communityMessagesStream(
               activeGroup.groupId,
             ),
@@ -702,53 +784,85 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
       ),
       child: Row(
         children: [
-          _buildGroupAvatar(activeGroup),
-          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  activeGroup.name,
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF22C55E),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        activeGroup.description.isNotEmpty
-                            ? activeGroup.description
-                            : '${activeGroup.memberUserIds.length} members',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: isDark
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
+            child: InkWell(
+              onTap: !isWide
+                  ? () => _showMobileVerticalCommunitiesBottomSheet(
+                        context,
+                        visibleGroups,
+                        activeGroup,
+                        currentUser,
+                        isDark,
+                      )
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  _buildGroupAvatar(activeGroup),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                activeGroup.name,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                            if (!isWide) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: isDark ? Colors.white70 : AppTheme.primary,
+                                size: 20,
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF22C55E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                activeGroup.description.isNotEmpty
+                                    ? activeGroup.description
+                                    : '${activeGroup.memberUserIds.length} members',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 4),

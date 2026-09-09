@@ -120,87 +120,94 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       return;
     }
 
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     setState(() => _isSubmitting = true);
 
-    final user = context.read<AuthProvider>().currentUser;
-    final hrProv = context.read<HrProvider>();
-    if (user == null) {
-      setState(() => _isSubmitting = false);
-      return;
-    }
-
-    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final projectId = 'proj_${_selectedProject!.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
-    final reportId = 'rep_${const Uuid().v4()}';
-
-    final storageService = StorageService();
-    final uploadedScreenshotUrls = <String>[];
-    final uploadedVideoUrls = <String>[];
-
-    for (int i = 0; i < _screenshotPaths.length; i++) {
-      final path = _screenshotPaths[i];
-      if (!path.startsWith('http') && !path.startsWith('data:')) {
-        try {
-          final url = await storageService.uploadProjectReportMedia(
-            reportId: reportId,
-            userId: user.userId,
-            fileName: 'screenshot_$i.jpg',
-            file: XFile(path),
-          );
-          uploadedScreenshotUrls.add(url);
-        } catch (e) {
-          debugPrint('Screenshot upload notice: $e');
-          uploadedScreenshotUrls.add(path);
-        }
-      } else {
-        uploadedScreenshotUrls.add(path);
-      }
-    }
-
-    for (int i = 0; i < _videoPaths.length; i++) {
-      final path = _videoPaths[i];
-      if (!path.startsWith('http') && !path.startsWith('data:')) {
-        try {
-          final url = await storageService.uploadProjectReportMedia(
-            reportId: reportId,
-            userId: user.userId,
-            fileName: 'video_$i.mp4',
-            file: XFile(path),
-          );
-          uploadedVideoUrls.add(url);
-        } catch (e) {
-          debugPrint('Video upload notice: $e');
-          uploadedVideoUrls.add(path);
-        }
-      } else {
-        uploadedVideoUrls.add(path);
-      }
-    }
-
-    final report = ProjectReportModel(
-      reportId: reportId,
-      employeeId: user.userId,
-      employeeName: user.name,
-      employeeAvatar: user.avatarUrl,
-      projectId: projectId,
-      projectName: _selectedProject!,
-      date: todayStr,
-      submittedAt: DateTime.now(),
-      workSummary: _workSummaryController.text.trim(),
-      hoursSpent: _hoursSpent,
-      blockers: _blockersController.text.trim().isEmpty ? null : _blockersController.text.trim(),
-      screenshotUrls: uploadedScreenshotUrls,
-      videoUrls: uploadedVideoUrls,
-      status: 'submitted',
-    );
-
     try {
+      final user = context.read<AuthProvider>().currentUser;
+      final hrProv = context.read<HrProvider>();
+      if (user == null) {
+        return;
+      }
+
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final projectId = 'proj_${_selectedProject!.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
+      final reportId = 'rep_${const Uuid().v4()}';
+
+      final storageService = StorageService();
+
+      // Parallelize screenshot uploads with 12s timeout per image
+      final uploadedScreenshotUrls = await Future.wait(
+        _screenshotPaths.asMap().entries.map((entry) async {
+          final i = entry.key;
+          final path = entry.value;
+          if (!path.startsWith('http') && !path.startsWith('data:')) {
+            try {
+              return await storageService
+                  .uploadProjectReportMedia(
+                    reportId: reportId,
+                    userId: user.userId,
+                    fileName: 'screenshot_${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+                    file: XFile(path),
+                  )
+                  .timeout(const Duration(seconds: 12), onTimeout: () => path);
+            } catch (e) {
+              debugPrint('Screenshot upload notice: $e');
+              return path;
+            }
+          }
+          return path;
+        }),
+      );
+
+      // Parallelize video uploads with 15s timeout per video
+      final uploadedVideoUrls = await Future.wait(
+        _videoPaths.asMap().entries.map((entry) async {
+          final i = entry.key;
+          final path = entry.value;
+          if (!path.startsWith('http') && !path.startsWith('data:')) {
+            try {
+              return await storageService
+                  .uploadProjectReportMedia(
+                    reportId: reportId,
+                    userId: user.userId,
+                    fileName: 'video_${i}_${DateTime.now().millisecondsSinceEpoch}.mp4',
+                    file: XFile(path),
+                  )
+                  .timeout(const Duration(seconds: 15), onTimeout: () => path);
+            } catch (e) {
+              debugPrint('Video upload notice: $e');
+              return path;
+            }
+          }
+          return path;
+        }),
+      );
+
+      final report = ProjectReportModel(
+        reportId: reportId,
+        employeeId: user.userId,
+        employeeName: user.name,
+        employeeAvatar: user.avatarUrl,
+        projectId: projectId,
+        projectName: _selectedProject!,
+        date: todayStr,
+        submittedAt: DateTime.now(),
+        workSummary: _workSummaryController.text.trim(),
+        hoursSpent: _hoursSpent,
+        blockers: _blockersController.text.trim().isEmpty ? null : _blockersController.text.trim(),
+        screenshotUrls: uploadedScreenshotUrls,
+        videoUrls: uploadedVideoUrls,
+        status: 'submitted',
+      );
+
       await hrProv.submitDailyReport(report);
 
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        navigator.pop();
+        messenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -218,14 +225,17 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Failed to submit report: $e'),
             backgroundColor: AppTheme.danger,
             duration: const Duration(seconds: 4),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
     }
   }

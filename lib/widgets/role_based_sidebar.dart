@@ -7,9 +7,9 @@ import '../core/navigation/role_menu_builder.dart';
 import '../core/permissions/role_model.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/auth_provider.dart';
-import '../screens/auth/login_screen.dart';
 import '../screens/shared/ai_voice_assistant_sheet.dart';
 import '../screens/shared/custom_widgets.dart';
+import 'logout_confirmation_dialog.dart';
 
 class RoleBasedSidebar extends StatelessWidget {
   final NavDestinationKey activeDestination;
@@ -310,35 +310,7 @@ class RoleBasedSidebar extends StatelessWidget {
     );
   }
 
-  void _handleLogout(BuildContext context, AuthProvider auth) async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text('Confirm Logout', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to log out of your AttendX session?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout == true && context.mounted) {
-      await auth.logout();
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    }
+  void _handleLogout(BuildContext context, AuthProvider auth) {
+    LogoutConfirmationDialog.show(context);
   }
 }
