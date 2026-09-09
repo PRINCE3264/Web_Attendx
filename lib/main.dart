@@ -13,6 +13,7 @@ import 'providers/leave_provider.dart';
 import 'providers/admin_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/theme_provider.dart';
+import 'screens/shared/auth_gate.dart';
 import 'screens/shared/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firestore_service.dart';
@@ -219,7 +220,7 @@ class _SmartAttendanceAppState extends State<SmartAttendanceApp> with WidgetsBin
             theme: AppTheme.lightTheme(),
             darkTheme: AppTheme.darkTheme(),
             themeMode: themeProvider.themeMode,
-            home: const SplashScreen(),
+            home: const AuthGate(),
           );
         },
       ),

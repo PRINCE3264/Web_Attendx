@@ -5,9 +5,11 @@ import 'package:AttendX/models/attendance_model.dart';
 import 'package:AttendX/services/geofence_service.dart';
 import 'package:AttendX/services/auth_service.dart';
 import 'package:AttendX/services/ai_assistant_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
 
   group('Smart Attendance & Enterprise Modules Tests', () {
     test('GeofenceService verifies proximity within 300m allowable radius for United Green Hospital', () {
@@ -84,6 +86,14 @@ void main() {
 
     test('AuthService Password Reset flow updates credentials', () async {
       final auth = AuthService();
+      await auth.adminCreateEmployeeAccount(
+        name: 'Rahul Sharma',
+        email: 'rahul.sharma@company.com',
+        password: 'password123',
+        role: UserRole.employee,
+        employeeId: 'EMP-1001',
+        department: 'Engineering',
+      );
       final resetCodeSent = await auth.sendPasswordResetEmail('rahul.sharma@company.com');
       expect(resetCodeSent, true);
 
@@ -253,7 +263,7 @@ void main() {
       expect(lateRecord.status, AttendanceStatus.pending);
       expect(lateRecord.isLate, true);
       expect(lateRecord.lateMinutes, 45);
-      expect(lateRecord.lateDisplayLabel, 'LATE - PENDING APPROVAL (45 mins late)');
+      expect(lateRecord.lateDisplayLabel, 'LATE - PENDING APPROVAL (45 min late)');
 
       // Verify toMap and fromMap serialization integrity
       final map = lateRecord.toMap();

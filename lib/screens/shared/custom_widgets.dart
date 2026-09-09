@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -426,20 +428,99 @@ class PhotoDisplayWidget extends StatelessWidget {
       }
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: Image.network(
-        photoUrl!,
-        width: size,
-        height: size,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => Container(
+    if (photoUrl!.startsWith('http://') || photoUrl!.startsWith('https://')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image.network(
+          photoUrl!,
           width: size,
           height: size,
-          color: Colors.grey.shade300,
-          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: size,
+            height: size,
+            color: Colors.grey.shade200,
+            child: Icon(Icons.person, size: size * 0.5, color: Colors.grey.shade500),
+          ),
         ),
+      );
+    }
+
+    if (!kIsWeb) {
+      try {
+        final file = File(photoUrl!);
+        if (file.existsSync()) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Image.file(
+              file,
+              width: size,
+              height: size,
+              fit: fit,
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
+      child: Icon(Icons.person, size: size * 0.5, color: Colors.grey.shade500),
     );
   }
 }
+
+/// Responsive Modal helper that renders a centered Dialog on Web/Desktop (>= 600px)
+/// and a Bottom Sheet on Mobile (< 600px), preventing layout overflows outside the app frame.
+Future<T?> showAppResponsiveModal<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  double maxWidth = 640,
+  double maxHeightRatio = 0.88,
+}) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isDesktop = screenWidth >= 600;
+
+  if (isDesktop) {
+    return showDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final screenHeight = MediaQuery.of(dialogContext).size.height;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxWidth,
+              maxHeight: screenHeight * maxHeightRatio,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: builder(dialogContext),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    constraints: BoxConstraints(
+      maxWidth: maxWidth,
+      maxHeight: MediaQuery.of(context).size.height * maxHeightRatio,
+    ),
+    builder: builder,
+  );
+}
+

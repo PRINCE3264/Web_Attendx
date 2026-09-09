@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -607,11 +608,29 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
       );
     }
 
+    if (path.startsWith('data:image')) {
+      try {
+        final base64Part = path.split(',').last;
+        final bytes = base64Decode(base64Part);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade300,
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        );
+      } catch (_) {}
+    }
+
     final lower = path.toLowerCase();
     final isNetwork = lower.startsWith('http://') ||
         lower.startsWith('https://') ||
-        lower.startsWith('blob:') ||
-        lower.startsWith('data:');
+        lower.startsWith('blob:');
 
     if (isNetwork) {
       return Image.network(

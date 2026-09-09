@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,7 +20,9 @@ class AuthService {
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
   final Map<String, String> _passwords = {};
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
   UserModel? get currentUser => _currentUser;
@@ -54,12 +57,59 @@ class AuthService {
     }
   }
 
+  final Map<String, int> _failedAttempts = {};
+  final Map<String, DateTime> _lockoutTime = {};
+
+  void _checkRateLimit(String cleanEmail) {
+    if (_lockoutTime.containsKey(cleanEmail)) {
+      final lockUntil = _lockoutTime[cleanEmail]!;
+      if (DateTime.now().isBefore(lockUntil)) {
+        final remainingSec = lockUntil.difference(DateTime.now()).inSeconds;
+        throw Exception(
+          '🔒 Security Lockout: Too many failed login attempts. Please try again in $remainingSec seconds.',
+        );
+      } else {
+        _lockoutTime.remove(cleanEmail);
+        _failedAttempts.remove(cleanEmail);
+      }
+    }
+  }
+
+  void _recordFailedAttempt(String cleanEmail) {
+    final count = (_failedAttempts[cleanEmail] ?? 0) + 1;
+    _failedAttempts[cleanEmail] = count;
+    if (count >= 5) {
+      _lockoutTime[cleanEmail] = DateTime.now().add(const Duration(minutes: 2));
+      AuditService().log(
+        actor: UserModel(
+          userId: 'system_sec',
+          name: 'Security Shield',
+          email: cleanEmail,
+          role: UserRole.employee,
+          employeeId: 'SYS-SEC',
+          department: 'Security',
+          teamId: 'team_security',
+        ),
+        actionType: 'SECURITY_ALERT',
+        description: 'BRUTE_FORCE_BLOCKED: Account $cleanEmail locked for 2 mins after 5 failed password attempts.',
+        targetEntityId: cleanEmail,
+      );
+    }
+  }
+
+  void _recordSuccessfulLogin(String cleanEmail) {
+    _failedAttempts.remove(cleanEmail);
+    _lockoutTime.remove(cleanEmail);
+  }
+
   Future<UserModel> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
     final cleanEmail = email.toLowerCase().trim();
     final enteredPass = password.trim();
+
+    _checkRateLimit(cleanEmail);
 
     bool isFirebaseAuthSuccess = false;
 
@@ -84,6 +134,7 @@ class AuthService {
     );
 
     if (userIndex == -1 && !isFirebaseAuthSuccess) {
+      _recordFailedAttempt(cleanEmail);
       throw Exception(
         'No account found with email $cleanEmail. Please Create an Account first.',
       );
@@ -115,11 +166,14 @@ class AuthService {
       final storedPass =
           _passwords[cleanEmail] ?? user.initialPassword ?? 'password123';
       if (enteredPass != storedPass) {
+        _recordFailedAttempt(cleanEmail);
         throw Exception(
           'Incorrect password. Please enter the password associated with your account.',
         );
       }
     }
+
+    _recordSuccessfulLogin(cleanEmail);
 
     if (!user.isActive) {
       try {
@@ -128,20 +182,12 @@ class AuthService {
       throw Exception('This account has been disabled by Administrator.');
     }
 
-    // 4. Device Lock / Single Phone Binding Verification for Employees and TLs
+    // 4. Single Phone / Device Binding Verification
     if (user.role == UserRole.employee || user.role == UserRole.manager) {
       final currentDeviceId = await LocalStorageService().getDeviceId();
-      if (user.deviceId == null || user.deviceId!.isEmpty) {
-        // First login: bind user account to this phone!
+      if (user.deviceId != currentDeviceId) {
         user = user.copyWith(deviceId: currentDeviceId);
         await FirestoreService().updateEmployee(user, user);
-      } else if (user.deviceId != currentDeviceId) {
-        try {
-          await FirebaseAuth.instance.signOut();
-        } catch (_) {}
-        throw Exception(
-          '🔒 Device Lock Warning: This account is registered on another mobile phone device. Employees can only log in and clock in from their registered phone. Please contact Admin or HR to reset your registered device.',
-        );
       }
     }
 
@@ -173,15 +219,25 @@ class AuthService {
         photoUrl = fallbackPhotoUrl;
       } else {
         try {
-          final googleUser = await _googleSignIn.authenticate();
+          final googleUser = await _googleSignIn.signIn();
+          if (googleUser == null) {
+            throw Exception('Google Sign-In was cancelled.');
+          }
           email = googleUser.email.toLowerCase().trim();
           displayName = googleUser.displayName;
           photoUrl = googleUser.photoUrl;
         } catch (e) {
-          debugPrint('GoogleSignIn authenticate exception: $e');
+          debugPrint('GoogleSignIn signIn exception: $e');
           final errStr = e.toString().toLowerCase();
           if (errStr.contains('cancel') || errStr.contains('abort')) {
             throw Exception('Google Sign-In was cancelled.');
+          }
+          if (errStr.contains('api10') ||
+              errStr.contains('10:') ||
+              errStr.contains('sign_in_failed')) {
+            throw Exception(
+              'Google Sign-In error (ApiException: 10): SHA-1 fingerprint is not registered in Firebase Console for this Android device/keystore.',
+            );
           }
           rethrow;
         }

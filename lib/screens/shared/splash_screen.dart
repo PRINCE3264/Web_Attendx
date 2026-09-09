@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
-import '../auth/login_screen.dart';
+import 'auth_gate.dart';
 import 'main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -25,12 +25,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 400),
     );
 
     _scaleAnimation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutBack,
+      curve: Curves.easeOut,
     );
 
     _fadeAnimation = CurvedAnimation(
@@ -42,21 +42,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _navigateNext();
   }
 
-  Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/logo.png'), context);
+  }
 
+  Future<void> _navigateNext() async {
     final auth = context.read<AuthProvider>();
     int waited = 0;
-    while (!auth.isInitialized && waited < 2000) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      waited += 100;
+    while (!auth.isInitialized && waited < 1000) {
+      await Future.delayed(const Duration(milliseconds: 40));
+      waited += 40;
     }
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
 
-    final nextScreen = auth.isAuthenticated
-        ? const MainNavigationScreen()
-        : const LoginScreen();
+    const nextScreen = AuthGate();
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -64,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         transitionsBuilder: (context, animation, secAnim, child) {
           return FadeTransition(opacity: animation, child: child);
         },
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 250),
       ),
     );
   }

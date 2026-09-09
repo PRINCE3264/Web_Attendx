@@ -8,11 +8,21 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/leave_provider.dart';
+import '../../providers/admin_provider.dart';
+import '../../services/firestore_service.dart';
 import '../../services/report_service.dart';
+import 'custom_widgets.dart';
 import 'edit_profile_sheet.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _pushNotificationsEnabled = true;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +31,9 @@ class ProfileScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final leaveProv = context.watch<LeaveProvider>();
     final attendanceProv = context.watch<AttendanceProvider>();
+    final adminProv = context.watch<AdminProvider>();
+    final policy = adminProv.policy;
+    final firestore = FirestoreService();
 
     if (user == null) {
       return const Center(child: Text('No active user'));
@@ -32,6 +45,26 @@ class ProfileScreen extends StatelessWidget {
       employee: user,
       attendanceList: history,
     );
+
+    // Dynamic Manager Resolution
+    String managerDisplay = user.managerName ?? '';
+    if (managerDisplay.isEmpty && user.managerId != null && user.managerId!.isNotEmpty) {
+      final mgrUser = firestore.getUserById(user.managerId!);
+      managerDisplay = mgrUser?.name ?? user.managerId!;
+    }
+    if (managerDisplay.isEmpty) {
+      managerDisplay = user.role == UserRole.admin ? 'Executive Leadership' : 'Direct Executive';
+    }
+
+    // Dynamic Shift Name
+    final shiftDisplay = user.shiftName.isNotEmpty
+        ? user.shiftName
+        : 'Standard Shift (${policy.officeStartTime} - 06:30 PM)';
+
+    // Dynamic Org Name
+    final orgDisplay = policy.officeName.isNotEmpty
+        ? policy.officeName.split(',').first.trim()
+        : 'Envision Beyond India Pvt Ltd';
 
     Color roleColor;
     switch (user.role) {
@@ -80,12 +113,9 @@ class ProfileScreen extends StatelessWidget {
                     right: 0,
                     child: IconButton(
                       onPressed: () {
-                        showModalBottomSheet(
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                          ),
+                          maxWidth: 600,
                           builder: (_) => const EditProfileSheet(),
                         );
                       },
@@ -104,12 +134,9 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          showModalBottomSheet(
+                          showAppResponsiveModal(
                             context: context,
-                            isScrollControlled: true,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                            ),
+                            maxWidth: 600,
                             builder: (_) => const EditProfileSheet(),
                           );
                         },
@@ -223,7 +250,7 @@ class ProfileScreen extends StatelessWidget {
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                user.shiftName,
+                                shiftDisplay,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
@@ -291,21 +318,21 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 _buildInfoRow(
                   label: 'Organization',
-                  value: 'Envision Beyond India Pvt Ltd',
+                  value: orgDisplay,
                   icon: Icons.domain,
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Employee ID',
-                  value: user.employeeId,
+                  value: user.employeeId.isNotEmpty ? user.employeeId : user.userId,
                   icon: Icons.fingerprint,
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Department',
-                  value: user.department,
+                  value: user.department.isNotEmpty ? user.department : 'General',
                   icon: Icons.business_outlined,
                   isDark: isDark,
                 ),
@@ -319,21 +346,23 @@ class ProfileScreen extends StatelessWidget {
                 _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Work Shift',
-                  value: user.shiftName,
+                  value: shiftDisplay,
                   icon: Icons.schedule_rounded,
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Reporting Manager',
-                  value: user.managerName ?? 'Direct Executive',
+                  value: managerDisplay,
                   icon: Icons.person_outline,
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildInfoRow(
                   label: 'Joined Date',
-                  value: user.createdAt != null ? DateFormat('dd MMM yyyy').format(user.createdAt!) : '15 Jan 2024',
+                  value: user.createdAt != null
+                      ? DateFormat('dd MMM yyyy').format(user.createdAt!)
+                      : 'Active Member',
                   icon: Icons.calendar_today_outlined,
                   isDark: isDark,
                 ),
@@ -364,8 +393,12 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   subtitle: const Text('FCM alerts for shift & approvals', style: TextStyle(fontSize: 12)),
                   trailing: Switch(
-                    value: true,
-                    onChanged: (val) {},
+                    value: _pushNotificationsEnabled,
+                    onChanged: (val) {
+                      setState(() {
+                        _pushNotificationsEnabled = val;
+                      });
+                    },
                     activeThumbColor: AppTheme.primary,
                   ),
                 ),
@@ -384,7 +417,7 @@ class ProfileScreen extends StatelessWidget {
                     'GPS Geofence Validation',
                     style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
-                  subtitle: const Text('Verified within 3 km (3000m) radius', style: TextStyle(fontSize: 12)),
+                  subtitle: Text('Verified within ${policy.geofenceRadiusMeters.round()}m radius', style: const TextStyle(fontSize: 12)),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(

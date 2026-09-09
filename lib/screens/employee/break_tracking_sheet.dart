@@ -61,16 +61,26 @@ class _BreakTrackingSheetState extends State<BreakTrackingSheet> {
     final att = widget.attendance;
     final activeBreak = att.activeBreak;
 
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
+      constraints: BoxConstraints(
+        maxWidth: 580,
+        maxHeight: isDesktop ? screenHeight * 0.85 : screenHeight * 0.90,
+      ),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: isDesktop
+            ? BorderRadius.circular(24)
+            : const BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -325,6 +335,7 @@ class _BreakTrackingSheetState extends State<BreakTrackingSheet> {
           ],
         ],
       ),
-    );
+    ),
+  );
   }
 }

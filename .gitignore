@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Firebase & local build files
+.firebase/
+android/build/
+build_error.txt
+

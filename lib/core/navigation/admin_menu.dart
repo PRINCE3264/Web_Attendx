@@ -17,6 +17,12 @@ class AdminMenu {
       route: '/admin/dashboard',
     ),
     const NavMenuItem(
+      title: 'Community EB',
+      icon: Icons.groups_rounded,
+      destination: NavDestinationKey.communityEB,
+      route: '/community-eb',
+    ),
+    const NavMenuItem(
       title: 'Users',
       icon: Icons.manage_accounts_outlined,
       destination: NavDestinationKey.users,

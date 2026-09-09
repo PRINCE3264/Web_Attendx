@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../config/app_theme.dart';
 import '../../models/policy_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/hr_provider.dart';
 import '../../services/firestore_service.dart';
 
 class SystemSettingsScreen extends StatefulWidget {
@@ -28,12 +29,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   late TextEditingController _latController;
   late TextEditingController _lngController;
   late TextEditingController _radiusController;
-  late TransformationController _mapTransformationController;
+  late MapController _mapController;
+  double _currentZoom = 16.0;
 
   bool _isSaving = false;
 
   void _onSettingChanged() {
     if (mounted) {
+      final lat = double.tryParse(_latController.text.trim()) ?? 21.1986872;
+      final lng = double.tryParse(_lngController.text.trim()) ?? 72.7965515;
+      try {
+        _mapController.move(LatLng(lat, lng), _currentZoom);
+      } catch (_) {}
       setState(() {});
     }
   }
@@ -41,7 +48,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _mapTransformationController = TransformationController();
+    _mapController = MapController();
     final policy = FirestoreService().currentPolicy;
     _officeNameController = TextEditingController(text: policy.officeName);
     _startTimeController = TextEditingController(text: policy.officeStartTime);
@@ -73,7 +80,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     _lngController.removeListener(_onSettingChanged);
     _radiusController.removeListener(_onSettingChanged);
 
-    _mapTransformationController.dispose();
+    _mapController.dispose();
     _officeNameController.dispose();
     _startTimeController.dispose();
     _graceController.dispose();
@@ -86,31 +93,36 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   }
 
   void _zoomInMap() {
-    final Matrix4 current = _mapTransformationController.value;
-    final double currentScale = current.getMaxScaleOnAxis();
-    if (currentScale < 4.0) {
-      final Matrix4 updated = current.clone()..scale(1.25, 1.25, 1.0);
+    try {
+      final center = _mapController.camera.center;
+      final zoom = (_mapController.camera.zoom + 1.0).clamp(3.0, 19.0);
+      _mapController.move(center, zoom);
       setState(() {
-        _mapTransformationController.value = updated;
+        _currentZoom = zoom;
       });
-    }
+    } catch (_) {}
   }
 
   void _zoomOutMap() {
-    final Matrix4 current = _mapTransformationController.value;
-    final double currentScale = current.getMaxScaleOnAxis();
-    if (currentScale > 0.5) {
-      final Matrix4 updated = current.clone()..scale(0.8, 0.8, 1.0);
+    try {
+      final center = _mapController.camera.center;
+      final zoom = (_mapController.camera.zoom - 1.0).clamp(3.0, 19.0);
+      _mapController.move(center, zoom);
       setState(() {
-        _mapTransformationController.value = updated;
+        _currentZoom = zoom;
       });
-    }
+    } catch (_) {}
   }
 
   void _resetMapZoom() {
-    setState(() {
-      _mapTransformationController.value = Matrix4.identity();
-    });
+    try {
+      final lat = double.tryParse(_latController.text.trim()) ?? 21.1986872;
+      final lng = double.tryParse(_lngController.text.trim()) ?? 72.7965515;
+      _mapController.move(LatLng(lat, lng), 16.0);
+      setState(() {
+        _currentZoom = 16.0;
+      });
+    } catch (_) {}
   }
 
   Future<void> _saveSystemSettings() async {
@@ -339,139 +351,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               // Visual Live Map Preview Widget
               _buildMapPreviewWidget(isDark),
 
-              const SizedBox(height: 24),
-
-              // Section 2: Shift Timing & Grace Rules
-              _buildSectionHeader(
-                'Shift Timing & Attendance Rules',
-                Icons.schedule_rounded,
-                isDark,
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startTimeController,
-                      enabled: isAdmin,
-                      decoration: InputDecoration(
-                        labelText: 'Office Start Time',
-                        prefixIcon: const Icon(Icons.access_time),
-                        filled: !isAdmin,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _graceController,
-                      enabled: isAdmin,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Grace Period (Mins)',
-                        prefixIcon: const Icon(Icons.timer),
-                        filled: !isAdmin,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _minHoursController,
-                      enabled: isAdmin,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Min Working Shift (Hrs)',
-                        prefixIcon: const Icon(Icons.hourglass_bottom),
-                        filled: !isAdmin,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _maxBreakController,
-                      enabled: isAdmin,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Max Break (Mins)',
-                        prefixIcon: const Icon(Icons.coffee),
-                        filled: !isAdmin,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Section 3: App & Firebase Sync Status
-              _buildSectionHeader(
-                'System Info & Cloud Services',
-                Icons.cloud_done_rounded,
-                isDark,
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.cardDark : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      'App Version',
-                      'AttendX v1.0.0+1 (Production Build)',
-                      Icons.info_outline,
-                    ),
-                    const Divider(height: 20),
-                    _buildInfoRow(
-                      'Database Engine',
-                      'Google Cloud Firestore (Real-Time)',
-                      Icons.storage_rounded,
-                    ),
-                    const Divider(height: 20),
-                    _buildInfoRow(
-                      'Storage Service',
-                      'Firebase Cloud Storage (Media Proof)',
-                      Icons.cloud_upload_outlined,
-                    ),
-                    const Divider(height: 20),
-                    _buildInfoRow(
-                      'Project Master List',
-                      '${context.watch<HrProvider>().projectsList.length} Active Projects Registered',
-                      Icons.folder_special_outlined,
-                    ),
-                    const Divider(height: 20),
-                    _buildInfoRow(
-                      'Company Office HQ',
-                      'United Green Hospital (Surat, GJ)',
-                      Icons.business_rounded,
-                    ),
-                    const Divider(height: 20),
-                    _buildInfoRow(
-                      'GPS Geofence Center',
-                      '21.1986872° N, 72.7965515° E',
-                      Icons.my_location_rounded,
-                    ),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 12),
 
               // Interactive Google Maps HQ Location Card
@@ -527,7 +406,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'United Green Hospital, Surat • Tap to view live map',
+                              'Tap to view navigation & directions',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: Colors.white.withValues(alpha: 0.85),
@@ -544,6 +423,83 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Section 2: Shift Timing & Grace Rules
+              _buildSectionHeader(
+                'Shift Timing & Attendance Rules',
+                Icons.schedule_rounded,
+                isDark,
+              ),
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _startTimeController,
+                      enabled: isAdmin,
+                      decoration: InputDecoration(
+                        labelText: 'Start Time',
+                        hintText: '09:00 AM',
+                        prefixIcon: const Icon(Icons.access_time),
+                        filled: !isAdmin,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _graceController,
+                      enabled: isAdmin,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Grace (Mins)',
+                        hintText: '15',
+                        prefixIcon: const Icon(Icons.timer),
+                        filled: !isAdmin,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minHoursController,
+                      enabled: isAdmin,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Min Hours',
+                        hintText: '8.0',
+                        prefixIcon: const Icon(Icons.hourglass_bottom),
+                        filled: !isAdmin,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxBreakController,
+                      enabled: isAdmin,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Max Break (Mins)',
+                        hintText: '60',
+                        prefixIcon: const Icon(Icons.coffee),
+                        filled: !isAdmin,
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 28),
@@ -637,37 +593,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     );
   }
 
-  Widget _buildInfoRow(String title, String subtitle, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppTheme.secondary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Future<void> _openGoogleMapsLocation() async {
     final lat = double.tryParse(_latController.text.trim()) ?? 21.1986872;
@@ -687,26 +613,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   }
 
   Widget _buildMapPreviewWidget(bool isDark) {
-    final double currentScale = _mapTransformationController.value
-        .getMaxScaleOnAxis();
-    final int zoomPercentage = (currentScale * 100).round();
-
     final officeName = _officeNameController.text.trim().isEmpty
         ? 'United Green Hospital'
         : _officeNameController.text.trim();
-    final latStr = _latController.text.trim().isEmpty
-        ? '21.1986872'
-        : _latController.text.trim();
-    final lngStr = _lngController.text.trim().isEmpty
-        ? '72.7965515'
-        : _lngController.text.trim();
-    final radiusStr = _radiusController.text.trim().isEmpty
-        ? '300'
-        : _radiusController.text.trim();
-    final radiusValue = double.tryParse(radiusStr) ?? 300.0;
+    final lat = double.tryParse(_latController.text.trim()) ?? 21.1986872;
+    final lng = double.tryParse(_lngController.text.trim()) ?? 72.7965515;
+    final radiusValue = double.tryParse(_radiusController.text.trim()) ?? 300.0;
+    final targetLatLng = LatLng(lat, lng);
+    final auth = context.watch<AuthProvider>();
+    final isAdmin = auth.currentUser?.role == UserRole.admin;
 
     return Container(
-      height: 240,
+      height: 280,
       width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
@@ -727,90 +645,116 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         borderRadius: BorderRadius.circular(15),
         child: Stack(
           children: [
-            // Interactive Zoomable Map Canvas
+            // Dynamic Live OpenStreetMap Canvas
             Positioned.fill(
-              child: InteractiveViewer(
-                transformationController: _mapTransformationController,
-                minScale: 0.5,
-                maxScale: 4.0,
-                onInteractionUpdate: (_) => setState(() {}),
-                child: Stack(
-                  children: [
-                    // Vector Styled Road Map Background with Dynamic Geofence Circle
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: MapPainter(
-                          isDark: isDark,
-                          geofenceRadiusMeters: radiusValue,
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: targetLatLng,
+                  initialZoom: _currentZoom,
+                  minZoom: 3.0,
+                  maxZoom: 19.0,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
+                  ),
+                  onPositionChanged: (pos, hasGesture) {
+                    if ((pos.zoom - _currentZoom).abs() > 0.05) {
+                      setState(() {
+                        _currentZoom = pos.zoom;
+                      });
+                    }
+                  },
+                  onTap: isAdmin
+                      ? (tapPosition, point) {
+                          _latController.text = point.latitude.toStringAsFixed(7);
+                          _lngController.text = point.longitude.toStringAsFixed(7);
+                          _mapController.move(point, _currentZoom);
+                          setState(() {});
+                        }
+                      : null,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.attendx.smartattendance',
+                    maxZoom: 19,
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: targetLatLng,
+                        width: 260,
+                        height: 120,
+                        alignment: Alignment.topCenter,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              constraints: const BoxConstraints(maxWidth: 240),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF2563EB),
+                                  width: 1.2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    officeName,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFDC2626),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'GPS: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)} • ${radiusValue.toStringAsFixed(0)}m Geofence',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppTheme.textMutedDark
+                                          : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Icon(
+                              Icons.location_on_rounded,
+                              color: Color(0xFFEA4335),
+                              size: 38,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-
-                    // Pin Marker & Dynamic Name Badge over Office Location
-                    Align(
-                      alignment: const Alignment(0.0, -0.2),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            constraints: const BoxConstraints(maxWidth: 240),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF0F172A)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  officeName,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFFDC2626),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'GPS: $latStr, $lngStr • ${radiusValue.toStringAsFixed(0)}m Geofence',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppTheme.textMutedDark : const Color(0xFF475569),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Icon(
-                            Icons.location_on_rounded,
-                            color: Color(0xFFEA4335), // Google Red Pin
-                            size: 38,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
-            // Top Left Zoom Level Badge Indicator
+            // Top Left Live Map Badge Indicator
             Positioned(
               top: 12,
               left: 12,
@@ -830,13 +774,13 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.zoom_in_rounded,
+                      Icons.map_rounded,
                       size: 14,
                       color: Color(0xFF2563EB),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
-                      'Zoom: $zoomPercentage%',
+                      'Live OpenStreetMap • Zoom: ${_currentZoom.toStringAsFixed(1)}x',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -930,7 +874,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           ),
                         ),
                         child: const Icon(
-                          Icons.refresh_rounded,
+                          Icons.my_location_rounded,
                           size: 16,
                           color: Colors.amber,
                         ),
@@ -966,7 +910,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$officeName • $latStr, $lngStr (${radiusValue.toStringAsFixed(0)}m radius)',
+                        '$officeName • ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)} (${radiusValue.toStringAsFixed(0)}m radius)',
                         style: GoogleFonts.inter(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
@@ -1016,125 +960,4 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       ),
     );
   }
-}
-
-class MapPainter extends CustomPainter {
-  final bool isDark;
-  final double geofenceRadiusMeters;
-
-  MapPainter({required this.isDark, this.geofenceRadiusMeters = 300.0});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()
-      ..color = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
-
-    // Draw Blocks/Buildings
-    final blockPaint = Paint()
-      ..color = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(15, 15, 90, 50),
-        const Radius.circular(6),
-      ),
-      blockPaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(120, 15, 140, 35),
-        const Radius.circular(6),
-      ),
-      blockPaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(20, 130, 80, 45),
-        const Radius.circular(6),
-      ),
-      blockPaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(180, 115, 150, 55),
-        const Radius.circular(6),
-      ),
-      blockPaint,
-    );
-
-    // Draw Main Road (Anand Mahal Rd)
-    final roadPaint = Paint()
-      ..color = isDark ? const Color(0xFF475569) : Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 26
-      ..strokeCap = StrokeCap.round;
-
-    final roadPath = Path()
-      ..moveTo(0, size.height * 0.95)
-      ..lineTo(size.width * 0.45, size.height * 0.5)
-      ..lineTo(size.width, size.height * 0.15);
-
-    canvas.drawPath(roadPath, roadPaint);
-
-    // Draw Secondary Road (Giriraj Society Rd)
-    final secRoadPaint = Paint()
-      ..color = isDark ? const Color(0xFF334155) : const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    final secRoadPath = Path()
-      ..moveTo(size.width * 0.4, size.height * 0.55)
-      ..lineTo(size.width, size.height * 0.75);
-
-    canvas.drawPath(secRoadPath, secRoadPaint);
-
-    // Draw Dynamic Geofence Perimeter Radius Circle Overlay
-    final pinCenter = Offset(size.width * 0.5, size.height * 0.45);
-    final visualRadius = (geofenceRadiusMeters * 0.25).clamp(35.0, 110.0);
-
-    final circleFillPaint = Paint()
-      ..color = const Color(0xFF3B82F6).withValues(alpha: 0.15)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(pinCenter, visualRadius, circleFillPaint);
-
-    final circleStrokePaint = Paint()
-      ..color = const Color(0xFF2563EB).withValues(alpha: 0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    canvas.drawCircle(pinCenter, visualRadius, circleStrokePaint);
-
-    // Road Labels
-    const textStyle = TextStyle(
-      color: Color(0xFF64748B),
-      fontSize: 9.5,
-      fontWeight: FontWeight.bold,
-    );
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-
-    textPainter.text = const TextSpan(text: 'Anand Mahal Rd', style: textStyle);
-    textPainter.layout();
-    canvas.save();
-    canvas.translate(65, 140);
-    canvas.rotate(-0.65);
-    textPainter.paint(canvas, Offset.zero);
-    canvas.restore();
-
-    textPainter.text = const TextSpan(
-      text: 'Giriraj Society Rd',
-      style: textStyle,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, const Offset(170, 160));
-
-    textPainter.text = const TextSpan(text: 'Arjun Marg', style: textStyle);
-    textPainter.layout();
-    textPainter.paint(canvas, const Offset(15, 185));
-
-    textPainter.text = const TextSpan(text: 'Sports Complex', style: textStyle);
-    textPainter.layout();
-    textPainter.paint(canvas, const Offset(210, 135));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

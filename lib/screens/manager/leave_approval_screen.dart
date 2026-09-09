@@ -490,12 +490,14 @@ class _LeaveApprovalScreenState extends State<LeaveApprovalScreen> {
                   color: isApproved ? AppTheme.success : AppTheme.danger,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  '${isApproved ? "Approved" : "Rejected"} by ${l.reviewerName}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: isApproved ? AppTheme.success : AppTheme.danger,
+                Expanded(
+                  child: Text(
+                    '${isApproved ? "Approved" : "Rejected"} by ${l.reviewerName}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: isApproved ? AppTheme.success : AppTheme.danger,
+                    ),
                   ),
                 ),
               ],
@@ -641,9 +643,11 @@ class _LeaveApprovalScreenState extends State<LeaveApprovalScreen> {
                 'Available Quota: ',
                 style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
               ),
-              Text(
-                'CL: ${balance.casualRemaining}  |  SL: ${balance.sickRemaining}  |  EL: ${balance.earnedRemaining}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+              Expanded(
+                child: Text(
+                  'CL: ${balance.casualRemaining}  |  SL: ${balance.sickRemaining}  |  EL: ${balance.earnedRemaining}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                ),
               ),
             ],
           ),

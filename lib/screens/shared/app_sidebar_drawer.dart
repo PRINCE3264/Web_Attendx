@@ -11,6 +11,7 @@ import '../employee/leave_management_screen.dart';
 import '../employee/attendance_history_screen.dart';
 import '../employee/employee_dashboard.dart';
 import '../employee/submit_project_report_sheet.dart';
+import 'custom_widgets.dart';
 import 'project_reports_screen.dart';
 import '../manager/manager_dashboard.dart';
 import '../manager/leave_approval_screen.dart';
@@ -21,28 +22,32 @@ import '../hr/all_employees_screen.dart';
 import '../hr/all_attendance_screen.dart';
 import '../hr/add_employee_sheet.dart';
 import '../hr/create_announcement_sheet.dart';
-import '../admin/policy_settings_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/admin_panel_screen.dart';
 import '../admin/projects_management_screen.dart';
 import '../admin/departments_management_screen.dart';
 import '../admin/teams_management_screen.dart';
 import 'profile_screen.dart';
+import '../../models/community_model.dart';
+import '../../services/firestore_service.dart';
 import 'notifications_screen.dart';
 import 'system_settings_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
+import 'community_eb_screen.dart';
 import '../auth/login_screen.dart';
 
 class AppSidebarDrawer extends StatefulWidget {
   final int currentIndex;
   final Function(int) onSelectTab;
   final Function(Widget screen, String title)? onSelectScreen;
+  final bool isPermanent;
 
   const AppSidebarDrawer({
     super.key,
     required this.currentIndex,
     required this.onSelectTab,
     this.onSelectScreen,
+    this.isPermanent = false,
   });
 
   @override
@@ -51,7 +56,9 @@ class AppSidebarDrawer extends StatefulWidget {
 
 class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
   void _navigateToScreen(Widget screen, String title, {int? defaultTabIndex}) {
-    Navigator.pop(context);
+    if (!widget.isPermanent) {
+      Navigator.pop(context);
+    }
     if (defaultTabIndex != null) {
       widget.onSelectTab(defaultTabIndex);
     } else if (widget.onSelectScreen != null) {
@@ -79,13 +86,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
     final String displayName = user != null ? user.name.toUpperCase() : 'ATTENDX USER';
     final String department = user != null ? user.department : 'Enterprise';
 
-    return Drawer(
-      backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-      elevation: 16,
-      child: Column(
-        children: [
-          // 1. Curved Blue Ripple Header
-          _buildCustomHeader(context, user, initial, displayName, roleName, department),
+    final drawerContent = Column(
+      children: [
+        // 1. Curved Blue Ripple Header
+        _buildCustomHeader(context, user, initial, displayName, roleName, department),
 
           // 2. Navigation Menu Items List
           Expanded(
@@ -100,6 +104,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const SizedBox(), 'Clock & Today', defaultTabIndex: 0),
                   ),
+                  _buildCommunityNavItem(),
                   _buildNavItem(
                     icon: Icons.calendar_month_rounded,
                     title: 'My Attendance',
@@ -110,14 +115,11 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     icon: Icons.coffee_rounded,
                     title: 'Break Tracker',
                     onTap: () {
-                      Navigator.pop(context);
+                      if (!widget.isPermanent) Navigator.pop(context);
                       if (todayAttendance != null) {
-                        showModalBottomSheet(
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                          ),
+                          maxWidth: 580,
                           builder: (_) => BreakTrackingSheet(attendance: todayAttendance),
                         );
                       } else {
@@ -139,11 +141,11 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     icon: Icons.assignment_add,
                     title: 'Daily Project Update',
                     onTap: () {
-                      Navigator.pop(context);
-                      showModalBottomSheet(
+                      if (!widget.isPermanent) Navigator.pop(context);
+                      showAppResponsiveModal(
                         context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
+                        maxWidth: 680,
+                        maxHeightRatio: 0.85,
                         builder: (_) => const SubmitProjectReportSheet(),
                       );
                     },
@@ -173,6 +175,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const EmployeeDashboard(), 'My Clock-In & Self', defaultTabIndex: 0),
                   ),
+                  _buildCommunityNavItem(),
                   _buildNavItem(
                     icon: Icons.grid_view_rounded,
                     title: 'Approvals & Team',
@@ -225,6 +228,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const AdminPanelScreen(), 'Admin Dashboard', defaultTabIndex: 0),
                   ),
+                  _buildCommunityNavItem(),
                   _buildNavItem(
                     icon: Icons.domain_rounded,
                     title: 'Departments Management',
@@ -246,11 +250,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'employee'), 'Employee Directory')),
                       _buildSubItem('Add Employee', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const AddEmployeeSheet(initialRole: UserRole.employee),
                         );
                       }),
@@ -262,11 +265,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All Team Leads (TL)', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'manager'), 'Team Lead Directory')),
                       _buildSubItem('Add TL', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const AddEmployeeSheet(initialRole: UserRole.manager),
                         );
                       }),
@@ -278,11 +280,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All HR Personnel', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'hr'), 'HR Directory')),
                       _buildSubItem('Add HR', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const AddEmployeeSheet(initialRole: UserRole.hr),
                         );
                       }),
@@ -322,29 +323,26 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     icon: Icons.campaign_outlined,
                     children: [
                       _buildSubItem('Create', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
                       }),
                       _buildSubItem('Holiday', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
                       }),
                       _buildSubItem('Send to All', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
                       }),
@@ -370,10 +368,6 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     title: 'System Settings',
                     icon: Icons.settings_outlined,
                     children: [
-                      _buildSubItem('Roles & Permissions', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Roles & Permissions', defaultTabIndex: 1)),
-                      _buildSubItem('Departments', onTap: () => _navigateToScreen(const DepartmentsManagementScreen(isEmbedded: true), 'Department Directory')),
-                      _buildSubItem('Teams', onTap: () => _navigateToScreen(const TeamsManagementScreen(isEmbedded: true), 'Team Directory')),
-                      _buildSubItem('Attendance Rules', onTap: () => _navigateToScreen(const PolicySettingsScreen(isEmbedded: true), 'Attendance Rules', defaultTabIndex: 1)),
                       _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'App & System Settings')),
                       _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: true), 'Audit Logs', defaultTabIndex: 2)),
                     ],
@@ -388,6 +382,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     isSelected: widget.currentIndex == 0,
                     onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0),
                   ),
+                  _buildCommunityNavItem(),
                   _buildNavItem(
                     icon: Icons.folder_special_rounded,
                     title: 'Company Projects',
@@ -399,11 +394,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     children: [
                       _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
                       _buildSubItem('Add Employee', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 620,
                           builder: (_) => const AddEmployeeSheet(),
                         );
                       }),
@@ -434,20 +428,18 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                     icon: Icons.campaign_outlined,
                     children: [
                       _buildSubItem('Create Announcement', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 620,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
                       }),
                       _buildSubItem('Holiday', onTap: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
                           context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                          maxWidth: 620,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
                       }),
@@ -483,7 +475,7 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
                   badgeText: 'AI',
                   badgeColor: const Color(0xFF2563EB),
                   onTap: () {
-                    Navigator.pop(context);
+                    if (!widget.isPermanent) Navigator.pop(context);
                     AIVoiceAssistantSheet.show(context);
                   },
                 ),
@@ -537,7 +529,28 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
             ),
           ),
         ],
-      ),
+      );
+
+    if (widget.isPermanent) {
+      return Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.cardDark : Colors.white,
+          border: Border(
+            right: BorderSide(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+              width: 1,
+            ),
+          ),
+        ),
+        child: drawerContent,
+      );
+    }
+
+    return Drawer(
+      backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+      elevation: 16,
+      child: drawerContent,
     );
   }
 
@@ -614,50 +627,60 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // White Circle Avatar
+                  // White Circle Avatar / User Profile Pic (76px Larger Avatar)
                   Container(
-                    width: 58,
-                    height: 58,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: GoogleFonts.outfit(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2563EB),
-                        ),
-                      ),
-                    ),
+                    child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                        ? ClipOval(
+                            child: PhotoDisplayWidget(
+                              photoUrl: user.avatarUrl,
+                              size: 76,
+                              borderRadius: 38,
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              initial,
+                              style: GoogleFonts.outfit(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2563EB),
+                              ),
+                            ),
+                          ),
                   ),
 
                   // Close Button
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left,
-                        color: Colors.white,
-                        size: 22,
+                  if (!widget.isPermanent)
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chevron_left,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
 
@@ -724,6 +747,25 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCommunityNavItem() {
+    return StreamBuilder<List<CommunityMessageModel>>(
+      stream: FirestoreService().allCommunityMessagesStream,
+      builder: (context, snap) {
+        final messages = snap.data ?? FirestoreService().getAllCommunityMessages();
+        final count = messages.length;
+        final badgeText = count > 0 ? '$count' : null;
+
+        return _buildNavItem(
+          icon: Icons.groups_rounded,
+          title: 'Community EB',
+          badgeText: badgeText,
+          badgeColor: const Color(0xFF2563EB),
+          onTap: () => _navigateToScreen(const CommunityEbScreen(isEmbedded: true), 'Community EB'),
+        );
+      },
     );
   }
 

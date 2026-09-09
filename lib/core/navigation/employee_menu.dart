@@ -11,6 +11,12 @@ class EmployeeMenu {
       route: '/employee/dashboard',
     ),
     const NavMenuItem(
+      title: 'Community EB',
+      icon: Icons.groups_rounded,
+      destination: NavDestinationKey.communityEB,
+      route: '/community-eb',
+    ),
+    const NavMenuItem(
       title: 'My Attendance',
       icon: Icons.today_rounded,
       destination: NavDestinationKey.myAttendance,

@@ -21,6 +21,7 @@ import '../models/announcement_model.dart';
 import '../models/notification_model.dart';
 import '../models/project_report_model.dart';
 import '../models/project_model.dart';
+import '../models/community_model.dart';
 import 'local_storage_service.dart';
 import 'auth_service.dart';
 
@@ -63,6 +64,36 @@ class FirestoreService {
   final List<NotificationModel> _notifications = [];
   final List<ProjectReportModel> _projectReports = MockDataSeeder.getSeedProjectReports();
   final List<ProjectModel> _projects = MockDataSeeder.getSeedProjects();
+  final List<CommunityGroupModel> _communityGroups = [
+    CommunityGroupModel(
+      groupId: 'comm_eb_general',
+      name: 'Community EB - General Hub',
+      description: 'Official workspace community for all Envision Beyond teams.',
+      createdBy: 'usr_admin',
+      createdAt: DateTime.now(),
+      memberUserIds: [],
+      isOfficial: true,
+    ),
+    CommunityGroupModel(
+      groupId: 'comm_eb_eng',
+      name: 'Engineering & Tech EB',
+      description: 'Work updates, technical discussion, and daily collaboration for engineering team.',
+      createdBy: 'usr_admin',
+      createdAt: DateTime.now(),
+      memberUserIds: [],
+      isOfficial: true,
+    ),
+    CommunityGroupModel(
+      groupId: 'comm_eb_hr',
+      name: 'HR & Management EB',
+      description: 'Administrative sync, HR announcements, and leadership discussions.',
+      createdBy: 'usr_admin',
+      createdAt: DateTime.now(),
+      memberUserIds: [],
+      isOfficial: true,
+    ),
+  ];
+  final List<CommunityMessageModel> _communityMessages = [];
 
   final _attendanceStreamController =
       StreamController<List<AttendanceModel>>.broadcast();
@@ -83,6 +114,10 @@ class FirestoreService {
       StreamController<List<ProjectReportModel>>.broadcast();
   final _projectsStreamController =
       StreamController<List<ProjectModel>>.broadcast();
+  final _communityGroupsStreamController =
+      StreamController<List<CommunityGroupModel>>.broadcast();
+  final _communityMessagesStreamController =
+      StreamController<List<CommunityMessageModel>>.broadcast();
 
   Stream<List<AttendanceModel>> get attendanceStream =>
       _attendanceStreamController.stream;
@@ -103,10 +138,27 @@ class FirestoreService {
       _projectReportsStreamController.stream;
   Stream<List<ProjectModel>> get projectsStream =>
       _projectsStreamController.stream;
+  Stream<List<CommunityGroupModel>> get communityGroupsStream =>
+      _communityGroupsStreamController.stream;
+
+  Stream<List<CommunityMessageModel>> get allCommunityMessagesStream =>
+      _communityMessagesStreamController.stream;
+
+  Stream<List<CommunityMessageModel>> communityMessagesStream(String groupId) =>
+      _communityMessagesStreamController.stream.map(
+        (list) => list.where((m) => m.groupId == groupId).toList()
+          ..sort((a, b) => a.sentAt.compareTo(b.sentAt)),
+      );
 
   List<UserModel> getAllUsers() => List.unmodifiable(_users);
   List<TeamModel> getAllTeams() => List.unmodifiable(_teams);
   List<DepartmentModel> getAllDepartments() => List.unmodifiable(_departments);
+  List<CommunityGroupModel> getAllCommunityGroups() => List.unmodifiable(_communityGroups);
+  List<CommunityMessageModel> getAllCommunityMessages() => List.unmodifiable(_communityMessages);
+  List<CommunityMessageModel> getCommunityMessages(String groupId) {
+    return _communityMessages.where((m) => m.groupId == groupId).toList()
+      ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+  }
   List<AttendanceModel> getAllAttendance() => List.unmodifiable(_attendance);
   List<ProjectReportModel> getAllProjectReports() =>
       List.unmodifiable(_projectReports);
@@ -347,20 +399,14 @@ class FirestoreService {
           }
           isFirstUsersSync = false;
 
-          final Map<String, UserModel> map = {for (final u in _users) u.userId: u};
-          for (final u in items) {
-            map[u.userId] = u;
-          }
           _users.clear();
-          _users.addAll(map.values);
+          _users.addAll(items);
           _usersStreamController.add(List.unmodifiable(_users));
           LocalStorageService().saveUsers(_users);
         } else {
           isFirstUsersSync = false;
-          if (_users.isNotEmpty) {
-            _usersStreamController.add(List.unmodifiable(_users));
-            LocalStorageService().saveUsers(_users);
-          }
+          _usersStreamController.add(List.unmodifiable(_users));
+          LocalStorageService().saveUsers(_users);
         }
       }, onError: (e) => debugPrint('Live users sync info: $e'));
 
@@ -370,31 +416,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => DepartmentModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, DepartmentModel> map = {for (final d in _departments) d.departmentId: d};
-          for (final d in items) {
-            map[d.departmentId] = d;
-          }
           _departments.clear();
-          _departments.addAll(map.values);
-        } else {
-          if (_departments.isEmpty) {
-            _departments.addAll(MockDataSeeder.getSeedDepartments());
-          }
-          for (final d in _departments) {
-            db
-                .collection('departments')
-                .doc(d.departmentId)
-                .set(d.toMap(), SetOptions(merge: true));
-          }
+          _departments.addAll(items);
         }
         _departmentsStreamController.add(List.unmodifiable(_departments));
-      }, onError: (e) {
-        debugPrint('Live departments sync info: $e');
-        if (_departments.isEmpty) {
-          _departments.addAll(MockDataSeeder.getSeedDepartments());
-        }
-        _departmentsStreamController.add(List.unmodifiable(_departments));
-      });
+      }, onError: (e) => debugPrint('Live departments sync info: $e'));
 
       // Teams live stream from Firestore
       db.collection('teams').snapshots().listen((snap) {
@@ -402,31 +428,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => TeamModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, TeamModel> map = {for (final t in _teams) t.teamId: t};
-          for (final t in items) {
-            map[t.teamId] = t;
-          }
           _teams.clear();
-          _teams.addAll(map.values);
-        } else {
-          if (_teams.isEmpty) {
-            _teams.addAll(MockDataSeeder.getSeedTeams());
-          }
-          for (final t in _teams) {
-            db
-                .collection('teams')
-                .doc(t.teamId)
-                .set(t.toMap(), SetOptions(merge: true));
-          }
+          _teams.addAll(items);
         }
         _teamsStreamController.add(List.unmodifiable(_teams));
-      }, onError: (e) {
-        debugPrint('Live teams sync info: $e');
-        if (_teams.isEmpty) {
-          _teams.addAll(MockDataSeeder.getSeedTeams());
-        }
-        _teamsStreamController.add(List.unmodifiable(_teams));
-      });
+      }, onError: (e) => debugPrint('Live teams sync info: $e'));
 
       // Attendance live stream from Firestore
       db.collection('attendance').snapshots().listen((snap) {
@@ -434,15 +440,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, AttendanceModel> map = {for (final a in _attendance) a.attendanceId: a};
-          for (final a in items) {
-            map[a.attendanceId] = a;
-          }
           _attendance.clear();
-          _attendance.addAll(map.values);
+          _attendance.addAll(items);
           _attendanceStreamController.add(List.unmodifiable(_attendance));
           LocalStorageService().saveAttendance(_attendance);
-        } else if (_attendance.isNotEmpty) {
+        } else {
           _attendanceStreamController.add(List.unmodifiable(_attendance));
           LocalStorageService().saveAttendance(_attendance);
         }
@@ -454,15 +456,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => LeaveRequestModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, LeaveRequestModel> map = {for (final l in _leaves) l.leaveId: l};
-          for (final l in items) {
-            map[l.leaveId] = l;
-          }
           _leaves.clear();
-          _leaves.addAll(map.values);
+          _leaves.addAll(items);
           _leavesStreamController.add(List.unmodifiable(_leaves));
           LocalStorageService().saveLeaves(_leaves);
-        } else if (_leaves.isNotEmpty) {
+        } else {
           _leavesStreamController.add(List.unmodifiable(_leaves));
           LocalStorageService().saveLeaves(_leaves);
         }
@@ -474,15 +472,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceCorrectionModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, AttendanceCorrectionModel> map = {for (final c in _corrections) c.correctionId: c};
-          for (final c in items) {
-            map[c.correctionId] = c;
-          }
           _corrections.clear();
-          _corrections.addAll(map.values);
+          _corrections.addAll(items);
           _correctionsStreamController.add(List.unmodifiable(_corrections));
           LocalStorageService().saveCorrections(_corrections);
-        } else if (_corrections.isNotEmpty) {
+        } else {
           _correctionsStreamController.add(List.unmodifiable(_corrections));
           LocalStorageService().saveCorrections(_corrections);
         }
@@ -494,16 +488,12 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => ProjectReportModel.fromMap(d.data(), d.id))
               .toList();
-          final Map<String, ProjectReportModel> map = {for (final r in _projectReports) r.reportId: r};
-          for (final r in items) {
-            map[r.reportId] = r;
-          }
           _projectReports.clear();
-          _projectReports.addAll(map.values);
+          _projectReports.addAll(items);
           _projectReports.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
           _projectReportsStreamController.add(List.unmodifiable(_projectReports));
           LocalStorageService().saveProjectReports(_projectReports);
-        } else if (_projectReports.isNotEmpty) {
+        } else {
           _projectReportsStreamController.add(List.unmodifiable(_projectReports));
           LocalStorageService().saveProjectReports(_projectReports);
         }
@@ -516,29 +506,11 @@ class FirestoreService {
           .snapshots()
           .listen((snap) {
             if (snap.exists && snap.data() != null) {
-              final fetched = AttendancePolicyModel.fromMap(
+              _policy = AttendancePolicyModel.fromMap(
                 snap.data()!,
                 snap.id,
               );
-              if (fetched.officeName.contains('HQ Enterprise') ||
-                  !fetched.officeName.contains('Giriraj') ||
-                  fetched.officeLatitude == 28.6139) {
-                _policy = MockDataSeeder.getSeedPolicy();
-                db
-                    .collection('attendancePolicies')
-                    .doc('policy_standard')
-                    .set(_policy.toMap(), SetOptions(merge: true));
-              } else {
-                _policy = fetched;
-              }
               _policyStreamController.add(_policy);
-              LocalStorageService().savePolicy(_policy);
-            } else {
-              _policy = MockDataSeeder.getSeedPolicy();
-              db
-                  .collection('attendancePolicies')
-                  .doc('policy_standard')
-                  .set(_policy.toMap(), SetOptions(merge: true));
               LocalStorageService().savePolicy(_policy);
             }
           }, onError: (e) => debugPrint('Live policy sync info: $e'));
@@ -633,6 +605,51 @@ class FirestoreService {
           _projectsStreamController.add(List.unmodifiable(_projects));
         }
       }, onError: (e) => debugPrint('Live projects sync info: $e'));
+
+      // Community Groups live stream from Firestore
+      db.collection('communityGroups').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) {
+            try {
+              return CommunityGroupModel.fromMap(d.data(), d.id);
+            } catch (e) {
+              debugPrint('Error parsing community group ${d.id}: $e');
+              return null;
+            }
+          }).whereType<CommunityGroupModel>().toList();
+
+          final Map<String, CommunityGroupModel> map = {for (final g in _communityGroups) g.groupId: g};
+          for (final item in items) {
+            map[item.groupId] = item;
+          }
+          _communityGroups.clear();
+          _communityGroups.addAll(map.values);
+          _communityGroupsStreamController.add(List.unmodifiable(_communityGroups));
+        }
+      }, onError: (e) => debugPrint('Live community groups sync info: $e'));
+
+      // Community Messages live stream from Firestore
+      db.collection('communityMessages').snapshots().listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          final items = snap.docs.map((d) {
+            try {
+              return CommunityMessageModel.fromMap(d.data(), d.id);
+            } catch (e) {
+              debugPrint('Error parsing community message ${d.id}: $e');
+              return null;
+            }
+          }).whereType<CommunityMessageModel>().toList();
+
+          final Map<String, CommunityMessageModel> map = {for (final m in _communityMessages) m.messageId: m};
+          for (final item in items) {
+            map[item.messageId] = item;
+          }
+          _communityMessages.clear();
+          _communityMessages.addAll(map.values);
+          _communityMessages.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+          _communityMessagesStreamController.add(List.unmodifiable(_communityMessages));
+        }
+      }, onError: (e) => debugPrint('Live community messages sync info: $e'));
 
     } catch (e) {
       debugPrint('Firestore real-time listeners fallback: $e');
@@ -1309,8 +1326,16 @@ class FirestoreService {
             location.toLowerCase().contains('work from home') ||
             location.toLowerCase().contains('authorized')));
 
-    final userLat = latitude ?? _policy.officeLatitude + 0.0002;
-    final userLng = longitude ?? _policy.officeLongitude + 0.0001;
+    if (latitude == null || longitude == null) {
+      if (!isRemoteOrWfh) {
+        throw Exception(
+          'GPS location coordinates are required to verify office geofence for clock-in. Please enable GPS and try again.',
+        );
+      }
+    }
+
+    final userLat = latitude ?? _policy.officeLatitude;
+    final userLng = longitude ?? _policy.officeLongitude;
 
     final geofenceRes = GeofenceService.verifyLocation(
       userLat: userLat,
@@ -1321,8 +1346,11 @@ class FirestoreService {
     );
 
     if (!isRemoteOrWfh && !geofenceRes.isWithinGeofence) {
+      final distStr = geofenceRes.distanceMeters >= 1000
+          ? '${(geofenceRes.distanceMeters / 1000).toStringAsFixed(1)} km'
+          : '${geofenceRes.distanceMeters.toStringAsFixed(0)} m';
       throw Exception(
-        'Outside Geofence: You are ${geofenceRes.distanceMeters.toStringAsFixed(0)}m away. Clock-in is strictly allowed within ${_policy.geofenceRadiusMeters.toStringAsFixed(0)}m of the office, or select Remote/WFH location.',
+        'Outside Geofence: You are $distStr away from office. Clock-in is strictly allowed within ${_policy.geofenceRadiusMeters.toStringAsFixed(0)}m of ${_policy.officeName}, or select Authorized WFH / Remote location.',
       );
     }
 
@@ -2004,16 +2032,48 @@ class FirestoreService {
   LeaveBalanceModel getLeaveBalance(String identifier) {
     final targetUser = _findUserByIdentifier(identifier);
     final validIds = {
-      identifier,
-      if (targetUser != null) targetUser.userId,
-      if (targetUser != null) targetUser.employeeId,
+      identifier.toLowerCase(),
+      if (targetUser != null) targetUser.userId.toLowerCase(),
+      if (targetUser != null && targetUser.employeeId.isNotEmpty)
+        targetUser.employeeId.toLowerCase(),
+      if (targetUser != null && targetUser.email.isNotEmpty)
+        targetUser.email.toLowerCase(),
     };
 
+    // Calculate leaves used dynamically from approved leaves in _leaves
+    int casualUsed = 0;
+    int sickUsed = 0;
+    int earnedUsed = 0;
+
+    for (final l in _leaves) {
+      final match = validIds.contains(l.employeeId.toLowerCase()) ||
+          (l.employeeCode.isNotEmpty && validIds.contains(l.employeeCode.toLowerCase()));
+      if (match && l.status == LeaveStatus.approved) {
+        if (l.leaveType == LeaveType.casual) {
+          casualUsed += l.totalDays;
+        } else if (l.leaveType == LeaveType.sick) {
+          sickUsed += l.totalDays;
+        } else if (l.leaveType == LeaveType.earned) {
+          earnedUsed += l.totalDays;
+        }
+      }
+    }
+
     try {
-      return _leaveBalances.firstWhere((b) => validIds.contains(b.employeeId));
+      final existing = _leaveBalances.firstWhere(
+        (b) => validIds.contains(b.employeeId.toLowerCase()),
+      );
+      return existing.copyWith(
+        casualUsed: casualUsed > 0 ? casualUsed : existing.casualUsed,
+        sickUsed: sickUsed > 0 ? sickUsed : existing.sickUsed,
+        earnedUsed: earnedUsed > 0 ? earnedUsed : existing.earnedUsed,
+      );
     } catch (_) {
       final balance = LeaveBalanceModel(
         employeeId: targetUser?.userId ?? identifier,
+        casualUsed: casualUsed,
+        sickUsed: sickUsed,
+        earnedUsed: earnedUsed,
       );
       _leaveBalances.add(balance);
       return balance;
@@ -2359,17 +2419,29 @@ class FirestoreService {
   Future<ProjectReportModel> submitProjectReport(
     ProjectReportModel report,
   ) async {
-    _projectReports.insert(0, report);
+    final idx = _projectReports.indexWhere((r) => r.reportId == report.reportId);
+    if (idx != -1) {
+      _projectReports[idx] = report;
+    } else {
+      _projectReports.insert(0, report);
+    }
+    _projectReports.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     _projectReportsStreamController.add(List.unmodifiable(_projectReports));
     LocalStorageService().saveProjectReports(_projectReports);
 
     try {
-      await _db
-          ?.collection('projectReports')
-          .doc(report.reportId)
-          .set(report.toMap(), SetOptions(merge: true));
+      final db = _db;
+      if (db != null) {
+        await db
+            .collection('projectReports')
+            .doc(report.reportId)
+            .set(report.toMap(), SetOptions(merge: true));
+        debugPrint('🔥 Project report successfully written to Cloud Firestore DB: ${report.reportId}');
+      } else {
+        debugPrint('⚠️ Cloud Firestore DB reference is null during report submit');
+      }
     } catch (e) {
-      debugPrint('Firestore submit project report error: $e');
+      debugPrint('❌ Firestore submit project report error: $e');
     }
 
     // Broadcast in-app notification to Admin, HR, and TLs
@@ -2675,6 +2747,229 @@ class FirestoreService {
       return true;
     }
     return false;
+  }
+
+  // --- Community EB Services ---
+  Future<CommunityGroupModel> createCommunityGroup(
+    CommunityGroupModel group,
+    UserModel actor,
+  ) async {
+    _communityGroups.add(group);
+    _communityGroupsStreamController.add(List.unmodifiable(_communityGroups));
+
+    try {
+      final db = _db;
+      if (db != null) {
+        await db
+            .collection('communityGroups')
+            .doc(group.groupId)
+            .set(group.toMap(), SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Firestore create community group error: $e');
+    }
+
+    AuditService().log(
+      actor: actor,
+      actionType: 'COMMUNITY_GROUP_CREATE',
+      description: 'Created new Community EB group "${group.name}".',
+      targetEntityId: group.groupId,
+    );
+
+    return group;
+  }
+
+  Future<void> updateCommunityGroupMembers(
+    String groupId,
+    List<String> memberUserIds,
+    UserModel actor,
+  ) async {
+    final idx = _communityGroups.indexWhere((g) => g.groupId == groupId);
+    if (idx != -1) {
+      final updated = _communityGroups[idx].copyWith(memberUserIds: memberUserIds);
+      _communityGroups[idx] = updated;
+      _communityGroupsStreamController.add(List.unmodifiable(_communityGroups));
+
+      try {
+        final db = _db;
+        if (db != null) {
+          await db
+              .collection('communityGroups')
+              .doc(groupId)
+              .update({'memberUserIds': memberUserIds});
+        }
+      } catch (e) {
+        debugPrint('Firestore update community members error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'COMMUNITY_GROUP_MEMBERS_UPDATE',
+        description: 'Updated members list for Community EB group "${updated.name}".',
+        targetEntityId: groupId,
+      );
+    }
+  }
+
+  Future<void> updateCommunityGroup(
+    CommunityGroupModel updatedGroup,
+    UserModel actor,
+  ) async {
+    final idx = _communityGroups.indexWhere((g) => g.groupId == updatedGroup.groupId);
+    if (idx != -1) {
+      _communityGroups[idx] = updatedGroup;
+      _communityGroupsStreamController.add(List.unmodifiable(_communityGroups));
+
+      try {
+        final db = _db;
+        if (db != null) {
+          await db
+              .collection('communityGroups')
+              .doc(updatedGroup.groupId)
+              .set(updatedGroup.toMap(), SetOptions(merge: true));
+        }
+      } catch (e) {
+        debugPrint('Firestore update community group error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'COMMUNITY_GROUP_UPDATE',
+        description: 'Updated Community EB group "${updatedGroup.name}".',
+        targetEntityId: updatedGroup.groupId,
+      );
+    }
+  }
+
+  Future<bool> deleteCommunityGroup(
+    String groupId,
+    UserModel actor,
+  ) async {
+    final idx = _communityGroups.indexWhere((g) => g.groupId == groupId);
+    if (idx != -1) {
+      final target = _communityGroups[idx];
+      _communityGroups.removeAt(idx);
+      _communityGroupsStreamController.add(List.unmodifiable(_communityGroups));
+
+      try {
+        final db = _db;
+        if (db != null) {
+          await db.collection('communityGroups').doc(groupId).delete();
+        }
+      } catch (e) {
+        debugPrint('Firestore delete community group error: $e');
+      }
+
+      AuditService().log(
+        actor: actor,
+        actionType: 'COMMUNITY_GROUP_DELETE',
+        description: 'Deleted Community EB group "${target.name}".',
+        targetEntityId: groupId,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  Future<CommunityMessageModel> sendCommunityMessage(
+    CommunityMessageModel message,
+  ) async {
+    _communityMessages.add(message);
+    _communityMessagesStreamController.add(List.unmodifiable(_communityMessages));
+
+    try {
+      final db = _db;
+      if (db != null) {
+        await db
+            .collection('communityMessages')
+            .doc(message.messageId)
+            .set(message.toMap(), SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Firestore send community message error: $e');
+    }
+
+    return message;
+  }
+
+  Future<void> toggleMessageReaction({
+    required String messageId,
+    required String userId,
+    required String emoji,
+  }) async {
+    final index = _communityMessages.indexWhere((m) => m.messageId == messageId);
+    if (index == -1) return;
+
+    final existingMsg = _communityMessages[index];
+    final updatedReactions = Map<String, String>.from(existingMsg.reactions);
+
+    if (updatedReactions[userId] == emoji) {
+      updatedReactions.remove(userId);
+    } else {
+      updatedReactions[userId] = emoji;
+    }
+
+    final updatedMsg = existingMsg.copyWith(reactions: updatedReactions);
+    _communityMessages[index] = updatedMsg;
+    _communityMessagesStreamController.add(List.unmodifiable(_communityMessages));
+
+    try {
+      final db = _db;
+      if (db != null) {
+        await db
+            .collection('communityMessages')
+            .doc(messageId)
+            .set({'reactions': updatedReactions}, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Firestore toggle message reaction error: $e');
+    }
+  }
+
+  Future<void> editCommunityMessage({
+    required String messageId,
+    required String newContent,
+  }) async {
+    final index = _communityMessages.indexWhere((m) => m.messageId == messageId);
+    if (index == -1) return;
+
+    final existingMsg = _communityMessages[index];
+    final updatedMsg = existingMsg.copyWith(
+      content: newContent,
+      isEdited: true,
+    );
+    _communityMessages[index] = updatedMsg;
+    _communityMessagesStreamController.add(List.unmodifiable(_communityMessages));
+
+    try {
+      final db = _db;
+      if (db != null) {
+        await db.collection('communityMessages').doc(messageId).update({
+          'content': newContent,
+          'isEdited': true,
+        });
+      }
+    } catch (e) {
+      debugPrint('Firestore edit community message error: $e');
+    }
+  }
+
+  Future<bool> deleteCommunityMessage(String messageId) async {
+    final index = _communityMessages.indexWhere((m) => m.messageId == messageId);
+    if (index == -1) return false;
+
+    _communityMessages.removeAt(index);
+    _communityMessagesStreamController.add(List.unmodifiable(_communityMessages));
+
+    try {
+      final db = _db;
+      if (db != null) {
+        await db.collection('communityMessages').doc(messageId).delete();
+      }
+    } catch (e) {
+      debugPrint('Firestore delete community message error: $e');
+    }
+    return true;
   }
 
   Future<bool> checkFirebaseConnection() async {

@@ -20,14 +20,23 @@ class ReportService {
     DateTime? referenceDate,
   }) {
     final now = referenceDate ?? DateTime.now();
-    final periodStart = now.subtract(const Duration(days: 30));
+    DateTime periodStart = now.subtract(const Duration(days: 30));
     final periodEnd = now;
+
+    // Adjust window start if employee joined recently so attendance rate reflects actual working tenure
+    if (employee.createdAt != null && employee.createdAt!.isAfter(periodStart)) {
+      periodStart = DateTime(
+        employee.createdAt!.year,
+        employee.createdAt!.month,
+        employee.createdAt!.day,
+      );
+    }
 
     final allRecords =
         attendanceList ??
         FirestoreService().getAttendanceForEmployee(employee.userId);
 
-    // Filter within 30-day window
+    // Filter within window
     final relevantRecords = allRecords.where((a) {
       final recordDate = DateTime.tryParse(a.date);
       if (recordDate == null) return false;
@@ -45,7 +54,8 @@ class ReportService {
 
     for (final rec in relevantRecords) {
       if (rec.status == AttendanceStatus.completed ||
-          rec.status == AttendanceStatus.approved) {
+          rec.status == AttendanceStatus.approved ||
+          rec.clockInTime != null) {
         presentDays++;
         if (rec.clockInTime != null &&
             rec.clockInTime!.hour >= 9 &&
@@ -61,19 +71,14 @@ class ReportService {
       }
     }
 
-    // Calculate working days from account creation date (createdAt) or 30 days ago up to today
-    final effectiveStart =
-        (employee.createdAt != null && employee.createdAt!.isAfter(periodStart))
-        ? employee.createdAt!
-        : periodStart;
-
+    // Calculate working days over the period up to today (excluding weekends)
     int workingDays = 0;
     final todayTruncated = DateTime(now.year, now.month, now.day);
     for (
       DateTime day = DateTime(
-        effectiveStart.year,
-        effectiveStart.month,
-        effectiveStart.day,
+        periodStart.year,
+        periodStart.month,
+        periodStart.day,
       );
       !day.isAfter(todayTruncated);
       day = day.add(const Duration(days: 1))
@@ -83,26 +88,19 @@ class ReportService {
       }
     }
     if (workingDays <= 0) workingDays = 1;
-
-    final int absentDays;
-    if (relevantRecords.isEmpty) {
-      absentDays = 0;
-    } else {
-      absentDays = (workingDays - presentDays - pendingDays).clamp(
-        0,
-        workingDays,
-      );
+    if (presentDays > workingDays) {
+      workingDays = presentDays;
     }
 
-    final double attendancePercentage;
-    if (relevantRecords.isEmpty && presentDays == 0) {
-      attendancePercentage = 0.0;
-    } else {
-      attendancePercentage = ((presentDays / workingDays) * 100).clamp(
-        0.0,
-        100.0,
-      );
-    }
+    final int absentDays = (workingDays - presentDays - pendingDays).clamp(
+      0,
+      workingDays,
+    );
+
+    final double attendancePercentage = ((presentDays / workingDays) * 100).clamp(
+      0.0,
+      100.0,
+    );
     final double totalHours = totalMinutes / 60.0;
     final double averageDailyHours = presentDays > 0
         ? totalHours / presentDays

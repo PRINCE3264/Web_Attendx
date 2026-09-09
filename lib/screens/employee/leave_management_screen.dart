@@ -6,6 +6,7 @@ import '../../config/app_theme.dart';
 import '../../models/leave_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
+import '../shared/custom_widgets.dart';
 
 class LeaveManagementScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -28,12 +29,9 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
   }
 
   void _openApplyLeaveModal() {
-    showModalBottomSheet(
+    showAppResponsiveModal(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      maxWidth: 600,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           final totalDays = _endDate.difference(_startDate).inDays + 1;

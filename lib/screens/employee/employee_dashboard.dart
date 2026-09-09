@@ -172,6 +172,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                     actionType: actionType,
                     latitude: result.userLat,
                     longitude: result.userLng,
+                    initialLocation: 'Remote / Work From Home',
                   ),
                 ),
               );
@@ -193,29 +194,11 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     );
   }
 
-  Position _getFallbackPosition(double lat, double lng) {
-    return Position(
-      latitude: lat,
-      longitude: lng,
-      timestamp: DateTime.now(),
-      accuracy: 10,
-      altitude: 0,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0,
-    );
-  }
-
-  Future<Position> _getCurrentPositionSafe(
-    double officeLat,
-    double officeLng,
-  ) async {
+  Future<Position?> _getCurrentPositionSafe() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        return _getFallbackPosition(officeLat, officeLng);
+        return null;
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
@@ -225,7 +208,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
 
       if (permission == LocationPermission.deniedForever ||
           permission == LocationPermission.denied) {
-        return _getFallbackPosition(officeLat, officeLng);
+        return null;
       }
 
       return await Geolocator.getCurrentPosition(
@@ -234,10 +217,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
         ),
       ).timeout(
         const Duration(seconds: 7),
-        onTimeout: () => _getFallbackPosition(officeLat, officeLng),
       );
     } catch (_) {
-      return _getFallbackPosition(officeLat, officeLng);
+      return null;
     }
   }
 
@@ -250,7 +232,23 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
       final officeLng = policy.officeLongitude;
       final allowedRadius = policy.geofenceRadiusMeters;
 
-      Position position = await _getCurrentPositionSafe(officeLat, officeLng);
+      Position? position = await _getCurrentPositionSafe();
+
+      if (position == null) {
+        setState(() => _isCheckingLocation = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '📍 GPS Location Error: Unable to fetch location. Please enable GPS location services and grant permissions.',
+              ),
+              backgroundColor: AppTheme.danger,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
 
       final result = GeofenceService.verifyLocation(
         userLat: position.latitude,
@@ -1098,10 +1096,9 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      showModalBottomSheet(
+                      showAppResponsiveModal(
                         context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
+                        maxWidth: 580,
                         builder: (_) =>
                             BreakTrackingSheet(attendance: todayRec),
                       );
@@ -1288,12 +1285,16 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Daily Shift Completed 🎉',
-                      style: GoogleFonts.outfit(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF065F46),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Daily Shift Completed 🎉',
+                        style: GoogleFonts.outfit(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF065F46),
+                        ),
                       ),
                     ),
                     Text(
@@ -1353,9 +1354,13 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
           ElevatedButton.icon(
             onPressed: null,
             icon: const Icon(Icons.lock, size: 18),
-            label: const Text(
-              'SHIFT COMPLETED FOR TODAY 🔒',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'SHIFT COMPLETED FOR TODAY 🔒',
+                maxLines: 1,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+              ),
             ),
             style: ElevatedButton.styleFrom(
               disabledBackgroundColor: Colors.grey.shade400,
@@ -1794,10 +1799,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 const Spacer(),
                 TextButton(
                   onPressed: () {
-                    showModalBottomSheet(
+                    showAppResponsiveModal(
                       context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
+                      maxWidth: 680,
+                      maxHeightRatio: 0.85,
                       builder: (_) => const SubmitProjectReportSheet(),
                     );
                   },
@@ -1821,10 +1826,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             const SizedBox(height: 14),
             ElevatedButton.icon(
               onPressed: () {
-                showModalBottomSheet(
+                showAppResponsiveModal(
                   context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
+                  maxWidth: 680,
+                  maxHeightRatio: 0.85,
                   builder: (_) => const SubmitProjectReportSheet(),
                 );
               },

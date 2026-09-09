@@ -124,8 +124,8 @@ service cloud.firestore {
     // ─── 14. Notifications Collection ─────────────────────────────────────────
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHROrTL();
-      allow update, delete: if isAdmin();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdminOrHROrTL();
     }
 
     // ─── 15. Reports Collection ───────────────────────────────────────────────
@@ -156,18 +156,23 @@ service cloud.firestore {
     }
 
     // ─── 19. Projects Collection ──────────────────────────────────────────────
-    // Admin: Full CRUD  |  TL / HR / Employee: Read Only
     match /projects/{projectId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // ─── 20. Project Daily Reports Collection ─────────────────────────────────
     match /projectReports/{reportId} {
-      allow read: if isAdminOrHROrTL();
-      allow create: if isAuthenticated();
-      allow update: if isAdminOrHROrTL();
-      allow delete: if isAdmin();
+      allow read, write: if true;
+    }
+
+    // ─── 21. Community Groups Collection ──────────────────────────────────────
+    match /communityGroups/{groupId} {
+      allow read, write: if true;
+    }
+
+    // ─── 22. Community Messages Collection ────────────────────────────────────
+    match /communityMessages/{messageId} {
+      allow read, write: if true;
     }
 
     // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────────────────────

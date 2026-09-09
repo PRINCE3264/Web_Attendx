@@ -15,7 +15,6 @@ import '../admin/admin_panel_screen.dart';
 import '../admin/audit_logs_screen.dart';
 import '../admin/policy_settings_screen.dart';
 import '../admin/projects_management_screen.dart';
-
 import '../auth/login_screen.dart';
 import '../employee/attendance_history_screen.dart';
 import '../employee/camera_capture_screen.dart';
@@ -30,6 +29,7 @@ import '../manager/tl_team_attendance_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
 import 'project_reports_screen.dart';
 import 'system_settings_screen.dart';
+import 'community_eb_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -201,6 +201,26 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
 
+          // AI Chatbot Icon
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Icon(
+                Icons.smart_toy_rounded,
+                size: 18,
+                color: Color(0xFF2563EB),
+              ),
+            ),
+            onPressed: () => AIVoiceAssistantSheet.show(context),
+            tooltip: 'AttendX AI Chatbot',
+          ),
           // Notification Icon
           IconButton(
             icon: const Icon(
@@ -232,6 +252,9 @@ class _AppShellState extends State<AppShell> {
 
       case NavDestinationKey.myAttendance:
         return const EmployeeDashboard();
+
+      case NavDestinationKey.communityEB:
+        return const CommunityEbScreen(isEmbedded: true);
 
       case NavDestinationKey.attendanceHistory:
       case NavDestinationKey.attendanceCalendar:

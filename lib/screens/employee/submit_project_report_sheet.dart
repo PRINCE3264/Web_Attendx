@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -60,14 +61,23 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       if (source == ImageSource.gallery) {
-        final List<XFile> images = await _picker.pickMultiImage();
+        final List<XFile> images = await _picker.pickMultiImage(
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
         if (images.isNotEmpty) {
           setState(() {
             _screenshotPaths.addAll(images.map((img) => img.path));
           });
         }
       } else {
-        final XFile? image = await _picker.pickImage(source: source);
+        final XFile? image = await _picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
         if (image != null) {
           setState(() {
             _screenshotPaths.add(image.path);
@@ -115,6 +125,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
     setState(() => _isSubmitting = true);
 
     final user = context.read<AuthProvider>().currentUser;
+    final hrProv = context.read<HrProvider>();
     if (user == null) {
       setState(() => _isSubmitting = false);
       return;
@@ -185,27 +196,39 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       status: 'submitted',
     );
 
-    final hrProv = context.read<HrProvider>();
-    await hrProv.submitDailyReport(report);
+    try {
+      await hrProv.submitDailyReport(report);
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text('Daily Project Report for "$_selectedProject" submitted successfully!'),
-              ),
-            ],
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Daily Project Report for "$_selectedProject" submitted successfully!'),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
           ),
-          backgroundColor: AppTheme.success,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit report: $e'),
+            backgroundColor: AppTheme.danger,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -239,10 +262,19 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
     final projects = projectSet.isEmpty ? ['Unassigned Project'] : projectSet.toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
+      constraints: BoxConstraints(
+        maxWidth: 680,
+        maxHeight: isDesktop ? screenHeight * 0.85 : screenHeight * 0.92,
+      ),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.bgDark : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: isDesktop
+            ? BorderRadius.circular(24)
+            : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
@@ -252,23 +284,22 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       ),
       child: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Sheet Drag Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Sheet Drag Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
+            ),
 
               // Title Header
               Row(
@@ -306,9 +337,14 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Project Selection Dropdown
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Project Selection Dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedProject,
                 isExpanded: true,
@@ -618,12 +654,18 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                     );
                   }).toList(),
                 ),
+                ],
+
+                const SizedBox(height: 14),
               ],
+            ),
+          ),
+        ),
 
-              const SizedBox(height: 24),
+        const SizedBox(height: 14),
 
-              // Submit Button
-              ElevatedButton.icon(
+        // Submit Button
+        ElevatedButton.icon(
                 onPressed: _isSubmitting ? null : _submitReport,
                 icon: _isSubmitting
                     ? const SizedBox(
@@ -649,8 +691,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
   Widget _buildSmartImage(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
     if (path.isEmpty) {
@@ -662,11 +703,29 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       );
     }
 
+    if (path.startsWith('data:image')) {
+      try {
+        final base64Part = path.split(',').last;
+        final bytes = base64Decode(base64Part);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade300,
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        );
+      } catch (_) {}
+    }
+
     final lower = path.toLowerCase();
     final isNetwork = lower.startsWith('http://') ||
         lower.startsWith('https://') ||
-        lower.startsWith('blob:') ||
-        lower.startsWith('data:');
+        lower.startsWith('blob:');
 
     if (isNetwork) {
       return Image.network(

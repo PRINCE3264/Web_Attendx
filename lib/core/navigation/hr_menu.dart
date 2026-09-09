@@ -17,6 +17,12 @@ class HRMenu {
       route: '/hr/dashboard',
     ),
     const NavMenuItem(
+      title: 'Community EB',
+      icon: Icons.groups_rounded,
+      destination: NavDestinationKey.communityEB,
+      route: '/community-eb',
+    ),
+    const NavMenuItem(
       title: 'Employees',
       icon: Icons.people_alt_outlined,
       destination: NavDestinationKey.employees,

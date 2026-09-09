@@ -87,6 +87,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Color(0xFF1E293B),
+            size: 20,
+          ),
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -110,134 +123,94 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ),
               ),
             ),
-            // Background branding texts
-            Positioned(
-              top: 70,
-              left: 60,
-              child: Text(
-                'Work\nBuild\nBelong',
-                style: GoogleFonts.caveat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E3A8A),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 70,
-              right: 20,
-              child: Text(
-                'People\nAttendance\nProgress\nTogether',
-                textAlign: TextAlign.right,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ),
-            // Back Button
-            Positioned(
-              top: 44,
-              left: 12,
-              child: SafeArea(
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Color(0xFF1E293B),
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
             // Main content
             SafeArea(
-              child: Column(
-                children: [
-                  // Top Logo Section matching Login Screen
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          height: 120,
-                          child: Transform.scale(
-                            scale: 3.3,
-                            child: Image.asset(
-                              'assets/logo.png',
-                              fit: BoxFit.contain,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Column(
+                  children: [
+                    // Top Logo Section
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            height: 85,
+                            child: Transform.scale(
+                              scale: 3.8,
+                              child: Image.asset(
+                                'assets/logo.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Envision Beyond India Pvt Ltd',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E293B),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Envision Beyond India Pvt Ltd',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1E293B),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Smart Attendance & Workforce System',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Bottom Form Card
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(32),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 20,
-                            offset: Offset(0, -4),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Smart Attendance & Workforce System',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Create Account 🚀',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                                textAlign: TextAlign.center,
+                    ),
+
+                    // Form Card — rounded container matching login
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 18,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Create Account 🚀',
+                              style: GoogleFonts.outfit(
+                                fontSize: 21,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Enter details to register as a new team member',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.5,
-                                  color: const Color(0xFF64748B),
-                                ),
-                                textAlign: TextAlign.center,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Enter details to register as a new team member',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFF64748B),
                               ),
-                              const SizedBox(height: 24),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
 
                               // Full Name
                               Text(
@@ -551,14 +524,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
   }
 }

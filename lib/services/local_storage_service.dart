@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_model.dart';
@@ -14,9 +15,16 @@ class LocalStorageService {
   factory LocalStorageService() => _instance;
   LocalStorageService._internal();
 
+  static const String _kSessionUserKey = 'attendx_session_user_v3';
+  static const String _kSessionTimestampKey = 'attendx_session_timestamp_v3';
+  static const int kSessionMaxDays = 30;
+
+  static final Map<String, dynamic> _memoryStore = {};
+
   Directory? _appDocDir;
 
   Future<File?> _getFile(String filename) async {
+    if (kIsWeb) return null;
     try {
       _appDocDir ??= await getApplicationDocumentsDirectory();
       return File('${_appDocDir!.path}/$filename');
@@ -51,15 +59,52 @@ class LocalStorageService {
     }
   }
 
-  // --- Session Persistence (Saved Logged In User) ---
+  // --- Session Persistence (Saved Logged In User with 30-Day Expiry via SharedPreferences) ---
   Future<void> saveSession(UserModel? user) async {
     try {
-      final file = await _getFile('attendx_session.json');
-      if (file == null) return;
       if (user == null) {
-        if (await file.exists()) await file.delete();
+        _memoryStore.remove(_kSessionUserKey);
+        _memoryStore.remove(_kSessionTimestampKey);
       } else {
-        await file.writeAsString(jsonEncode(user.toMap()));
+        final Map<String, dynamic> map = user.toMap();
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        map['saved_login_time'] = DateTime.now().toIso8601String();
+        map['session_created_ms'] = nowMs;
+
+        _memoryStore[_kSessionUserKey] = jsonEncode(map);
+        _memoryStore[_kSessionTimestampKey] = nowMs;
+      }
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (user == null) {
+          await prefs.remove(_kSessionUserKey);
+          await prefs.remove(_kSessionTimestampKey);
+          if (!kIsWeb) {
+            try {
+              final file = await _getFile('attendx_session.json');
+              if (file != null && await file.exists()) {
+                await file.delete();
+              }
+            } catch (_) {}
+          }
+        } else {
+          final jsonStr = _memoryStore[_kSessionUserKey] as String;
+          final nowMs = _memoryStore[_kSessionTimestampKey] as int;
+          await prefs.setString(_kSessionUserKey, jsonStr);
+          await prefs.setInt(_kSessionTimestampKey, nowMs);
+
+          if (!kIsWeb) {
+            try {
+              final file = await _getFile('attendx_session.json');
+              if (file != null) {
+                await file.writeAsString(jsonStr);
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('SharedPreferences session save notice (memory fallback active): $e');
       }
     } catch (e) {
       debugPrint('Error saving user session: $e');
@@ -68,12 +113,61 @@ class LocalStorageService {
 
   Future<UserModel?> loadSession() async {
     try {
-      final file = await _getFile('attendx_session.json');
-      if (file == null || !await file.exists()) return null;
-      final content = await file.readAsString();
-      if (content.trim().isEmpty) return null;
-      final Map<String, dynamic> map = jsonDecode(content);
-      return UserModel.fromMap(map, (map['userId'] ?? '').toString());
+      String? userJson;
+      int? timestampMs;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        userJson = prefs.getString(_kSessionUserKey);
+        timestampMs = prefs.getInt(_kSessionTimestampKey);
+      } catch (e) {
+        debugPrint('SharedPreferences session load notice (memory fallback active): $e');
+        userJson = _memoryStore[_kSessionUserKey] as String?;
+        timestampMs = _memoryStore[_kSessionTimestampKey] as int?;
+      }
+
+      // Fallback check to legacy mobile file if SharedPreferences key is empty
+      if ((userJson == null || userJson.trim().isEmpty) && !kIsWeb) {
+        try {
+          final file = await _getFile('attendx_session.json');
+          if (file != null && await file.exists()) {
+            final content = await file.readAsString();
+            if (content.trim().isNotEmpty) {
+              userJson = content;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (userJson == null || userJson.trim().isEmpty) {
+        return null;
+      }
+
+      final Map<String, dynamic> map = jsonDecode(userJson);
+
+      // Check 30-day expiration constraint
+      if (timestampMs == null && map.containsKey('session_created_ms')) {
+        timestampMs = int.tryParse(map['session_created_ms']?.toString() ?? '');
+      }
+      if (timestampMs == null && map.containsKey('saved_login_time')) {
+        final savedTime = DateTime.tryParse(map['saved_login_time']?.toString() ?? '');
+        if (savedTime != null) {
+          timestampMs = savedTime.millisecondsSinceEpoch;
+        }
+      }
+
+      if (timestampMs != null) {
+        final savedDateTime = DateTime.fromMillisecondsSinceEpoch(timestampMs);
+        final int daysPassed = DateTime.now().difference(savedDateTime).inDays;
+        if (daysPassed >= kSessionMaxDays) {
+          debugPrint('⚠️ Session expired after 30 days ($daysPassed days elapsed). User must log in again.');
+          await saveSession(null);
+          return null;
+        }
+      }
+
+      final user = UserModel.fromMap(map, (map['userId'] ?? '').toString());
+      return user;
     } catch (e) {
       debugPrint('Error loading session: $e');
       return null;
@@ -260,6 +354,10 @@ class LocalStorageService {
     if (_cachedDeviceId != null && _cachedDeviceId!.isNotEmpty) {
       return _cachedDeviceId!;
     }
+    if (kIsWeb) {
+      _cachedDeviceId = 'WEB_DEVICE_STATIONARY';
+      return _cachedDeviceId!;
+    }
     try {
       final file = await _getFile('attendx_device_id.txt');
       if (file != null && await file.exists()) {
@@ -271,14 +369,13 @@ class LocalStorageService {
       }
       final newId = 'DEV_${DateTime.now().millisecondsSinceEpoch}_${(1000 + DateTime.now().microsecondsSinceEpoch % 9000)}';
       if (file != null) {
-        await file.writeAsString(newId);
+        await file.writeAsString(newId, flush: true);
       }
       _cachedDeviceId = newId;
       return newId;
     } catch (_) {
-      final fallback = 'DEV_${DateTime.now().millisecondsSinceEpoch}';
-      _cachedDeviceId = fallback;
-      return fallback;
+      _cachedDeviceId ??= 'DEV_${Platform.operatingSystem.toUpperCase()}_STATIONARY_ID';
+      return _cachedDeviceId!;
     }
   }
 

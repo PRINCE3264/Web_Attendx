@@ -12,12 +12,14 @@ class CameraCaptureScreen extends StatefulWidget {
   final String actionType; // 'clockIn' or 'clockOut'
   final double? latitude;
   final double? longitude;
+  final String? initialLocation;
 
   const CameraCaptureScreen({
     super.key,
     this.actionType = 'clockIn',
     this.latitude,
     this.longitude,
+    this.initialLocation,
   });
 
   @override
@@ -25,11 +27,12 @@ class CameraCaptureScreen extends StatefulWidget {
 }
 
 class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
-  String _selectedLocation = 'HQ Office - Floor 3';
+  late String _selectedLocation;
 
   @override
   void initState() {
     super.initState();
+    _selectedLocation = widget.initialLocation ?? 'HQ Office - Floor 3';
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<AttendanceProvider>();
       provider.clearTempPhoto();
@@ -182,8 +185,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                     onTap: attendance.isProcessing ? null : () => _startCapture(source: ImageSource.camera),
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
-                      width: 280,
-                      height: 300,
+                      constraints: const BoxConstraints(
+                        maxWidth: 280,
+                        maxHeight: 280,
+                      ),
+                      width: double.infinity,
+                      height: 280,
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(24),

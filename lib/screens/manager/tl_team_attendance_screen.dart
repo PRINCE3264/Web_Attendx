@@ -271,18 +271,35 @@ class _TlTeamAttendanceScreenState extends State<TlTeamAttendanceScreen>
                   style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primary),
                 ),
                 const SizedBox(height: 14),
-                GridView.count(
-                  crossAxisCount: 2, shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.45,
-                  children: [
-                    _SCard('Total Team', '$total', Icons.groups_rounded, AppTheme.primary, isDark),
-                    _SCard('Present', '$presentCnt', Icons.check_circle_rounded, AppTheme.success, isDark),
-                    _SCard('Absent', '$absentCnt', Icons.cancel_rounded, AppTheme.danger, isDark),
-                    _SCard('Late', '$lateCnt', Icons.timer_outlined, AppTheme.warning, isDark),
-                    _SCard('Pending', '$pendingCnt', Icons.pending_actions_rounded, Colors.orange, isDark),
-                    _SCard('Rate', total == 0 ? '0%' : '${((presentCnt / total) * 100).round()}%', Icons.pie_chart_rounded, const Color(0xFF6366F1), isDark),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    int crossCount = 2;
+                    double aspectRatio = 1.45;
+                    if (width >= 900) {
+                      crossCount = 6;
+                      aspectRatio = 1.35;
+                    } else if (width >= 600) {
+                      crossCount = 3;
+                      aspectRatio = 1.6;
+                    }
+                    return GridView.count(
+                      crossAxisCount: crossCount,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: aspectRatio,
+                      children: [
+                        _SCard('Total Team', '$total', Icons.groups_rounded, AppTheme.primary, isDark),
+                        _SCard('Present', '$presentCnt', Icons.check_circle_rounded, AppTheme.success, isDark),
+                        _SCard('Absent', '$absentCnt', Icons.cancel_rounded, AppTheme.danger, isDark),
+                        _SCard('Late', '$lateCnt', Icons.timer_outlined, AppTheme.warning, isDark),
+                        _SCard('Pending', '$pendingCnt', Icons.pending_actions_rounded, Colors.orange, isDark),
+                        _SCard('Rate', total == 0 ? '0%' : '${((presentCnt / total) * 100).round()}%', Icons.pie_chart_rounded, const Color(0xFF6366F1), isDark),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
                 if (total > 0) ...[
@@ -582,10 +599,10 @@ class _SCard extends StatelessWidget {
   const _SCard(this.label, this.value, this.icon, this.color, this.isDark);
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     decoration: BoxDecoration(
       color: isDark ? AppTheme.cardDark : Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: color.withValues(alpha: 0.2)),
       boxShadow: isDark ? [] : [BoxShadow(color: color.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 2))],
     ),
@@ -595,25 +612,25 @@ class _SCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 15),
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 20),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 6),
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             value,
-            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 19, color: color),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 22, color: color),
             textAlign: TextAlign.center,
           ),
         ),
-        const SizedBox(height: 1),
+        const SizedBox(height: 2),
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             label,
-            style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w500, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+            style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
             textAlign: TextAlign.center,
           ),
         ),

@@ -43,16 +43,63 @@ class ChatMessage {
 }
 
 class AIVoiceAssistantSheet extends StatefulWidget {
-  const AIVoiceAssistantSheet({super.key});
+  final bool isRightPanel;
+
+  const AIVoiceAssistantSheet({
+    super.key,
+    this.isRightPanel = false,
+  });
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      builder: (_) => const AIVoiceAssistantSheet(),
-    );
+    final media = MediaQuery.of(context);
+    final isDesktop = media.size.width >= 600;
+
+    if (isDesktop) {
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'AttendX AI Assistant',
+        barrierColor: Colors.black38,
+        transitionDuration: const Duration(milliseconds: 250),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return const Align(
+            alignment: Alignment.centerRight,
+            child: Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                width: 440,
+                height: double.infinity,
+                child: AIVoiceAssistantSheet(isRightPanel: true),
+              ),
+            ),
+          );
+        },
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          );
+        },
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: media.size.height * 0.88,
+        ),
+        builder: (_) => const AIVoiceAssistantSheet(isRightPanel: false),
+      );
+    }
   }
 
   @override
@@ -341,7 +388,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
       case AIActionType.openPolicySettings:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const PolicySettingsScreen(isEmbedded: false)),
+          MaterialPageRoute(builder: (_) => PolicySettingsScreen(isEmbedded: false)),
         );
         break;
       case AIActionType.clockIn:
@@ -361,16 +408,29 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
     final role = user?.role ?? UserRole.employee;
     final quickSuggestions = AIAssistantService().getQuickSuggestions(role);
 
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final isDesktop = screenWidth >= 600;
+
     return Container(
-      height: mediaQuery.size.height * 0.88,
+      constraints: widget.isRightPanel
+          ? const BoxConstraints.expand()
+          : BoxConstraints(
+              maxWidth: 680,
+              maxHeight: isDesktop ? screenHeight * 0.85 : screenHeight * 0.90,
+            ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: widget.isRightPanel
+            ? const BorderRadius.horizontal(left: Radius.circular(24))
+            : (isDesktop
+                ? BorderRadius.circular(24)
+                : const BorderRadius.vertical(top: Radius.circular(28))),
         boxShadow: const [
           BoxShadow(
             color: Colors.black26,
             blurRadius: 25,
-            offset: Offset(0, -5),
+            offset: Offset(-4, 0),
           ),
         ],
       ),

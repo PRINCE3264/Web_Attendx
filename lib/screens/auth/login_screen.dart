@@ -56,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     FocusScope.of(context).unfocus();
 
-    // 1. Try native Google Auth
     final success = await auth.loginWithGoogle();
 
     if (success && mounted) {
@@ -64,404 +63,206 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
-      return;
+    } else if (mounted) {
+      final error = auth.errorMessage ?? '';
+      if (error.contains('10') ||
+          error.contains('sign_in_failed') ||
+          error.contains('ApiException') ||
+          error.contains('SHA-1')) {
+        _showCustomGoogleEmailDialog(
+          isConfigFallback: true,
+        );
+      } else if (error.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
-
-    // 2. If native Google Auth is cancelled or running in desktop/test environment, show Google Account Chooser
-    if (mounted) {
-      _showGoogleAccountChooser();
-    }
   }
 
-  void _showGoogleAccountChooser() {
-    final auth = context.read<AuthProvider>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-          left: 20,
-          right: 20,
-          top: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const GoogleLogoWidget(size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sign in with Google',
-                        style: GoogleFonts.outfit(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      Text(
-                        'Choose an account to continue to Envision Beyond India Pvt Ltd',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.pop(sheetContext),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-
-            _buildGoogleAccountTile(
-              name: 'Rahul Sharma',
-              email: 'rahul.sharma@company.com',
-              roleLabel: 'Employee • Mobile Engineering',
-              avatarLetter: 'R',
-              avatarColor: const Color(0xFF2563EB),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final res = await auth.loginWithGoogle(
-                  fallbackEmail: 'rahul.sharma@company.com',
-                  fallbackName: 'Rahul Sharma',
-                  fallbackPhotoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                );
-                if (res && mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MainNavigationScreen(),
-                    ),
-                  );
-                }
-              },
-            ),
-
-            _buildGoogleAccountTile(
-              name: 'Vikram Mehta',
-              email: 'vikram.mehta@company.com',
-              roleLabel: 'Team Lead • Mobile App Team',
-              avatarLetter: 'V',
-              avatarColor: const Color(0xFFD97706),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final res = await auth.loginWithGoogle(
-                  fallbackEmail: 'vikram.mehta@company.com',
-                  fallbackName: 'Vikram Mehta',
-                  fallbackPhotoUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
-                );
-                if (res && mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MainNavigationScreen(),
-                    ),
-                  );
-                }
-              },
-            ),
-
-            _buildGoogleAccountTile(
-              name: 'Dr. Anita Roy',
-              email: 'anita.roy@company.com',
-              roleLabel: 'HR Manager • People & Culture',
-              avatarLetter: 'A',
-              avatarColor: const Color(0xFF2563EB),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final res = await auth.loginWithGoogle(
-                  fallbackEmail: 'anita.roy@company.com',
-                  fallbackName: 'Dr. Anita Roy',
-                  fallbackPhotoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
-                );
-                if (res && mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MainNavigationScreen(),
-                    ),
-                  );
-                }
-              },
-            ),
-
-            _buildGoogleAccountTile(
-              name: 'Suresh Kumar',
-              email: 'admin@company.com',
-              roleLabel: 'System Administrator • IT & Security',
-              avatarLetter: 'S',
-              avatarColor: const Color(0xFFDC2626),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final res = await auth.loginWithGoogle(
-                  fallbackEmail: 'admin@company.com',
-                  fallbackName: 'Suresh Kumar',
-                  fallbackPhotoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-                );
-                if (res && mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MainNavigationScreen(),
-                    ),
-                  );
-                }
-              },
-            ),
-
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-
-            // Use Another Account Option
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 2,
-              ),
-              leading: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFF1F5F9),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Icon(
-                  Icons.person_add_alt_1_outlined,
-                  color: Color(0xFF475569),
-                  size: 18,
-                ),
-              ),
-              title: Text(
-                'Use another Google account',
-                style: GoogleFonts.inter(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              subtitle: Text(
-                'Sign in with custom Gmail or company account',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Color(0xFF94A3B8),
-              ),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showCustomGoogleEmailDialog();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoogleAccountTile({
-    required String name,
-    required String email,
-    required String roleLabel,
-    required String avatarLetter,
-    required Color avatarColor,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: avatarColor.withValues(alpha: 0.12),
-                border: Border.all(color: avatarColor.withValues(alpha: 0.4)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                avatarLetter,
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: avatarColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: GoogleFonts.inter(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                  Text(
-                    email,
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                  Text(
-                    roleLabel,
-                    style: GoogleFonts.inter(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: avatarColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF94A3B8)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCustomGoogleEmailDialog() {
+  void _showCustomGoogleEmailDialog({bool isConfigFallback = false}) {
     final auth = context.read<AuthProvider>();
     final emailCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dlgCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const GoogleLogoWidget(size: 22),
-            const SizedBox(width: 10),
-            Text(
-              'Google Account Sign In',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter your Google account email to sign in to AttendX:',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: const Color(0xFF475569),
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(
-                labelText: 'Full Name',
-                hintText: 'e.g. Aman Gupta',
-                prefixIcon: const Icon(Icons.person_outline, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'Google Email',
-                hintText: 'e.g. aman@gmail.com',
-                prefixIcon: const Icon(Icons.mail_outline, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dlgCtx),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (dlgCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty || !email.contains('@')) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid Google email address.'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const GoogleLogoWidget(size: 24),
                   ),
-                );
-                return;
-              }
-              Navigator.pop(dlgCtx);
-              final res = await auth.loginWithGoogle(
-                fallbackEmail: email,
-                fallbackName: nameCtrl.text.trim().isNotEmpty
-                    ? nameCtrl.text.trim()
-                    : null,
-              );
-              if (res && mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const MainNavigationScreen(),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Google Sign In',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Enter your Google account details',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: Color(0xFF94A3B8)),
+                    onPressed: () => Navigator.pop(dlgCtx),
+                    splashRadius: 20,
+                  ),
+                ],
               ),
-            ),
-            child: const Text('Sign In with Google'),
+              const SizedBox(height: 20),
+
+              // Full Name input
+              Text(
+                'FULL NAME',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameCtrl,
+                style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Aman Gupta',
+                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13.5),
+                  prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Google Email input
+              Text(
+                'GOOGLE EMAIL',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'e.g. name@gmail.com',
+                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13.5),
+                  prefixIcon: const Icon(Icons.mail_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Action Buttons
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final email = emailCtrl.text.trim();
+                  if (email.isEmpty || !email.contains('@')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid Google email address.'),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(dlgCtx);
+                  final res = await auth.loginWithGoogle(
+                    fallbackEmail: email,
+                    fallbackName: nameCtrl.text.trim().isNotEmpty
+                        ? nameCtrl.text.trim()
+                        : null,
+                  );
+                  if (res && mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MainNavigationScreen(),
+                      ),
+                    );
+                  }
+                },
+                icon: const GoogleLogoWidget(size: 18),
+                label: Text(
+                  'Continue with Google',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -504,32 +305,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            // Background branding texts
-            Positioned(
-              top: 80,
-              left: 20,
-              child: Text(
-                'Work\nBuild\nBelong',
-                style: GoogleFonts.caveat(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E3A8A),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 80,
-              right: 20,
-              child: Text(
-                'People\nAttendance\nProgress\nTogether',
-                textAlign: TextAlign.right,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ),
             // Main content using LayoutBuilder so logo fills upper space
             SafeArea(
               child: LayoutBuilder(
@@ -543,12 +318,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: IntrinsicHeight(
                         child: Column(
                           children: [
-                            // Top Logo Section — expands dynamically starting right below top decorative header
+                            // Top Logo Section
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   16,
-                                  50,
+                                  8,
                                   16,
                                   4,
                                 ),
@@ -556,16 +331,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     SizedBox(
-                                      height: 120,
+                                      height: 90,
                                       child: Transform.scale(
-                                        scale: 4.4,
+                                        scale: 3.8,
                                         child: Image.asset(
                                           'assets/logo.png',
                                           fit: BoxFit.contain,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 12),
                                     Text(
                                       'Envision Beyond India Pvt Ltd',
                                       textAlign: TextAlign.center,
@@ -580,12 +355,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       'Smart Attendance & Workforce System',
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.inter(
-                                        fontSize: 12.5,
+                                        fontSize: 12,
                                         color: const Color(0xFF64748B),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    const SizedBox(height: 10),
                                   ],
                                 ),
                               ),
@@ -599,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 18,
-                                      vertical: 16,
+                                      vertical: 14,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
@@ -626,47 +400,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                             'Welcome Back',
                                             textAlign: TextAlign.center,
                                             style: GoogleFonts.outfit(
-                                              fontSize: 22,
+                                              fontSize: 21,
                                               fontWeight: FontWeight.bold,
                                               color: const Color(0xFF0F172A),
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'New to AttendX? ',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 12.5,
-                                                  color: const Color(
-                                                    0xFF64748B,
-                                                  ),
-                                                ),
-                                              ),
-                                              GestureDetector(
-                                                onTap: () => Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        const CreateAccountScreen(),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  'Create Account 🚀',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 12.5,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: const Color(
-                                                      0xFF2563EB,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Sign in to access your dashboard',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: const Color(0xFF64748B),
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
-                                          const SizedBox(height: 16),
+                                          const SizedBox(height: 12),
                                           // EMAIL
                                           Row(
                                             children: [
