@@ -129,6 +129,9 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
       final user = context.read<AuthProvider>().currentUser;
       final hrProv = context.read<HrProvider>();
       if (user == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Unable to submit: User is not logged in.')),
+        );
         return;
       }
 
@@ -138,7 +141,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
 
       final storageService = StorageService();
 
-      // Parallelize screenshot uploads with 12s timeout per image
+      // Parallelize screenshot uploads with 5s timeout per image
       final uploadedScreenshotUrls = await Future.wait(
         _screenshotPaths.asMap().entries.map((entry) async {
           final i = entry.key;
@@ -152,7 +155,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                     fileName: 'screenshot_${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
                     file: XFile(path),
                   )
-                  .timeout(const Duration(seconds: 12), onTimeout: () => path);
+                  .timeout(const Duration(seconds: 5), onTimeout: () => path);
             } catch (e) {
               debugPrint('Screenshot upload notice: $e');
               return path;
@@ -162,7 +165,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
         }),
       );
 
-      // Parallelize video uploads with 15s timeout per video
+      // Parallelize video uploads with 6s timeout per video
       final uploadedVideoUrls = await Future.wait(
         _videoPaths.asMap().entries.map((entry) async {
           final i = entry.key;
@@ -176,7 +179,7 @@ class _SubmitProjectReportSheetState extends State<SubmitProjectReportSheet> {
                     fileName: 'video_${i}_${DateTime.now().millisecondsSinceEpoch}.mp4',
                     file: XFile(path),
                   )
-                  .timeout(const Duration(seconds: 15), onTimeout: () => path);
+                  .timeout(const Duration(seconds: 6), onTimeout: () => path);
             } catch (e) {
               debugPrint('Video upload notice: $e');
               return path;

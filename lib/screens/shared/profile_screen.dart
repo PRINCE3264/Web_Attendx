@@ -266,6 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: AppTheme.primary,
                                 ),
                               ),
+
                             ),
                           ],
                         ),

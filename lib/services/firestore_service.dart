@@ -2453,8 +2453,8 @@ class FirestoreService {
             .collection('projectReports')
             .doc(report.reportId)
             .set(report.toMap(), SetOptions(merge: true))
-            .timeout(const Duration(seconds: 8), onTimeout: () {
-          debugPrint('⚠️ Firestore project report write timed out; stored in local memory & offline cache.');
+            .timeout(const Duration(seconds: 4), onTimeout: () {
+          debugPrint('⚠️ Firestore project report write timed out after 4s; saved in local cache.');
         });
         debugPrint('🔥 Project report successfully written to Cloud Firestore DB: ${report.reportId}');
       } else {
@@ -2480,11 +2480,23 @@ class FirestoreService {
       await _db?.collection('notifications').doc(notif.id).set(notif.toMap(), SetOptions(merge: true));
     } catch (_) {}
 
+    final safeActor = _users.firstWhere(
+      (u) => u.userId == report.employeeId || u.employeeId == report.employeeId,
+      orElse: () => _users.isNotEmpty
+          ? _users.first
+          : UserModel(
+              userId: report.employeeId,
+              name: report.employeeName,
+              email: '',
+              role: UserRole.employee,
+              employeeId: report.employeeId,
+              teamId: '',
+              department: '',
+            ),
+    );
+
     AuditService().log(
-      actor: _users.firstWhere(
-        (u) => u.userId == report.employeeId || u.employeeId == report.employeeId,
-        orElse: () => _users.first,
-      ),
+      actor: safeActor,
       actionType: 'PROJECT_REPORT_SUBMIT',
       description:
           'Submitted daily work report for project "${report.projectName}" (${report.hoursSpent} hrs logged).',

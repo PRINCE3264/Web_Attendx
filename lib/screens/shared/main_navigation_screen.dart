@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../config/app_theme.dart';
+import '../../services/local_storage_service.dart';
 import 'app_sidebar_drawer.dart';
 import 'notifications_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
 import 'profile_screen.dart';
+import 'community_eb_screen.dart';
+import 'project_reports_screen.dart';
+import 'system_settings_screen.dart';
 import '../employee/employee_dashboard.dart';
 import '../employee/attendance_history_screen.dart';
 import '../employee/leave_management_screen.dart';
 import '../manager/manager_dashboard.dart';
-
 import '../manager/leave_approval_screen.dart';
+import '../manager/tl_team_attendance_screen.dart';
 import '../hr/hr_dashboard.dart';
 import '../hr/all_employees_screen.dart';
 import '../hr/report_generator_screen.dart';
+import '../hr/all_attendance_screen.dart';
 import '../admin/admin_panel_screen.dart';
 import '../admin/policy_settings_screen.dart';
 import '../admin/audit_logs_screen.dart';
+import '../admin/projects_management_screen.dart';
+import '../admin/departments_management_screen.dart';
+import '../admin/teams_management_screen.dart';
 import '../auth/login_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -30,36 +39,147 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> with TickerProviderStateMixin {
+class _MainNavigationScreenState extends State<MainNavigationScreen>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   UserRole? _previousRole;
   Widget? _customScreen;
   String? _customScreenTitle;
+  bool _isNavStateRestored = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
+    _tabController.addListener(_onTabControllerChanged);
+    _restoreNavigationState();
+  }
+
+  void _onTabControllerChanged() {
+    if (!_tabController.indexIsChanging) {
+      if (_isNavStateRestored && _customScreen == null) {
+        LocalStorageService().saveActiveNavigation(
+          tabIndex: _tabController.index,
+          screenTitle: null,
+        );
+      }
+      setState(() {});
+    }
+  }
+
+  Future<void> _restoreNavigationState() async {
+    final navData = await LocalStorageService().loadActiveNavigation();
+    final savedTabIndex = (navData['tabIndex'] as int?) ?? 0;
+    final savedTitle = navData['screenTitle'] as String?;
+
+    if (!mounted) return;
+
+    setState(() {
+      _isNavStateRestored = true;
+      if (savedTitle != null && savedTitle.isNotEmpty) {
+        final widget = _getWidgetForScreenTitle(savedTitle);
+        if (widget != null) {
+          _customScreen = widget;
+          _customScreenTitle = savedTitle;
+        }
+      }
+      final maxIndex = _tabController.length - 1;
+      final targetIndex = savedTabIndex.clamp(0, maxIndex < 0 ? 0 : maxIndex);
+      if (_tabController.index != targetIndex) {
+        _tabController.index = targetIndex;
       }
     });
+  }
+
+  Widget? _getWidgetForScreenTitle(String title) {
+    final cleanTitle = title.trim();
+    if (cleanTitle.contains('Community EB')) {
+      return const CommunityEbScreen();
+    } else if (cleanTitle.contains('Project Work Report') ||
+        cleanTitle.contains('Work Report')) {
+      return const ProjectReportsScreen(isEmbedded: true);
+    } else if (cleanTitle.contains('Project Management') ||
+        cleanTitle.contains('Master Directory') ||
+        cleanTitle == 'My Projects') {
+      return const ProjectsManagementScreen(isEmbedded: true);
+    } else if (cleanTitle.contains('Department')) {
+      return const DepartmentsManagementScreen(isEmbedded: true);
+    } else if (cleanTitle.contains('Team Directory') ||
+        cleanTitle.contains('Teams Management')) {
+      return const TeamsManagementScreen(isEmbedded: true);
+    } else if (cleanTitle.contains('Company Attendance') ||
+        cleanTitle == 'All Attendance') {
+      return const AllAttendanceScreen();
+    } else if (cleanTitle.contains('Audit')) {
+      return const AuditLogsScreen();
+    } else if (cleanTitle.contains('Settings')) {
+      return const SystemSettingsScreen(isEmbedded: true);
+    } else if (cleanTitle == 'Profile') {
+      return const ProfileScreen();
+    } else if (cleanTitle == 'Team Attendance') {
+      return const TlTeamAttendanceScreen();
+    } else if (cleanTitle.contains('Directory') ||
+        cleanTitle.contains('Roster') ||
+        cleanTitle.contains('Users') ||
+        cleanTitle.contains('Employees')) {
+      return const AllEmployeesScreen();
+    } else if (cleanTitle.contains('Leave')) {
+      return const LeaveApprovalScreen();
+    } else if (cleanTitle == 'Notifications') {
+      return const NotificationsScreen();
+    } else if (cleanTitle.contains('Monthly Attendance') ||
+        cleanTitle == 'My Attendance') {
+      return const AttendanceHistoryScreen(isEmbedded: true);
+    } else if (cleanTitle.contains('Report')) {
+      return const ReportGeneratorScreen();
+    }
+    return null;
   }
 
   void _updateTabController(int length) {
     if (_tabController.length != length) {
       final oldController = _tabController;
       _tabController = TabController(length: length, vsync: this);
-      _tabController.addListener(() {
-        if (!_tabController.indexIsChanging) {
-          setState(() {});
-        }
-      });
+      _tabController.addListener(_onTabControllerChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         oldController.dispose();
       });
     }
+  }
+
+  void _selectTab(int index, int maxScreensLen) {
+    final clampedIndex = index.clamp(0, maxScreensLen - 1);
+    setState(() {
+      _customScreen = null;
+      _customScreenTitle = null;
+      _tabController.animateTo(clampedIndex);
+    });
+    LocalStorageService().saveActiveNavigation(
+      tabIndex: clampedIndex,
+      screenTitle: null,
+    );
+  }
+
+  void _selectScreen(Widget screen, String title) {
+    setState(() {
+      _customScreen = screen;
+      _customScreenTitle = title;
+    });
+    LocalStorageService().saveActiveNavigation(
+      tabIndex: _tabController.index,
+      screenTitle: title,
+    );
+  }
+
+  void _clearCustomScreen() {
+    setState(() {
+      _customScreen = null;
+      _customScreenTitle = null;
+    });
+    LocalStorageService().saveActiveNavigation(
+      tabIndex: _tabController.index,
+      screenTitle: null,
+    );
   }
 
   @override
@@ -92,10 +212,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         const ProfileScreen(),
       ];
       navItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Clock & Today'),
-        BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'My Attendance'),
-        BottomNavigationBarItem(icon: Icon(Icons.beach_access_outlined), activeIcon: Icon(Icons.beach_access), label: 'Leaves'),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_outlined),
+          activeIcon: Icon(Icons.dashboard),
+          label: 'Clock & Today',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_month_outlined),
+          activeIcon: Icon(Icons.calendar_month),
+          label: 'My Attendance',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.beach_access_outlined),
+          activeIcon: Icon(Icons.beach_access),
+          label: 'Leaves',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ];
     } else if (role == UserRole.manager) {
       screens = [
@@ -106,11 +242,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         const ProfileScreen(),
       ];
       navItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.touch_app_outlined), activeIcon: Icon(Icons.touch_app), label: 'Clock & Today'),
-        BottomNavigationBarItem(icon: Icon(Icons.approval_outlined), activeIcon: Icon(Icons.approval), label: 'Approvals & Team'),
-        BottomNavigationBarItem(icon: Icon(Icons.beach_access_outlined), activeIcon: Icon(Icons.beach_access), label: 'Leave Requests'),
-        BottomNavigationBarItem(icon: Icon(Icons.groups_outlined), activeIcon: Icon(Icons.groups), label: 'Team Roster'),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.touch_app_outlined),
+          activeIcon: Icon(Icons.touch_app),
+          label: 'Clock & Today',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.approval_outlined),
+          activeIcon: Icon(Icons.approval),
+          label: 'Approvals & Team',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.beach_access_outlined),
+          activeIcon: Icon(Icons.beach_access),
+          label: 'Leave Requests',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.groups_outlined),
+          activeIcon: Icon(Icons.groups),
+          label: 'Team Roster',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ];
     } else if (role == UserRole.admin) {
       screens = [
@@ -122,12 +278,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         const ProfileScreen(),
       ];
       navItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Daily Attendance'),
-        BottomNavigationBarItem(icon: Icon(Icons.manage_accounts_outlined), activeIcon: Icon(Icons.manage_accounts), label: 'Workforce'),
-        BottomNavigationBarItem(icon: Icon(Icons.tune_outlined), activeIcon: Icon(Icons.tune), label: 'Policy Engine'),
-        BottomNavigationBarItem(icon: Icon(Icons.security_outlined), activeIcon: Icon(Icons.security), label: 'Audit Trail'),
-        BottomNavigationBarItem(icon: Icon(Icons.assessment_outlined), activeIcon: Icon(Icons.assessment), label: 'Reports'),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_month_outlined),
+          activeIcon: Icon(Icons.calendar_month),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.manage_accounts_outlined),
+          activeIcon: Icon(Icons.manage_accounts),
+          label: 'Workforce',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.tune_outlined),
+          activeIcon: Icon(Icons.tune),
+          label: 'Policy',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.security_outlined),
+          activeIcon: Icon(Icons.security),
+          label: 'Audit',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assessment_outlined),
+          activeIcon: Icon(Icons.assessment),
+          label: 'Reports',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ];
     } else {
       // HR / Management
@@ -138,26 +318,47 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         const ProfileScreen(),
       ];
       navItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), activeIcon: Icon(Icons.analytics), label: 'HR Overview'),
-        BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Directory'),
-        BottomNavigationBarItem(icon: Icon(Icons.assessment_outlined), activeIcon: Icon(Icons.assessment), label: 'Audit Reports'),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.analytics_outlined),
+          activeIcon: Icon(Icons.analytics),
+          label: 'HR Overview',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.people_outline),
+          activeIcon: Icon(Icons.people),
+          label: 'Directory',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assessment_outlined),
+          activeIcon: Icon(Icons.assessment),
+          label: 'Audit Reports',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ];
     }
 
-    if (_previousRole != role) {
-      _previousRole = role;
+    if (_previousRole != null && _previousRole != role) {
       _customScreen = null;
       _customScreenTitle = null;
       _updateTabController(screens.length);
-      // Always reset to tab 0 on role change so HR lands on HR Overview, etc.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _tabController.index = 0;
+          LocalStorageService().saveActiveNavigation(
+            tabIndex: 0,
+            screenTitle: null,
+          );
           setState(() {});
         }
       });
+    } else if (_previousRole == null) {
+      _updateTabController(screens.length);
     }
+    _previousRole = role;
 
     Color roleColor;
     switch (role) {
@@ -183,14 +384,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_customScreen != null) {
-          setState(() {
-            _customScreen = null;
-            _customScreenTitle = null;
-          });
+          _clearCustomScreen();
         } else if (_tabController.index != 0) {
-          setState(() {
-            _tabController.animateTo(0);
-          });
+          _selectTab(0, screens.length);
         }
       },
       child: Scaffold(
@@ -198,19 +394,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
             ? null
             : AppSidebarDrawer(
                 currentIndex: _customScreen != null ? -1 : _tabController.index,
-                onSelectTab: (index) {
-                  setState(() {
-                    _customScreen = null;
-                    _customScreenTitle = null;
-                    _tabController.animateTo(index.clamp(0, screens.length - 1));
-                  });
-                },
-                onSelectScreen: (screen, title) {
-                  setState(() {
-                    _customScreen = screen;
-                    _customScreenTitle = title;
-                  });
-                },
+                onSelectTab: (index) => _selectTab(index, screens.length),
+                onSelectScreen: _selectScreen,
               ),
         appBar: isDesktop
             ? null
@@ -219,30 +404,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                 leading: Builder(
                   builder: (ctx) => IconButton(
                     icon: Icon(
-                      _customScreen != null ? Icons.arrow_back_rounded : Icons.menu_rounded,
+                      _customScreen != null
+                          ? Icons.arrow_back_rounded
+                          : Icons.menu_rounded,
                       size: 26,
                     ),
                     onPressed: () {
                       if (_customScreen != null) {
-                        setState(() {
-                          _customScreen = null;
-                          _customScreenTitle = null;
-                        });
+                        _clearCustomScreen();
                       } else {
                         Scaffold.of(ctx).openDrawer();
                       }
                     },
-                    tooltip: _customScreen != null ? 'Back to Main Dashboard' : 'Open Navigation Drawer',
+                    tooltip: _customScreen != null
+                        ? 'Back to Main Dashboard'
+                        : 'Open Navigation Drawer',
                   ),
                 ),
                 title: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: roleColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: roleColor.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -251,8 +442,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                             role == UserRole.admin
                                 ? Icons.admin_panel_settings
                                 : (role == UserRole.manager
-                                    ? Icons.supervisor_account
-                                    : (role == UserRole.hr ? Icons.badge : Icons.person)),
+                                      ? Icons.supervisor_account
+                                      : (role == UserRole.hr
+                                            ? Icons.badge
+                                            : Icons.person)),
                             size: 14,
                             color: roleColor,
                           ),
@@ -290,7 +483,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                     backgroundColor: AppTheme.danger,
                     offset: const Offset(-2, 2),
                     label: Text(
-                      notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
+                      notifProvider.unreadCount > 9
+                          ? '9+'
+                          : '${notifProvider.unreadCount}',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 9.5,
@@ -301,12 +496,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                       icon: Icon(
                         Icons.notifications_outlined,
                         size: 22,
-                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                        color: isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight,
                       ),
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
                         );
                       },
                       tooltip: 'Notifications',
@@ -323,26 +522,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
             ? Row(
                 children: [
                   AppSidebarDrawer(
-                    currentIndex: _customScreen != null ? -1 : _tabController.index,
-                    onSelectTab: (index) {
-                      setState(() {
-                        _customScreen = null;
-                        _customScreenTitle = null;
-                        _tabController.animateTo(index.clamp(0, screens.length - 1));
-                      });
-                    },
-                    onSelectScreen: (screen, title) {
-                      setState(() {
-                        _customScreen = screen;
-                        _customScreenTitle = title;
-                      });
-                    },
+                    currentIndex: _customScreen != null
+                        ? -1
+                        : _tabController.index,
+                    onSelectTab: (index) => _selectTab(index, screens.length),
+                    onSelectScreen: _selectScreen,
                     isPermanent: true,
                   ),
                   Expanded(
                     child: Column(
                       children: [
-                        _buildDesktopTopHeader(context, user, role, roleColor, isDark, notifProvider),
+                        _buildDesktopTopHeader(
+                          context,
+                          user,
+                          role,
+                          roleColor,
+                          isDark,
+                          notifProvider,
+                        ),
                         Expanded(
                           child: Stack(
                             children: [
@@ -363,32 +560,42 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
             : Stack(
                 children: [
                   _customScreen ??
-                      TabBarView(
-                        controller: _tabController,
-                        children: screens,
-                      ),
+                      TabBarView(controller: _tabController, children: screens),
                   const AIVoiceButton(),
                 ],
               ),
         bottomNavigationBar: isDesktop
             ? null
-            : BottomNavigationBar(
-                currentIndex: _customScreen != null ? 0 : _tabController.index.clamp(0, navItems.length - 1),
-                onTap: (index) {
-                  setState(() {
-                    _customScreen = null;
-                    _customScreenTitle = null;
-                    _tabController.animateTo(index);
-                  });
-                },
-                backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-                selectedItemColor: _customScreen != null
-                    ? (isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight)
-                    : roleColor,
-                unselectedItemColor: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                type: BottomNavigationBarType.fixed,
-                elevation: isDark ? 0 : 8,
-                items: navItems,
+            : SafeArea(
+                top: false,
+                child: BottomNavigationBar(
+                  currentIndex: _customScreen != null
+                      ? 0
+                      : _tabController.index.clamp(0, navItems.length - 1),
+                  onTap: (index) => _selectTab(index, screens.length),
+                  backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+                  selectedItemColor: _customScreen != null
+                      ? (isDark
+                            ? AppTheme.textMutedDark
+                            : AppTheme.textMutedLight)
+                      : roleColor,
+                  unselectedItemColor: isDark
+                      ? AppTheme.textMutedDark
+                      : AppTheme.textMutedLight,
+                  type: BottomNavigationBarType.fixed,
+                  selectedFontSize: 10,
+                  unselectedFontSize: 9.5,
+                  selectedLabelStyle: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.inter(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  elevation: isDark ? 0 : 8,
+                  items: navItems,
+                ),
               ),
       ),
     );
@@ -419,12 +626,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
           if (_customScreen != null) ...[
             IconButton(
               icon: const Icon(Icons.arrow_back_rounded, size: 22),
-              onPressed: () {
-                setState(() {
-                  _customScreen = null;
-                  _customScreenTitle = null;
-                });
-              },
+              onPressed: _clearCustomScreen,
               tooltip: 'Back to Dashboard',
             ),
             const SizedBox(width: 8),
@@ -448,7 +650,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                 style: GoogleFonts.inter(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                  color: isDark
+                      ? AppTheme.textMutedDark
+                      : AppTheme.textMutedLight,
                 ),
               ),
             ],
@@ -468,8 +672,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                   role == UserRole.admin
                       ? Icons.admin_panel_settings
                       : (role == UserRole.manager
-                          ? Icons.supervisor_account
-                          : (role == UserRole.hr ? Icons.badge : Icons.person)),
+                            ? Icons.supervisor_account
+                            : (role == UserRole.hr
+                                  ? Icons.badge
+                                  : Icons.person)),
                   size: 15,
                   color: roleColor,
                 ),
@@ -492,7 +698,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
             backgroundColor: AppTheme.danger,
             offset: const Offset(-2, 2),
             label: Text(
-              notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
+              notifProvider.unreadCount > 9
+                  ? '9+'
+                  : '${notifProvider.unreadCount}',
               style: GoogleFonts.inter(
                 color: Colors.white,
                 fontSize: 9.5,
@@ -503,12 +711,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
               icon: Icon(
                 Icons.notifications_outlined,
                 size: 22,
-                color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                color: isDark
+                    ? AppTheme.textMutedDark
+                    : AppTheme.textMutedLight,
               ),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
                 );
               },
               tooltip: 'Notifications',

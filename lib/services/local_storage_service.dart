@@ -426,4 +426,33 @@ class LocalStorageService {
       return null;
     }
   }
+
+  // --- Navigation State Persistence across Browser Refresh ---
+  static const String _kActiveTabIndexKey = 'attendx_active_tab_index';
+  static const String _kActiveScreenTitleKey = 'attendx_active_screen_title';
+
+  Future<void> saveActiveNavigation({required int tabIndex, String? screenTitle}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kActiveTabIndexKey, tabIndex);
+      if (screenTitle != null && screenTitle.isNotEmpty) {
+        await prefs.setString(_kActiveScreenTitleKey, screenTitle);
+      } else {
+        await prefs.remove(_kActiveScreenTitleKey);
+      }
+    } catch (e) {
+      debugPrint('Error saving active navigation: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> loadActiveNavigation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tabIndex = prefs.getInt(_kActiveTabIndexKey) ?? 0;
+      final screenTitle = prefs.getString(_kActiveScreenTitleKey);
+      return {'tabIndex': tabIndex, 'screenTitle': screenTitle};
+    } catch (e) {
+      return {'tabIndex': 0, 'screenTitle': null};
+    }
+  }
 }

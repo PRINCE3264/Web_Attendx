@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -86,8 +87,12 @@ class StorageService {
           .ref()
           .child('attendance_photos/$userId/${date}_$type.jpg');
       final metadata = SettableMetadata(contentType: 'image/jpeg');
-      final uploadTask = await ref.putData(bytes, metadata);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      final task = ref.putData(bytes, metadata);
+      await task.timeout(const Duration(seconds: 4), onTimeout: () {
+        task.cancel();
+        throw TimeoutException('Firebase Storage upload timed out after 4s');
+      });
+      final downloadUrl = await ref.getDownloadURL().timeout(const Duration(seconds: 3));
       return downloadUrl;
     } catch (e) {
       debugPrint('Firebase Storage upload fallback: $e');
@@ -107,8 +112,12 @@ class StorageService {
           .ref()
           .child('profile_photos/$userId.jpg');
       final metadata = SettableMetadata(contentType: 'image/jpeg');
-      final uploadTask = await ref.putData(bytes, metadata);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      final task = ref.putData(bytes, metadata);
+      await task.timeout(const Duration(seconds: 4), onTimeout: () {
+        task.cancel();
+        throw TimeoutException('Firebase Storage profile upload timed out');
+      });
+      final downloadUrl = await ref.getDownloadURL().timeout(const Duration(seconds: 3));
       return downloadUrl;
     } catch (e) {
       debugPrint('Firebase Storage profile upload fallback: $e');
@@ -123,25 +132,34 @@ class StorageService {
     required String fileName,
     required XFile file,
   }) async {
-    final Uint8List bytes = await file.readAsBytes();
-    final extension = fileName.split('.').last.toLowerCase();
-    final contentType = extension == 'mp4' ? 'video/mp4' : 'image/jpeg';
-
     try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('project_reports/$userId/$reportId/$fileName');
-      final metadata = SettableMetadata(contentType: contentType);
-      await ref.putData(bytes, metadata).timeout(const Duration(seconds: 10));
-      final downloadUrl = await ref.getDownloadURL().timeout(const Duration(seconds: 5));
-      return downloadUrl;
-    } catch (e) {
-      debugPrint('Firebase Storage report media upload fallback: $e');
-      if (contentType.startsWith('video')) {
-        return file.path;
+      final Uint8List bytes = await file.readAsBytes();
+      final extension = fileName.split('.').last.toLowerCase();
+      final contentType = extension == 'mp4' ? 'video/mp4' : 'image/jpeg';
+
+      try {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('project_reports/$userId/$reportId/$fileName');
+        final metadata = SettableMetadata(contentType: contentType);
+        final task = ref.putData(bytes, metadata);
+        await task.timeout(const Duration(seconds: 6), onTimeout: () {
+          task.cancel();
+          throw TimeoutException('Firebase Storage upload timed out after 6s');
+        });
+        final downloadUrl = await ref.getDownloadURL().timeout(const Duration(seconds: 3));
+        return downloadUrl;
+      } catch (e) {
+        debugPrint('Firebase Storage report media upload fallback: $e');
+        if (contentType.startsWith('video') || bytes.length > 200000) {
+          return file.path;
+        }
+        final base64String = base64Encode(bytes);
+        return 'data:$contentType;base64,$base64String';
       }
-      final base64String = base64Encode(bytes);
-      return 'data:$contentType;base64,$base64String';
+    } catch (e) {
+      debugPrint('Media read error: $e');
+      return file.path;
     }
   }
 }

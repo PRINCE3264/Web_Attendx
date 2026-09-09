@@ -7,6 +7,7 @@ import '../../models/leave_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/leave_provider.dart';
+import '../../widgets/leave_email_preview_dialog.dart';
 
 class LeaveApprovalScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -533,6 +534,33 @@ class _LeaveApprovalScreenState extends State<LeaveApprovalScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                final empUser = UserModel(
+                  userId: l.employeeId,
+                  name: l.employeeName,
+                  email: '${l.employeeName.toLowerCase().replaceAll(' ', '.')}@envisionbeyond.com',
+                  role: UserRole.employee,
+                  employeeId: l.employeeCode,
+                  teamId: '',
+                  department: l.department,
+                );
+                LeaveEmailPreviewDialog.show(
+                  context,
+                  leave: l,
+                  employee: empUser,
+                  actionType: isApproved ? 'approved' : 'rejected',
+                  reviewerName: l.reviewerName,
+                  rejectionReason: l.rejectionReason,
+                );
+              },
+              icon: const Icon(Icons.mark_email_read_outlined, size: 15, color: AppTheme.primary),
+              label: const Text('Preview / Dispatch Email', style: TextStyle(fontSize: 11.5, color: AppTheme.primary)),
+            ),
+          ),
         ],
       ),
     );
@@ -681,10 +709,32 @@ class _LeaveApprovalScreenState extends State<LeaveApprovalScreen> {
                             manager: reviewer,
                           );
                           if (context.mounted) {
+                            final empUser = UserModel(
+                              userId: l.employeeId,
+                              name: l.employeeName,
+                              email: '${l.employeeName.toLowerCase().replaceAll(' ', '.')}@envisionbeyond.com',
+                              role: UserRole.employee,
+                              employeeId: l.employeeCode,
+                              teamId: '',
+                              department: l.department,
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('✓ Approved leave for ${l.employeeName}'),
+                                content: Text('✓ Approved leave for ${l.employeeName}. Email notification dispatched!'),
                                 backgroundColor: AppTheme.success,
+                                action: SnackBarAction(
+                                  label: 'VIEW EMAIL',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    LeaveEmailPreviewDialog.show(
+                                      context,
+                                      leave: l,
+                                      employee: empUser,
+                                      actionType: 'approved',
+                                      reviewerName: reviewer.name,
+                                    );
+                                  },
+                                ),
                               ),
                             );
                           }

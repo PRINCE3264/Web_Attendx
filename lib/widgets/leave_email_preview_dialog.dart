@@ -140,304 +140,271 @@ class LeaveEmailPreviewDialog extends StatelessWidget {
             ),
           ),
 
-          // Email Content Scroll Area
+          // Email Content Area
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Center(
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 580),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 1. Top Brand Banner
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF1E3A8A), Color(0xFF2563EB), Color(0xFF3B82F6)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                  constraints: const BoxConstraints(maxWidth: 540),
+                  child: AspectRatio(
+                    aspectRatio: 1024 / 1536,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'envision',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    Text(
-                                      'beyond',
-                                      style: GoogleFonts.outfit(
-                                        color: const Color(0xFFEF4444),
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'PEOPLE | TECHNOLOGY | A BETTER TOMORROW',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF93C5FD),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              'www.envisionbeyond.com',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
+                      clipBehavior: Clip.hardEdge,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final height = constraints.maxHeight;
 
-                      // 2. Email Body Content
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 28, 28, 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Hello ${employee.name.split(' ')[0]},',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w800,
-                                          color: const Color(0xFF0F172A),
+                          final topPadding = height * 0.145;
+                          final bottomPadding = height * 0.145;
+                          final horizontalPadding = width * 0.085;
+
+                          return Stack(
+                            children: [
+                              // 1. Letterhead Template Background Image
+                              Positioned.fill(
+                                child: Image.asset(
+                                  'assets/mailtemplata.png',
+                                  fit: BoxFit.fill,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        headlineText,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          color: const Color(0xFF475569),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'We\'re glad to have you with us!',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          color: const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: statusBg,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(statusIcon, color: statusColor, size: 32),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Primary Action Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 0,
-                                ),
-                                child: Text(
-                                  'View Application Details',
-                                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold),
+                                    );
+                                  },
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(height: 24),
-
-                            // 3. Application Details Card
-                            Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              clipBehavior: Clip.hardEdge,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    color: const Color(0xFFF1F5F9),
-                                    child: Text(
-                                      'APPLICATION DETAILS',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF1E293B),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
+                              // 2. Overlay Email Content inside Letterhead Body Window
+                              Positioned.fill(
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    horizontalPadding,
+                                    topPadding,
+                                    horizontalPadding,
+                                    bottomPadding,
                                   ),
-                                  _buildDetailRow('Application ID', leave.leaveId.toUpperCase()),
-                                  _buildDetailRow('Employee Name', employee.name),
-                                  _buildDetailRow('Department', employee.department),
-                                  _buildDetailRow('Leave Type', leave.leaveType.label),
-                                  _buildDetailRow('From Date', startDateStr),
-                                  _buildDetailRow('To Date', endDateStr),
-                                  _buildDetailRow('Total Days', '${leave.totalDays} Days'),
-                                  _buildDetailRowWidget(
-                                    'Status',
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: statusBg,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: SingleChildScrollView(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
-                                          Icon(statusIcon, size: 14, color: statusColor),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            statusLabel,
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: statusColor,
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Hello ${employee.name.split(' ')[0]},',
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 19,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: const Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    headlineText,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 12,
+                                                      color: const Color(0xFF475569),
+                                                      height: 1.3,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'We\'re glad to have you with us!',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 11,
+                                                      color: const Color(0xFF64748B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: statusBg,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(statusIcon, color: statusColor, size: 22),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 8),
+
+                                        // Primary Action Button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                            onPressed: () {},
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF2563EB),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              elevation: 0,
+                                            ),
+                                            child: Text(
+                                              'View Application Details',
+                                              style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.bold),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  _buildDetailRow('Approved / Reviewed By', reviewerInfo),
-                                  _buildDetailRow('Message / Reason', leave.reason.isNotEmpty ? leave.reason : 'Your leave request has been processed.'),
-                                ],
-                              ),
-                            ),
+                                        ),
 
-                            const SizedBox(height: 24),
+                                        const SizedBox(height: 8),
 
-                            // 4. Feature Pills (Manage, Track, Support)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildFeatureBox(
-                                    icon: Icons.calendar_month_rounded,
-                                    title: 'Manage',
-                                    subtitle: 'Your Applications',
-                                    color: const Color(0xFF2563EB),
-                                    bg: const Color(0xFFEFF6FF),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildFeatureBox(
-                                    icon: Icons.description_rounded,
-                                    title: 'Track',
-                                    subtitle: 'Request Status',
-                                    color: const Color(0xFF16A34A),
-                                    bg: const Color(0xFFF0FDF4),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildFeatureBox(
-                                    icon: Icons.headset_mic_rounded,
-                                    title: 'Get Support',
-                                    subtitle: 'We\'re here to help',
-                                    color: const Color(0xFF9333EA),
-                                    bg: const Color(0xFFFAF5FF),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                        // Application Details Card inside Letterhead
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          ),
+                                          clipBehavior: Clip.hardEdge,
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                width: double.infinity,
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                color: const Color(0xFFF1F5F9),
+                                                child: Text(
+                                                  'APPLICATION DETAILS',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: const Color(0xFF1E293B),
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ),
+                                              _buildDetailRow('Application ID', leave.leaveId.toUpperCase()),
+                                              _buildDetailRow('Employee Name', employee.name),
+                                              _buildDetailRow('Department', employee.department),
+                                              _buildDetailRow('Leave Type', leave.leaveType.label),
+                                              _buildDetailRow('From Date', startDateStr),
+                                              _buildDetailRow('To Date', endDateStr),
+                                              _buildDetailRow('Total Days', '${leave.totalDays} Days'),
+                                              _buildDetailRowWidget(
+                                                'Status',
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: statusBg,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(statusIcon, size: 12, color: statusColor),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        statusLabel,
+                                                        style: GoogleFonts.outfit(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: statusColor,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              _buildDetailRow('Reviewed By', reviewerInfo),
+                                              _buildDetailRow('Reason / Message', leave.reason.isNotEmpty ? leave.reason : 'Your leave request has been processed.'),
+                                            ],
+                                          ),
+                                        ),
 
-                            const SizedBox(height: 24),
+                                        const SizedBox(height: 8),
 
-                            Text(
-                              'If you have any questions, feel free to reach out to the HR team.',
-                              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Regards,\nEnvision Beyond India Private Limited',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF1E293B),
-                              ),
-                            ),
-                            Text(
-                              'People | Technology | A Better Tomorrow',
-                              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
-                            ),
-                          ],
-                        ),
+                                        // Feature Pills (Manage, Track, Support)
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildFeatureBox(
+                                                icon: Icons.calendar_month_rounded,
+                                                title: 'Manage',
+                                                subtitle: 'Applications',
+                                                color: const Color(0xFF2563EB),
+                                                bg: const Color(0xFFEFF6FF),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: _buildFeatureBox(
+                                                icon: Icons.description_rounded,
+                                                title: 'Track',
+                                                subtitle: 'Status',
+                                                color: const Color(0xFF16A34A),
+                                                bg: const Color(0xFFF0FDF4),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: _buildFeatureBox(
+                                                icon: Icons.headset_mic_rounded,
+                                                title: 'Support',
+                                                subtitle: 'HR Team',
+                                                color: const Color(0xFF9333EA),
+                                                bg: const Color(0xFFFAF5FF),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 8),
+
+                                        Text(
+                                          'If you have any questions, feel free to reach out to the HR team.',
+                                          style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF64748B)),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Regards,\nEnvision Beyond HR & Management Team',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFF1E293B),
+                                            height: 1.25,
+                                          ),
+                                        ),
+                                       ],
+                                     ),
+                                   ),
+                                 ),
+                               ),
+                             ),
+                           ],
+                         );
+                        },
                       ),
-
-                      // 5. Dark Footer
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        color: const Color(0xFF0F172A),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Envision Beyond India Private Limited • Bangalore, India',
-                              style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Email: hr@envisionbeyond.com • Web: www.envisionbeyond.com',
-                              style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF94A3B8)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -488,7 +455,7 @@ class LeaveEmailPreviewDialog extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
       ),
@@ -496,16 +463,16 @@ class LeaveEmailPreviewDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 130,
+            width: 120,
             child: Text(
               label,
-              style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B)),
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600, color: const Color(0xFF0F172A)),
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF0F172A)),
             ),
           ),
         ],
@@ -515,17 +482,17 @@ class LeaveEmailPreviewDialog extends StatelessWidget {
 
   Widget _buildDetailRowWidget(String label, Widget widget) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 130,
+            width: 120,
             child: Text(
               label,
-              style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B)),
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
             ),
           ),
           widget,
@@ -542,23 +509,34 @@ class LeaveEmailPreviewDialog extends StatelessWidget {
     required Color bg,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(height: 3),
           Text(
             title,
-            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             subtitle,
-            style: GoogleFonts.inter(fontSize: 9.5, color: color.withValues(alpha: 0.8)),
+            style: GoogleFonts.inter(fontSize: 8.5, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

@@ -449,8 +449,8 @@ class _PhotoDisplayWidgetState extends State<PhotoDisplayWidget> {
       }
     }
 
-    // Network URL
-    if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Network / Blob URL
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius),
         child: Image.network(url,

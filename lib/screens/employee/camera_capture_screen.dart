@@ -33,26 +33,30 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   void initState() {
     super.initState();
     _selectedLocation = widget.initialLocation ?? 'HQ Office - Floor 3';
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final provider = context.read<AttendanceProvider>();
       provider.clearTempPhoto();
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
-        _startCapture(source: ImageSource.camera);
-      }
+      provider.resetProcessing();
     });
   }
 
   void _startCapture({ImageSource source = ImageSource.camera}) async {
     final provider = context.read<AttendanceProvider>();
-    final success = await provider.captureSelfie(source: source);
-    if (!success && mounted && provider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.errorMessage!),
-          backgroundColor: AppTheme.danger,
-        ),
-      );
+    try {
+      final success = await provider.captureSelfie(source: source);
+      if (!success && mounted && provider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage!),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        provider.resetProcessing();
+      }
     }
   }
 
