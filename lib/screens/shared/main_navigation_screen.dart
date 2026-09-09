@@ -114,6 +114,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
       ];
     } else if (role == UserRole.admin) {
       screens = [
+        const HrDashboard(),
         const AdminPanelScreen(),
         const PolicySettingsScreen(),
         const AuditLogsScreen(),
@@ -121,6 +122,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
         const ProfileScreen(),
       ];
       navItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Daily Attendance'),
         BottomNavigationBarItem(icon: Icon(Icons.manage_accounts_outlined), activeIcon: Icon(Icons.manage_accounts), label: 'Workforce'),
         BottomNavigationBarItem(icon: Icon(Icons.tune_outlined), activeIcon: Icon(Icons.tune), label: 'Policy Engine'),
         BottomNavigationBarItem(icon: Icon(Icons.security_outlined), activeIcon: Icon(Icons.security), label: 'Audit Trail'),
@@ -308,59 +310,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                     onPressed: () => AIVoiceAssistantSheet.show(context),
                     tooltip: 'AttendX AI Chatbot',
                   ),
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.notifications_outlined,
-                          size: 24,
-                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                          );
-                        },
-                        tooltip: 'Notifications',
+                  Badge(
+                    isLabelVisible: notifProvider.unreadCount > 0,
+                    backgroundColor: AppTheme.danger,
+                    offset: const Offset(-2, 2),
+                    label: Text(
+                      notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (notifProvider.unreadCount > 0)
-                        Positioned(
-                          right: 6,
-                          top: 10,
-                          child: Container(
-                            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.danger,
-                                  const Color(0xFFFF6B6B),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.danger.withValues(alpha: 0.4),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                height: 1.2,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.notifications_outlined,
+                        size: 22,
+                        color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        );
+                      },
+                      tooltip: 'Notifications',
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.more_vert, size: 22),
@@ -394,20 +369,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
                       children: [
                         _buildDesktopTopHeader(context, user, role, roleColor, isDark, notifProvider),
                         Expanded(
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 1400),
-                              child: Stack(
-                                children: [
-                                  _customScreen ??
-                                      TabBarView(
-                                        controller: _tabController,
-                                        children: screens,
-                                      ),
-                                  const AIVoiceButton(),
-                                ],
-                              ),
-                            ),
+                          child: Stack(
+                            children: [
+                              _customScreen ??
+                                  TabBarView(
+                                    controller: _tabController,
+                                    children: screens,
+                                  ),
+                              const AIVoiceButton(),
+                            ],
                           ),
                         ),
                       ],
@@ -540,47 +510,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Ticker
               ],
             ),
           ),
-          const SizedBox(width: 16),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.notifications_outlined,
-                  size: 22,
-                  color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                  );
-                },
-                tooltip: 'Notifications',
+
+          const SizedBox(width: 10),
+          Badge(
+            isLabelVisible: notifProvider.unreadCount > 0,
+            backgroundColor: AppTheme.danger,
+            offset: const Offset(-2, 2),
+            label: Text(
+              notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 9.5,
+                fontWeight: FontWeight.bold,
               ),
-              if (notifProvider.unreadCount > 0)
-                Positioned(
-                  right: 6,
-                  top: 10,
-                  child: Container(
-                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.danger,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      notifProvider.unreadCount > 9 ? '9+' : '${notifProvider.unreadCount}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.notifications_outlined,
+                size: 22,
+                color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                );
+              },
+              tooltip: 'Notifications',
+            ),
           ),
         ],
       ),

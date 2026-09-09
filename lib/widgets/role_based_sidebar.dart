@@ -43,9 +43,11 @@ class RoleBasedSidebar extends StatelessWidget {
       pendingNotifs: 2,
     );
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final sidebarContent = Container(
       width: 280,
-      color: Colors.white,
+      color: isDark ? AppTheme.cardDark : Colors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -198,11 +200,15 @@ class RoleBasedSidebar extends StatelessWidget {
   }
 
   Widget _buildRoleHeader(BuildContext context, user, AppRole role) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)], // Premium AttendX Navy-Blue
+          colors: isDark
+              ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+              : [const Color(0xFF1E3A8A), const Color(0xFF2563EB)], // Premium AttendX Navy-Blue
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -228,22 +234,20 @@ class RoleBasedSidebar extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: ClipOval(
-                  child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                      ? PhotoDisplayWidget(
-                          photoUrl: user.avatarUrl,
-                          size: 48,
-                          borderRadius: 24,
-                        )
-                      : Image.asset(
-                          'web/favicon.png',
-                          errorBuilder: (ctx, err, stack) => const Icon(
-                            Icons.person,
-                            color: AppTheme.primary,
-                            size: 26,
-                          ),
+                child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                    ? PhotoDisplayWidget(
+                        photoUrl: user.avatarUrl,
+                        size: 48,
+                        borderRadius: 24,
+                      )
+                    : Image.asset(
+                        'web/favicon.png',
+                        errorBuilder: (ctx, err, stack) => const Icon(
+                          Icons.person,
+                          color: AppTheme.primary,
+                          size: 26,
                         ),
-                ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

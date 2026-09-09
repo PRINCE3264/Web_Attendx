@@ -24,6 +24,7 @@ import '../models/project_model.dart';
 import '../models/community_model.dart';
 import 'local_storage_service.dart';
 import 'auth_service.dart';
+import 'leave_email_template_service.dart';
 
 class FirestoreService {
   static final FirestoreService _instance = FirestoreService._internal();
@@ -2167,6 +2168,13 @@ class FirestoreService {
     }
     _notificationsStreamController.add(List.unmodifiable(_notifications));
 
+    // Dispatch branded email notification template
+    LeaveEmailTemplateService.sendLeaveStatusEmail(
+      leave: leave,
+      employee: employee,
+      actionType: 'applied',
+    );
+
     return leave;
   }
 
@@ -2273,6 +2281,15 @@ class FirestoreService {
       debugPrint('Firestore review notification dispatch error: $e');
     }
     _notificationsStreamController.add(List.unmodifiable(_notifications));
+
+    // Dispatch branded email notification template to Employee
+    LeaveEmailTemplateService.sendLeaveStatusEmail(
+      leave: updated,
+      employee: empUser,
+      actionType: isApproved ? 'approved' : 'rejected',
+      reviewerName: reviewerFormattedName,
+      rejectionReason: rejectionReason,
+    );
 
     return updated;
   }

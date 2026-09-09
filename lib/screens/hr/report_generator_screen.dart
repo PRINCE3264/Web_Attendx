@@ -711,6 +711,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
     final isSelected = _currentType == type;
     return ChoiceChip(
       selected: isSelected,
+      checkmarkColor: Colors.white,
       onSelected: (_) {
         setState(() {
           _currentType = type;
@@ -1133,6 +1134,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                           padding: const EdgeInsets.only(right: 6),
                           child: FilterChip(
                             selected: isSel,
+                            checkmarkColor: Colors.white,
                             label: Text(dept),
                             labelStyle: TextStyle(
                               fontSize: 11.5,
@@ -1174,6 +1176,7 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                             padding: const EdgeInsets.only(right: 6),
                             child: FilterChip(
                               selected: isSel,
+                              checkmarkColor: Colors.white,
                               label: Text(teamName),
                               labelStyle: TextStyle(
                                 fontSize: 11.5,
@@ -1626,42 +1629,56 @@ class _ReportGeneratorScreenState extends State<ReportGeneratorScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : Icon(icon, size: 15),
+                          : Icon(icon, size: 16),
                       label: Text(
                         buttonLabel,
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
-                          fontSize: 12.5,
+                          fontSize: 13,
+                          height: 1.2,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        minimumSize: const Size(0, 38),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                     if (onPreviewTap != null)
                       OutlinedButton.icon(
                         onPressed: onPreviewTap,
-                        icon: const Icon(Icons.visibility_outlined, size: 14),
+                        icon: const Icon(Icons.visibility_outlined, size: 15),
                         label: Text(
                           'Preview',
                           style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
-                            fontSize: 12.5,
+                            fontSize: 13,
+                            height: 1.2,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                          foregroundColor:
+                              isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                          side: BorderSide(
+                            color:
+                                isDark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB),
                           ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          minimumSize: const Size(0, 38),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                   ],

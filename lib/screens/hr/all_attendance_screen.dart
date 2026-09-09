@@ -271,6 +271,7 @@ class _AllAttendanceScreenState extends State<AllAttendanceScreen> {
     final isSelected = _statusFilter == filterKey;
     return ChoiceChip(
       selected: isSelected,
+      checkmarkColor: Colors.white,
       onSelected: (_) {
         setState(() {
           _statusFilter = filterKey;

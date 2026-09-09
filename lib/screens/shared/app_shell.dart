@@ -247,7 +247,7 @@ class _AppShellState extends State<AppShell> {
           case AppRole.hr:
             return const HrDashboard();
           case AppRole.admin:
-            return const AdminPanelScreen();
+            return const HrDashboard();
         }
 
       case NavDestinationKey.myAttendance:
@@ -381,7 +381,7 @@ class _AppShellState extends State<AppShell> {
           case AppRole.hr:
             return const HrDashboard();
           case AppRole.admin:
-            return const AdminPanelScreen();
+            return const HrDashboard();
         }
     }
   }

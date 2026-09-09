@@ -253,6 +253,7 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                             child: ChoiceChip(
                               label: Text(dept, style: const TextStyle(fontSize: 12)),
                               selected: isSelected,
+                              checkmarkColor: Colors.white,
                               onSelected: (selected) {
                                 if (selected) hr.setDepartmentFilter(dept);
                               },
@@ -286,6 +287,7 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
                               child: ChoiceChip(
                                 label: Text(teamName, style: const TextStyle(fontSize: 12)),
                                 selected: isSelected,
+                                checkmarkColor: Colors.white,
                                 onSelected: (selected) {
                                   if (selected) hr.setTeamFilter(teamName);
                                 },
@@ -387,6 +389,7 @@ class _AllEmployeesScreenState extends State<AllEmployeesScreen> {
     final isSelected = _statusFilter == key;
     return ChoiceChip(
       selected: isSelected,
+      checkmarkColor: Colors.white,
       onSelected: (selected) {
         if (selected) setState(() => _statusFilter = key);
       },

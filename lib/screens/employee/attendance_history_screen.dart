@@ -672,6 +672,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
+                        checkmarkColor: Colors.white,
                         onSelected: (selected) {
                           if (selected) setState(() => _selectedStatusFilter = filter);
                         },

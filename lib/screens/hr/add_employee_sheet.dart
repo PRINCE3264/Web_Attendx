@@ -73,7 +73,6 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     final password = _passwordController.text.trim();
     final empId = _employeeIdController.text.trim();
     final dept = _selectedDepartment?.name ?? 'General';
-    final departmentId = _selectedDepartment?.departmentId ?? 'dept_general';
     final teamId = _selectedTeam?.teamId ?? 'team_general';
     final teamName = _selectedTeam?.name ?? 'Unassigned';
 
@@ -105,7 +104,9 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
         } catch (_) {}
       }
 
+      if (!mounted) return;
       Navigator.pop(context);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Employee $name enrolled! Email: $email | Pass: $password'),
@@ -129,242 +130,379 @@ class _AddEmployeeSheetState extends State<AddEmployeeSheet> {
     }
   }
 
+  InputDecoration _fieldDecoration(String label, {IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: icon != null ? Icon(icon, size: 18, color: AppTheme.primary) : null,
+      labelStyle: TextStyle(
+        color: isDark ? Colors.white60 : Colors.black54,
+        fontSize: 13,
+      ),
+      filled: true,
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = context.watch<AuthProvider>();
     final currentUser = auth.currentUser;
     final managers = FirestoreService().getAllUsers().where((u) => u.role == UserRole.manager).toList();
-    
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 24,
-        right: 24,
-        top: 24,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _selectedRole == UserRole.manager
-                    ? 'Add New TL'
-                    : (_selectedRole == UserRole.hr ? 'Add New HR' : 'Add New Employee'),
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Employee Name', border: OutlineInputBorder()),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _employeeIdController,
-                      decoration: const InputDecoration(labelText: 'Employee ID', border: OutlineInputBorder()),
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: StreamBuilder<List<DepartmentModel>>(
-                      stream: FirestoreService().departmentsStream,
-                      builder: (context, snapshot) {
-                        var depts = snapshot.data ?? [];
-                        if (depts.isEmpty) {
-                          depts = FirestoreService().getAllDepartments();
-                        }
-                        return DropdownButtonFormField<DepartmentModel>(
-                          value: _selectedDepartment,
-                          isExpanded: true,
-                          decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
-                          items: depts.map((d) => DropdownMenuItem(value: d, child: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedDepartment = v;
-                              _selectedTeam = null; // Reset team when department changes
-                            });
-                          },
-                          validator: (v) => v == null ? 'Required' : null,
-                        );
-                      }
-                    ),
-                  ),
+    final titleLabel = _selectedRole == UserRole.manager
+        ? 'Add New Team Lead'
+        : (_selectedRole == UserRole.hr ? 'Add New HR' : 'Add New Employee');
 
-                ],
-              ),
-              const SizedBox(height: 12),
-              StreamBuilder<List<TeamModel>>(
-                stream: FirestoreService().teamsStream,
-                builder: (context, snapshot) {
-                  var teams = snapshot.data ?? [];
-                  if (teams.isEmpty) {
-                    teams = FirestoreService().getAllTeams();
-                  }
-                  if (_selectedDepartment != null) {
-                    teams = teams.where((t) => t.departmentId == _selectedDepartment!.departmentId).toList();
-                  }
-                  return DropdownButtonFormField<TeamModel>(
-                    value: _selectedTeam,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Team', border: OutlineInputBorder()),
-                    hint: const Text('Select Team'),
-                    items: teams.map((t) => DropdownMenuItem(value: t, child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        _selectedTeam = v;
-                        // Auto-select TL if possible
-                        if (v != null && v.managerId.isNotEmpty) {
-                          final allUsers = FirestoreService().getAllUsers();
-                          final tl = allUsers.cast<UserModel?>().firstWhere((u) => u?.userId == v.managerId, orElse: () => null);
-                          if (tl != null) _selectedTL = tl;
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedShiftId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Assigned Shift Schedule',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.schedule_rounded),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.bgDark : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 16, 16),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark ? Colors.white10 : Colors.grey.shade100,
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'shift_general',
-                    child: Text('🏢 General Shift (09:30 AM - 06:30 PM)', overflow: TextOverflow.ellipsis),
-                  ),
-                  DropdownMenuItem(
-                    value: 'shift_morning',
-                    child: Text('🌅 Morning Shift (07:00 AM - 04:00 PM)', overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedShiftId = val;
-                      _selectedShiftName = val == 'shift_morning'
-                          ? 'Morning Shift (07:00 AM - 04:00 PM)'
-                          : 'General Shift (09:30 AM - 06:30 PM)';
-                    });
-                  }
-                },
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
-                validator: (v) => !v!.contains('@') ? 'Invalid email' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Temporary Password (Min 6 chars)',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.7)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.shuffle, size: 18, color: AppTheme.primary),
-                        tooltip: 'Generate random password',
-                        onPressed: () {
-                          final randPass = 'Emp@${DateTime.now().millisecondsSinceEpoch % 10000}!';
-                          setState(() => _passwordController.text = randPass);
-                        },
+                      Text(
+                        titleLabel,
+                        style: GoogleFonts.outfit(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, size: 18),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      Text(
+                        'Fill in details to enroll a new member',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                validator: (v) => (v == null || v.trim().length < 6) ? 'Min 6 characters' : null,
-              ),
-              const SizedBox(height: 12),
-              if (currentUser?.role == UserRole.admin) ...[
-                DropdownButtonFormField<UserRole>(
-                  value: _selectedRole,
-                  decoration: const InputDecoration(labelText: 'User Role', border: OutlineInputBorder()),
-                  items: UserRole.values.map((r) {
-                    return DropdownMenuItem(
-                      value: r,
-                      child: Text(r.name.toUpperCase()),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedRole = val);
-                  },
+                IconButton(
+                  icon: Icon(Icons.close_rounded,
+                      color: isDark ? Colors.white38 : Colors.black38),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 12),
               ],
-              if (_selectedRole == UserRole.employee) ...[
-                DropdownButtonFormField<UserModel>(
-                  value: _selectedTL,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'TL / Manager', border: OutlineInputBorder()),
-                  hint: const Text('Select TL'),
-                  items: managers.map((m) => DropdownMenuItem(value: m, child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-                  onChanged: (v) => setState(() => _selectedTL = v),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (_selectedRole == UserRole.employee || _selectedRole == UserRole.manager) ...[
-                DropdownButtonFormField<String>(
-                  value: _selectedProject,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Assigned Project',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.folder_special_outlined),
-                  ),
-                  hint: const Text('Select Project'),
-                  items: context.watch<HrProvider>().projectsList.map((proj) => DropdownMenuItem(
-                    value: proj,
-                    child: Text(proj, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  )).toList(),
-                  onChanged: (v) => setState(() => _selectedProject = v),
-                ),
-                const SizedBox(height: 12),
-              ],
-              InkWell(
-                onTap: _pickJoiningDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Joining Date', border: OutlineInputBorder()),
-                  child: Text(DateFormat('dd/MM/yyyy').format(_joiningDate)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: auth.isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: auth.isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Create Employee'),
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
+
+          // Form Body
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 16,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Personal Info Section
+                    _sectionLabel('Personal Info', isDark),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: _fieldDecoration('Full Name', icon: Icons.badge_outlined),
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _employeeIdController,
+                            decoration: _fieldDecoration('Employee ID', icon: Icons.tag_rounded),
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            validator: (v) => v!.isEmpty ? 'Required' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: StreamBuilder<List<DepartmentModel>>(
+                            stream: FirestoreService().departmentsStream,
+                            builder: (context, snapshot) {
+                              var depts = snapshot.data ?? [];
+                              if (depts.isEmpty) {
+                                depts = FirestoreService().getAllDepartments();
+                              }
+                              return DropdownButtonFormField<DepartmentModel>(
+                                initialValue: _selectedDepartment,
+                                isExpanded: true,
+                                decoration: _fieldDecoration('Department', icon: Icons.business_outlined),
+                                dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                                items: depts.map((d) => DropdownMenuItem(value: d, child: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                                onChanged: (v) {
+                                  setState(() {
+                                    _selectedDepartment = v;
+                                    _selectedTeam = null;
+                                  });
+                                },
+                                validator: (v) => v == null ? 'Required' : null,
+                              );
+                            }
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    StreamBuilder<List<TeamModel>>(
+                      stream: FirestoreService().teamsStream,
+                      builder: (context, snapshot) {
+                        var teams = snapshot.data ?? [];
+                        if (teams.isEmpty) teams = FirestoreService().getAllTeams();
+                        if (_selectedDepartment != null) {
+                          teams = teams.where((t) => t.departmentId == _selectedDepartment!.departmentId).toList();
+                        }
+                        return DropdownButtonFormField<TeamModel>(
+                          initialValue: _selectedTeam,
+                          isExpanded: true,
+                          decoration: _fieldDecoration('Team', icon: Icons.groups_outlined),
+                          hint: Text('Select Team', style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38)),
+                          dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                          items: teams.map((t) => DropdownMenuItem(value: t, child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedTeam = v;
+                              if (v != null && v.managerId.isNotEmpty) {
+                                final allUsers = FirestoreService().getAllUsers();
+                                final tl = allUsers.cast<UserModel?>().firstWhere((u) => u?.userId == v.managerId, orElse: () => null);
+                                if (tl != null) _selectedTL = tl;
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                    _sectionLabel('Work Details', isDark),
+                    const SizedBox(height: 8),
+
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedShiftId,
+                      isExpanded: true,
+                      decoration: _fieldDecoration('Assigned Shift', icon: Icons.schedule_rounded),
+                      dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'shift_general',
+                          child: Text('🏢 General Shift (09:30 AM - 06:30 PM)', overflow: TextOverflow.ellipsis),
+                        ),
+                        DropdownMenuItem(
+                          value: 'shift_morning',
+                          child: Text('🌅 Morning Shift (07:00 AM - 04:00 PM)', overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedShiftId = val;
+                            _selectedShiftName = val == 'shift_morning'
+                                ? 'Morning Shift (07:00 AM - 04:00 PM)'
+                                : 'General Shift (09:30 AM - 06:30 PM)';
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (currentUser?.role == UserRole.admin) ...[
+                      DropdownButtonFormField<UserRole>(
+                        initialValue: _selectedRole,
+                        decoration: _fieldDecoration('User Role', icon: Icons.verified_user_outlined),
+                        dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                        items: UserRole.values.map((r) {
+                          return DropdownMenuItem(
+                            value: r,
+                            child: Text(r.name.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedRole = val);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    if (_selectedRole == UserRole.employee) ...[
+                      DropdownButtonFormField<UserModel>(
+                        initialValue: _selectedTL,
+                        isExpanded: true,
+                        decoration: _fieldDecoration('TL / Manager', icon: Icons.manage_accounts_outlined),
+                        hint: Text('Select TL', style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38)),
+                        dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                        items: managers.map((m) => DropdownMenuItem(value: m, child: Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                        onChanged: (v) => setState(() => _selectedTL = v),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    if (_selectedRole == UserRole.employee || _selectedRole == UserRole.manager) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedProject,
+                        isExpanded: true,
+                        decoration: _fieldDecoration('Assigned Project', icon: Icons.folder_special_outlined),
+                        hint: Text('Select Project', style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38)),
+                        dropdownColor: isDark ? AppTheme.bgDark : Colors.white,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                        items: context.watch<HrProvider>().projectsList.map((proj) => DropdownMenuItem(
+                          value: proj,
+                          child: Text(proj, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        )).toList(),
+                        onChanged: (v) => setState(() => _selectedProject = v),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    InkWell(
+                      onTap: _pickJoiningDate,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InputDecorator(
+                        decoration: _fieldDecoration('Joining Date', icon: Icons.calendar_today_rounded),
+                        child: Text(
+                          DateFormat('dd/MM/yyyy').format(_joiningDate),
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    _sectionLabel('Account Credentials', isDark),
+                    const SizedBox(height: 8),
+
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _fieldDecoration('Email Address', icon: Icons.email_outlined),
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      validator: (v) => !v!.contains('@') ? 'Invalid email' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      decoration: _fieldDecoration('Temporary Password (Min 6 chars)', icon: Icons.lock_outline).copyWith(
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.shuffle, size: 18, color: AppTheme.primary),
+                              tooltip: 'Generate random password',
+                              onPressed: () {
+                                final randPass = 'Emp@${DateTime.now().millisecondsSinceEpoch % 10000}!';
+                                setState(() => _passwordController.text = randPass);
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  size: 18, color: isDark ? Colors.white38 : Colors.black38),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                          ],
+                        ),
+                      ),
+                      validator: (v) => (v == null || v.trim().length < 6) ? 'Min 6 characters' : null,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Submit Button
+                    SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: auth.isLoading ? null : _submit,
+                        icon: auth.isLoading
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.person_add_rounded, size: 18),
+                        label: Text(
+                          auth.isLoading ? 'Creating Account...' : 'Create Employee Account',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label, bool isDark) {
+    return Text(
+      label,
+      style: GoogleFonts.outfit(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white38 : Colors.black38,
+        letterSpacing: 0.8,
       ),
     );
   }

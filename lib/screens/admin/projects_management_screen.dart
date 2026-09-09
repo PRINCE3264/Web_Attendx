@@ -577,6 +577,7 @@ class _ProjectsManagementScreenState extends State<ProjectsManagementScreen> {
 
     return FilterChip(
       selected: isSelected,
+      checkmarkColor: Colors.white,
       label: Text(label),
       labelStyle: TextStyle(
         color: isSelected

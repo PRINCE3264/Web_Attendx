@@ -374,7 +374,11 @@ class _DigitalLiveClockState extends State<DigitalLiveClock> {
   }
 }
 
-class PhotoDisplayWidget extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// PhotoDisplayWidget — glitch-free avatar / profile picture.
+// Uses gaplessPlayback + StatefulWidget to prevent re-loading on provider rebuilds.
+// ─────────────────────────────────────────────────────────────────────────────
+class PhotoDisplayWidget extends StatefulWidget {
   final String? photoUrl;
   final double size;
   final double borderRadius;
@@ -389,89 +393,191 @@ class PhotoDisplayWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (photoUrl == null || photoUrl!.isEmpty) {
-      return Container(
-        width: size,
-        height: size,
+  State<PhotoDisplayWidget> createState() => _PhotoDisplayWidgetState();
+}
+
+class _PhotoDisplayWidgetState extends State<PhotoDisplayWidget> {
+  Widget _fallback() => Container(
+        width: widget.size,
+        height: widget.size,
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(widget.borderRadius),
         ),
-        child: Icon(Icons.person, size: size * 0.5, color: Colors.grey.shade500),
+        child: Icon(Icons.person, size: widget.size * 0.5, color: Colors.grey.shade500),
       );
-    }
 
-    if (photoUrl!.startsWith('data:image')) {
+  Widget _loading() => Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: widget.size * 0.35,
+            height: widget.size * 0.35,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey.shade400),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final url = widget.photoUrl;
+    if (url == null || url.isEmpty) return _fallback();
+
+    // Base64 data-URI
+    if (url.startsWith('data:image')) {
       try {
-        final base64Part = photoUrl!.split(',').last;
-        final bytes = base64Decode(base64Part);
+        final bytes = base64Decode(url.split(',').last);
         return ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Image.memory(
-            bytes,
-            width: size,
-            height: size,
-            fit: fit,
-          ),
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          child: Image.memory(bytes,
+              width: widget.size, height: widget.size,
+              fit: widget.fit, gaplessPlayback: true,
+              errorBuilder: (ctx, err, st) => _fallback()),
         );
-      } catch (e) {
+      } catch (_) {
         return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
+          width: widget.size, height: widget.size,
+          decoration: BoxDecoration(color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(widget.borderRadius)),
           child: const Icon(Icons.broken_image, color: Colors.grey),
         );
       }
     }
 
-    if (photoUrl!.startsWith('http://') || photoUrl!.startsWith('https://')) {
+    // Network URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Image.network(
-          photoUrl!,
-          width: size,
-          height: size,
-          fit: fit,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: size,
-            height: size,
-            color: Colors.grey.shade200,
-            child: Icon(Icons.person, size: size * 0.5, color: Colors.grey.shade500),
-          ),
-        ),
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        child: Image.network(url,
+            width: widget.size, height: widget.size,
+            fit: widget.fit, gaplessPlayback: true,
+            loadingBuilder: (_, child, progress) =>
+                progress == null ? child : _loading(),
+            errorBuilder: (ctx, err, st) => _fallback()),
       );
     }
 
+    // Local file (non-web)
     if (!kIsWeb) {
       try {
-        final file = File(photoUrl!);
+        final file = File(url);
         if (file.existsSync()) {
           return ClipRRect(
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Image.file(
-              file,
-              width: size,
-              height: size,
-              fit: fit,
-            ),
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            child: Image.file(file,
+                width: widget.size, height: widget.size,
+                fit: widget.fit, gaplessPlayback: true,
+                errorBuilder: (ctx, err, st) => _fallback()),
           );
         }
       } catch (_) {}
     }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
+    return _fallback();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SmartImageWidget — glitch-free content image (screenshots, work photos, etc.)
+// Supports nullable width/height for flexible layouts.
+// Drop-in replacement for all _buildSmartImage() helper methods.
+// ─────────────────────────────────────────────────────────────────────────────
+class SmartImageWidget extends StatefulWidget {
+  final String path;
+  final BoxFit fit;
+  final double? width;
+  final double? height;
+  final double borderRadius;
+
+  const SmartImageWidget({
+    super.key,
+    required this.path,
+    this.fit = BoxFit.cover,
+    this.width,
+    this.height,
+    this.borderRadius = 0,
+  });
+
+  @override
+  State<SmartImageWidget> createState() => _SmartImageWidgetState();
+}
+
+class _SmartImageWidgetState extends State<SmartImageWidget> {
+  Widget _fallback(IconData icon) => Container(
+        width: widget.width,
+        height: widget.height,
+        color: Colors.grey.shade300,
+        child: Icon(icon, color: Colors.grey),
+      );
+
+  Widget _loading() => Container(
+        width: widget.width,
+        height: widget.height,
         color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: Icon(Icons.person, size: size * 0.5, color: Colors.grey.shade500),
-    );
+        child: const Center(
+          child: SizedBox(
+            width: 24, height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final path = widget.path;
+
+    if (path.isEmpty) return _fallback(Icons.image);
+
+    // Base64 data-URI
+    if (path.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(path.split(',').last);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          child: Image.memory(bytes,
+              width: widget.width, height: widget.height,
+              fit: widget.fit, gaplessPlayback: true,
+              errorBuilder: (ctx, err, st) => _fallback(Icons.broken_image)),
+        );
+      } catch (_) {}
+    }
+
+    // Network URL (http / https / blob)
+    final lower = path.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('blob:')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        child: Image.network(path,
+            width: widget.width, height: widget.height,
+            fit: widget.fit, gaplessPlayback: true,
+            loadingBuilder: (_, child, progress) =>
+                progress == null ? child : _loading(),
+            errorBuilder: (ctx, err, st) => _fallback(Icons.broken_image)),
+      );
+    }
+
+    // Local file (non-web)
+    if (!kIsWeb) {
+      try {
+        final file = File(path);
+        if (file.existsSync()) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            child: Image.file(file,
+                width: widget.width, height: widget.height,
+                fit: widget.fit, gaplessPlayback: true,
+                errorBuilder: (ctx, err, st) => _fallback(Icons.broken_image)),
+          );
+        }
+      } catch (_) {}
+    }
+
+    return _fallback(Icons.image);
   }
 }
 
@@ -491,6 +597,7 @@ Future<T?> showAppResponsiveModal<T>({
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
         final screenHeight = MediaQuery.of(dialogContext).size.height;
         return Dialog(
           backgroundColor: Colors.transparent,
@@ -502,7 +609,9 @@ Future<T?> showAppResponsiveModal<T>({
               maxHeight: screenHeight * maxHeightRatio,
             ),
             child: Material(
-              color: Colors.transparent,
+              color: isDark ? AppTheme.bgDark : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
               child: builder(dialogContext),
             ),
           ),
@@ -511,11 +620,15 @@ Future<T?> showAppResponsiveModal<T>({
     );
   }
 
+  final isDark = Theme.of(context).brightness == Brightness.dark;
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: Colors.transparent,
+    backgroundColor: isDark ? AppTheme.bgDark : Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     constraints: BoxConstraints(
       maxWidth: maxWidth,
       maxHeight: MediaQuery.of(context).size.height * maxHeightRatio,

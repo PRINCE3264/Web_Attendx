@@ -3281,6 +3281,7 @@ Use this Email and Password to log into AttendX and start your shifts & attendan
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
+                        checkmarkColor: Colors.white,
                         onSelected: (selected) {
                           if (selected)
                             setState(() => _selectedRoleFilter = filter);

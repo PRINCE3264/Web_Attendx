@@ -275,6 +275,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                           FilterChip(
                             label: const Text('Late Only 🔴', style: TextStyle(fontSize: 12)),
                             selected: _filterOnlyLate,
+                            checkmarkColor: Colors.white,
                             onSelected: (val) => setState(() => _filterOnlyLate = val),
                           ),
                         ],

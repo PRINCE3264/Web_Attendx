@@ -144,6 +144,9 @@ class AppTheme {
           borderSide: const BorderSide(color: danger),
         ),
       ),
+      chipTheme: const ChipThemeData(
+        checkmarkColor: Colors.white,
+      ),
     );
   }
 
@@ -226,6 +229,9 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: primaryLight, width: 2),
         ),
+      ),
+      chipTheme: const ChipThemeData(
+        checkmarkColor: Colors.white,
       ),
     );
   }

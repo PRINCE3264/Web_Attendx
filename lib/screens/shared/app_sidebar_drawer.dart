@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../config/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
@@ -28,8 +29,6 @@ import '../admin/projects_management_screen.dart';
 import '../admin/departments_management_screen.dart';
 import '../admin/teams_management_screen.dart';
 import 'profile_screen.dart';
-import '../../models/community_model.dart';
-import '../../services/firestore_service.dart';
 import 'notifications_screen.dart';
 import 'system_settings_screen.dart';
 import 'ai_voice_assistant_sheet.dart';
@@ -82,454 +81,845 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
         ? user.name.trim()[0].toUpperCase()
         : 'U';
 
-    final String roleName = user != null ? user.role.name.toUpperCase() : 'USER';
-    final String displayName = user != null ? user.name.toUpperCase() : 'ATTENDX USER';
+    final String roleName = user != null
+        ? user.role.name.toUpperCase()
+        : 'USER';
+    final String displayName = user != null
+        ? user.name.toUpperCase()
+        : 'ATTENDX USER';
     final String department = user != null ? user.department : 'Enterprise';
 
     final drawerContent = Column(
       children: [
         // 1. Curved Blue Ripple Header
-        _buildCustomHeader(context, user, initial, displayName, roleName, department),
+        _buildCustomHeader(
+          context,
+          user,
+          initial,
+          displayName,
+          roleName,
+          department,
+        ),
 
-          // 2. Navigation Menu Items List
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                // 1. Employee Navigation Items
-                if (user?.role == UserRole.employee) ...[
-                  _buildNavItem(
-                    icon: Icons.grid_view_rounded,
-                    title: 'Clock & Today',
-                    isSelected: widget.currentIndex == 0,
-                    onTap: () => _navigateToScreen(const SizedBox(), 'Clock & Today', defaultTabIndex: 0),
+        // 2. Navigation Menu Items List
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            children: [
+              // 1. Employee Navigation Items
+              if (user?.role == UserRole.employee) ...[
+                _buildNavItem(
+                  icon: Icons.grid_view_rounded,
+                  title: 'Clock & Today',
+                  isSelected: widget.currentIndex == 0,
+                  onTap: () => _navigateToScreen(
+                    const SizedBox(),
+                    'Clock & Today',
+                    defaultTabIndex: 0,
                   ),
-                  _buildCommunityNavItem(),
-                  _buildNavItem(
-                    icon: Icons.calendar_month_rounded,
-                    title: 'My Attendance',
-                    isSelected: widget.currentIndex == 1,
-                    onTap: () => _navigateToScreen(const AttendanceHistoryScreen(), 'My Attendance', defaultTabIndex: 1),
+                ),
+                _buildCommunityNavItem(),
+                _buildNavItem(
+                  icon: Icons.calendar_month_rounded,
+                  title: 'My Attendance',
+                  isSelected: widget.currentIndex == 1,
+                  onTap: () => _navigateToScreen(
+                    const AttendanceHistoryScreen(),
+                    'My Attendance',
+                    defaultTabIndex: 1,
                   ),
-                  _buildNavItem(
-                    icon: Icons.coffee_rounded,
-                    title: 'Break Tracker',
-                    onTap: () {
-                      if (!widget.isPermanent) Navigator.pop(context);
-                      if (todayAttendance != null) {
-                        showAppResponsiveModal(
-                          context: context,
-                          maxWidth: 580,
-                          builder: (_) => BreakTrackingSheet(attendance: todayAttendance),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please clock in before starting a break.')),
-                        );
-                      }
-                    },
-                  ),
-                  _buildNavItem(
-                    icon: Icons.beach_access_rounded,
-                    title: 'Leave Management',
-                    isSelected: widget.currentIndex == 2,
-                    badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                    badgeColor: const Color(0xFF2563EB),
-                    onTap: () => _navigateToScreen(const LeaveManagementScreen(), 'Leave Management', defaultTabIndex: 2),
-                  ),
-                  _buildNavItem(
-                    icon: Icons.assignment_add,
-                    title: 'Daily Project Update',
-                    onTap: () {
-                      if (!widget.isPermanent) Navigator.pop(context);
+                ),
+                _buildNavItem(
+                  icon: Icons.coffee_rounded,
+                  title: 'Break Tracker',
+                  onTap: () {
+                    if (!widget.isPermanent) Navigator.pop(context);
+                    if (todayAttendance != null) {
                       showAppResponsiveModal(
                         context: context,
-                        maxWidth: 680,
-                        maxHeightRatio: 0.85,
-                        builder: (_) => const SubmitProjectReportSheet(),
+                        maxWidth: 580,
+                        builder: (_) =>
+                            BreakTrackingSheet(attendance: todayAttendance),
                       );
-                    },
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please clock in before starting a break.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                _buildNavItem(
+                  icon: Icons.beach_access_rounded,
+                  title: 'Leave Management',
+                  isSelected: widget.currentIndex == 2,
+                  badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
+                  badgeColor: const Color(0xFF2563EB),
+                  onTap: () => _navigateToScreen(
+                    const LeaveManagementScreen(),
+                    'Leave Management',
+                    defaultTabIndex: 2,
                   ),
-                  _buildNavItem(
-                    icon: Icons.folder_special_outlined,
-                    title: 'Project Work Reports',
-                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Project Work Reports'),
+                ),
+                _buildNavItem(
+                  icon: Icons.assignment_add,
+                  title: 'Daily Project Update',
+                  onTap: () {
+                    if (!widget.isPermanent) Navigator.pop(context);
+                    showAppResponsiveModal(
+                      context: context,
+                      maxWidth: 680,
+                      maxHeightRatio: 0.85,
+                      builder: (_) => const SubmitProjectReportSheet(),
+                    );
+                  },
+                ),
+                _buildNavItem(
+                  icon: Icons.folder_special_outlined,
+                  title: 'Project Work Reports',
+                  onTap: () => _navigateToScreen(
+                    const ProjectReportsScreen(isEmbedded: true),
+                    'Project Work Reports',
                   ),
-                  _buildNavItem(
-                    icon: Icons.folder_special_rounded,
-                    title: 'My Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'My Projects'),
+                ),
+                _buildNavItem(
+                  icon: Icons.folder_special_rounded,
+                  title: 'My Projects',
+                  onTap: () => _navigateToScreen(
+                    const ProjectsManagementScreen(isEmbedded: true),
+                    'My Projects',
                   ),
-                  _buildNavItem(
-                    icon: Icons.settings_outlined,
-                    title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
+                ),
+                _buildNavItem(
+                  icon: Icons.settings_outlined,
+                  title: 'System Settings',
+                  onTap: () => _navigateToScreen(
+                    const SystemSettingsScreen(isEmbedded: true),
+                    'System Settings',
                   ),
-                ],
+                ),
+              ],
 
-                // 2. TL (Team Lead) Navigation Items
-                if (user?.role == UserRole.manager) ...[
-                  _buildNavItem(
-                    icon: Icons.touch_app_rounded,
-                    title: 'My Clock-In & Self',
-                    isSelected: widget.currentIndex == 0,
-                    onTap: () => _navigateToScreen(const EmployeeDashboard(), 'My Clock-In & Self', defaultTabIndex: 0),
+              // 2. TL (Team Lead) Navigation Items
+              if (user?.role == UserRole.manager) ...[
+                _buildNavItem(
+                  icon: Icons.touch_app_rounded,
+                  title: 'My Clock-In & Self',
+                  isSelected: widget.currentIndex == 0,
+                  onTap: () => _navigateToScreen(
+                    const EmployeeDashboard(),
+                    'My Clock-In & Self',
+                    defaultTabIndex: 0,
                   ),
-                  _buildCommunityNavItem(),
-                  _buildNavItem(
-                    icon: Icons.grid_view_rounded,
-                    title: 'Approvals & Team',
-                    isSelected: widget.currentIndex == 1,
-                    badgeText: pendingApprovals > 0 ? '$pendingApprovals' : null,
-                    badgeColor: AppTheme.warning,
-                    onTap: () => _navigateToScreen(const ManagerDashboard(), 'Approvals & Team', defaultTabIndex: 1),
+                ),
+                _buildCommunityNavItem(),
+                _buildNavItem(
+                  icon: Icons.grid_view_rounded,
+                  title: 'Approvals & Team',
+                  isSelected: widget.currentIndex == 1,
+                  badgeText: pendingApprovals > 0 ? '$pendingApprovals' : null,
+                  badgeColor: AppTheme.warning,
+                  onTap: () => _navigateToScreen(
+                    const ManagerDashboard(),
+                    'Approvals & Team',
+                    defaultTabIndex: 1,
                   ),
-                  _buildNavItem(
-                    icon: Icons.beach_access_rounded,
-                    title: 'Leave Requests',
-                    isSelected: widget.currentIndex == 2,
-                    badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
-                    badgeColor: const Color(0xFF2563EB),
-                    onTap: () => _navigateToScreen(const LeaveApprovalScreen(), 'Leave Requests', defaultTabIndex: 2),
+                ),
+                _buildNavItem(
+                  icon: Icons.beach_access_rounded,
+                  title: 'Leave Requests',
+                  isSelected: widget.currentIndex == 2,
+                  badgeText: pendingLeaves > 0 ? '$pendingLeaves' : null,
+                  badgeColor: const Color(0xFF2563EB),
+                  onTap: () => _navigateToScreen(
+                    const LeaveApprovalScreen(),
+                    'Leave Requests',
+                    defaultTabIndex: 2,
                   ),
-                  _buildNavItem(
-                    icon: Icons.how_to_reg_rounded,
-                    title: 'Team Attendance',
-                    onTap: () => _navigateToScreen(const TlTeamAttendanceScreen(), 'Team Attendance'),
+                ),
+                _buildNavItem(
+                  icon: Icons.how_to_reg_rounded,
+                  title: 'Team Attendance',
+                  onTap: () => _navigateToScreen(
+                    const TlTeamAttendanceScreen(),
+                    'Team Attendance',
                   ),
-                  _buildNavItem(
-                    icon: Icons.groups_rounded,
-                    title: 'Team Roster',
-                    isSelected: widget.currentIndex == 3,
-                    onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Team Roster', defaultTabIndex: 3),
+                ),
+                _buildNavItem(
+                  icon: Icons.groups_rounded,
+                  title: 'Team Roster',
+                  isSelected: widget.currentIndex == 3,
+                  onTap: () => _navigateToScreen(
+                    const AllEmployeesScreen(),
+                    'Team Roster',
+                    defaultTabIndex: 3,
                   ),
-                  _buildNavItem(
-                    icon: Icons.assignment_turned_in_outlined,
-                    title: 'Team Work Report',
-                    onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Team Work Report'),
+                ),
+                _buildNavItem(
+                  icon: Icons.assignment_turned_in_outlined,
+                  title: 'Team Work Report',
+                  onTap: () => _navigateToScreen(
+                    const ProjectReportsScreen(isEmbedded: true),
+                    'Team Work Report',
                   ),
-                  _buildNavItem(
-                    icon: Icons.folder_special_rounded,
-                    title: 'My Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'My Projects'),
+                ),
+                _buildNavItem(
+                  icon: Icons.folder_special_rounded,
+                  title: 'My Projects',
+                  onTap: () => _navigateToScreen(
+                    const ProjectsManagementScreen(isEmbedded: true),
+                    'My Projects',
                   ),
-                  _buildNavItem(
-                    icon: Icons.settings_outlined,
-                    title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
+                ),
+                _buildNavItem(
+                  icon: Icons.settings_outlined,
+                  title: 'System Settings',
+                  onTap: () => _navigateToScreen(
+                    const SystemSettingsScreen(isEmbedded: true),
+                    'System Settings',
                   ),
-                ],
+                ),
+              ],
 
-                // 3. Admin Navigation Items
-                if (user?.role == UserRole.admin) ...[
-                  _buildNavItem(
-                    icon: Icons.home_rounded,
-                    title: 'Dashboard',
-                    isSelected: widget.currentIndex == 0,
-                    onTap: () => _navigateToScreen(const AdminPanelScreen(), 'Admin Dashboard', defaultTabIndex: 0),
+              // 3. Admin Navigation Items
+              if (user?.role == UserRole.admin) ...[
+                _buildNavItem(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Dashboard',
+                  isSelected: widget.currentIndex == 0,
+                  onTap: () => _navigateToScreen(
+                    const HrDashboard(),
+                    'Daily Overview',
+                    defaultTabIndex: 0,
                   ),
-                  _buildCommunityNavItem(),
-                  _buildNavItem(
-                    icon: Icons.domain_rounded,
-                    title: 'Departments Management',
-                    onTap: () => _navigateToScreen(const DepartmentsManagementScreen(isEmbedded: true), 'Department Directory'),
+                ),
+                _buildNavItem(
+                  icon: Icons.manage_accounts_outlined,
+                  title: 'Workforce & Admin Panel',
+                  isSelected: widget.currentIndex == 1,
+                  onTap: () => _navigateToScreen(
+                    const AdminPanelScreen(),
+                    'Workforce & Admin Panel',
+                    defaultTabIndex: 1,
                   ),
-                  _buildNavItem(
-                    icon: Icons.groups_rounded,
-                    title: 'Teams Management',
-                    onTap: () => _navigateToScreen(const TeamsManagementScreen(isEmbedded: true), 'Team Directory'),
+                ),
+                _buildCommunityNavItem(),
+                _buildNavItem(
+                  icon: Icons.domain_rounded,
+                  title: 'Departments Management',
+                  onTap: () => _navigateToScreen(
+                    const DepartmentsManagementScreen(isEmbedded: true),
+                    'Department Directory',
                   ),
-                  _buildNavItem(
-                    icon: Icons.folder_special_rounded,
-                    title: 'Project Management',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'Project Master Directory'),
+                ),
+                _buildNavItem(
+                  icon: Icons.groups_rounded,
+                  title: 'Teams Management',
+                  onTap: () => _navigateToScreen(
+                    const TeamsManagementScreen(isEmbedded: true),
+                    'Team Directory',
                   ),
-                  _buildExpandableSection(
-                    title: 'Employee Management',
-                    icon: Icons.badge_outlined,
-                    children: [
-                      _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'employee'), 'Employee Directory')),
-                      _buildSubItem('Add Employee', onTap: () {
+                ),
+                _buildNavItem(
+                  icon: Icons.folder_special_rounded,
+                  title: 'Project Management',
+                  onTap: () => _navigateToScreen(
+                    const ProjectsManagementScreen(isEmbedded: true),
+                    'Project Master Directory',
+                  ),
+                ),
+                _buildExpandableSection(
+                  title: 'Employee Management',
+                  icon: Icons.badge_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Employees',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(initialRoleFilter: 'employee'),
+                        'Employee Directory',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Add Employee',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
-                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.employee),
+                          builder: (_) => const AddEmployeeSheet(
+                            initialRole: UserRole.employee,
+                          ),
                         );
-                      }),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'TL Management',
-                    icon: Icons.supervisor_account_outlined,
-                    children: [
-                      _buildSubItem('All Team Leads (TL)', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'manager'), 'Team Lead Directory')),
-                      _buildSubItem('Add TL', onTap: () {
+                      },
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'TL Management',
+                  icon: Icons.supervisor_account_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Team Leads (TL)',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(initialRoleFilter: 'manager'),
+                        'Team Lead Directory',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Add TL',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
-                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.manager),
+                          builder: (_) => const AddEmployeeSheet(
+                            initialRole: UserRole.manager,
+                          ),
                         );
-                      }),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'HR Management',
-                    icon: Icons.admin_panel_settings_outlined,
-                    children: [
-                      _buildSubItem('All HR Personnel', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialRoleFilter: 'hr'), 'HR Directory')),
-                      _buildSubItem('Add HR', onTap: () {
+                      },
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'HR Management',
+                  icon: Icons.admin_panel_settings_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All HR Personnel',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(initialRoleFilter: 'hr'),
+                        'HR Directory',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Add HR',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
-                          builder: (_) => const AddEmployeeSheet(initialRole: UserRole.hr),
+                          builder: (_) =>
+                              const AddEmployeeSheet(initialRole: UserRole.hr),
                         );
-                      }),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Account Status',
-                    icon: Icons.manage_accounts_outlined,
-                    children: [
-                      _buildSubItem('All Users Directory', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'All Users Directory')),
-                      _buildSubItem('Suspended / Deactivated', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialStatusFilter: 'inactive'), 'Suspended Accounts')),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Attendance',
-                    icon: Icons.calendar_month_outlined,
-                    children: [
-                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
-                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview')),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: true), 'Monthly Attendance Calendar')),
-                      _buildSubItem('Employee Attendance', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'User Directory')),
-                      _buildSubItem('Attendance Reports', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 3)),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Leave Management',
-                    icon: Icons.beach_access_outlined,
-                    children: [
-                      _buildSubItem('All Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'all'), 'Leave Requests')),
-                      _buildSubItem('Pending', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'pending'), 'Leave Requests')),
-                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'approved'), 'Leave Requests')),
-                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'rejected'), 'Leave Requests')),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Announcements',
-                    icon: Icons.campaign_outlined,
-                    children: [
-                      _buildSubItem('Create', onTap: () {
+                      },
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Account Status',
+                  icon: Icons.manage_accounts_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Users Directory',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(),
+                        'All Users Directory',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Suspended / Deactivated',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(
+                          initialStatusFilter: 'inactive',
+                        ),
+                        'Suspended Accounts',
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Attendance',
+                  icon: Icons.calendar_month_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Attendance',
+                      onTap: () => _navigateToScreen(
+                        const AllAttendanceScreen(),
+                        'Company Attendance Feed',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Daily Attendance',
+                      onTap: () => _navigateToScreen(
+                        const HrDashboard(),
+                        'Daily Overview',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Monthly Attendance',
+                      onTap: () => _navigateToScreen(
+                        const AttendanceHistoryScreen(isEmbedded: true),
+                        'Monthly Attendance Calendar',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Employee Attendance',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(),
+                        'User Directory',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Attendance Reports',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(),
+                        'Audit Reports',
+                        defaultTabIndex: 3,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Leave Management',
+                  icon: Icons.beach_access_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Requests',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'all'),
+                        'Leave Requests',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Pending',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'pending'),
+                        'Leave Requests',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Approved',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'approved'),
+                        'Leave Requests',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Rejected',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'rejected'),
+                        'Leave Requests',
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Announcements',
+                  icon: Icons.campaign_outlined,
+                  children: [
+                    _buildSubItem(
+                      'Create',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
-                      }),
-                      _buildSubItem('Holiday', onTap: () {
+                      },
+                    ),
+                    _buildSubItem(
+                      'Holiday',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
-                      }),
-                      _buildSubItem('Send to All', onTap: () {
+                      },
+                    ),
+                    _buildSubItem(
+                      'Send to All',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 640,
                           builder: (_) => const CreateAnnouncementSheet(),
                         );
-                      }),
-                      _buildSubItem('History', onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications')),
-                    ],
+                      },
+                    ),
+                    _buildSubItem(
+                      'History',
+                      onTap: () => _navigateToScreen(
+                        const NotificationsScreen(),
+                        'Notifications',
+                      ),
+                    ),
+                  ],
+                ),
+                _buildNavItem(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notifications',
+                  onTap: () => _navigateToScreen(
+                    const NotificationsScreen(),
+                    'Notifications',
                   ),
-                  _buildNavItem(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications'),
-                  ),
-                  _buildExpandableSection(
-                    title: 'Reports',
-                    icon: Icons.bar_chart_outlined,
-                    children: [
-                      _buildSubItem('Daily Project Work Reports', onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Daily Project Work Reports')),
-                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 3)),
-                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 3)),
-                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 3)),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'System Settings',
-                    icon: Icons.settings_outlined,
-                    children: [
-                      _buildSubItem('App Settings', onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'App & System Settings')),
-                      _buildSubItem('Audit Logs', onTap: () => _navigateToScreen(const AuditLogsScreen(isEmbedded: true), 'Audit Logs', defaultTabIndex: 2)),
-                    ],
-                  ),
-                ],
+                ),
+                _buildExpandableSection(
+                  title: 'Reports',
+                  icon: Icons.bar_chart_outlined,
+                  children: [
+                    _buildSubItem(
+                      'Daily Project Work Reports',
+                      onTap: () => _navigateToScreen(
+                        const ProjectReportsScreen(isEmbedded: true),
+                        'Daily Project Work Reports',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Monthly Report',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'monthly',
+                        ),
+                        'Monthly Reports',
+                        defaultTabIndex: 4,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Employee Report',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'employee',
+                        ),
+                        'Employee Reports',
+                        defaultTabIndex: 4,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Export Excel/PDF',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'export',
+                        ),
+                        'Data Export Center',
+                        defaultTabIndex: 4,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'System Settings',
+                  icon: Icons.settings_outlined,
+                  children: [
+                    _buildSubItem(
+                      'App Settings',
+                      onTap: () => _navigateToScreen(
+                        const SystemSettingsScreen(isEmbedded: true),
+                        'App & System Settings',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Audit Logs',
+                      onTap: () => _navigateToScreen(
+                        const AuditLogsScreen(isEmbedded: true),
+                        'Audit Logs',
+                        defaultTabIndex: 3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
-                // 4. HR Navigation Items
-                if (user?.role == UserRole.hr) ...[
-                  _buildNavItem(
-                    icon: Icons.home_rounded,
-                    title: 'Dashboard',
-                    isSelected: widget.currentIndex == 0,
-                    onTap: () => _navigateToScreen(const HrDashboard(), 'HR Overview', defaultTabIndex: 0),
+              // 4. HR Navigation Items
+              if (user?.role == UserRole.hr) ...[
+                _buildNavItem(
+                  icon: Icons.home_rounded,
+                  title: 'Dashboard',
+                  isSelected: widget.currentIndex == 0,
+                  onTap: () => _navigateToScreen(
+                    const HrDashboard(),
+                    'HR Overview',
+                    defaultTabIndex: 0,
                   ),
-                  _buildCommunityNavItem(),
-                  _buildNavItem(
-                    icon: Icons.folder_special_rounded,
-                    title: 'Company Projects',
-                    onTap: () => _navigateToScreen(const ProjectsManagementScreen(isEmbedded: true), 'Company Projects'),
+                ),
+                _buildCommunityNavItem(),
+                _buildNavItem(
+                  icon: Icons.folder_special_rounded,
+                  title: 'Company Projects',
+                  onTap: () => _navigateToScreen(
+                    const ProjectsManagementScreen(isEmbedded: true),
+                    'Company Projects',
                   ),
-                  _buildExpandableSection(
-                    title: 'Employees',
-                    icon: Icons.people_alt_outlined,
-                    children: [
-                      _buildSubItem('All Employees', onTap: () => _navigateToScreen(const AllEmployeesScreen(), 'Directory', defaultTabIndex: 1)),
-                      _buildSubItem('Add Employee', onTap: () {
+                ),
+                _buildExpandableSection(
+                  title: 'Employees',
+                  icon: Icons.people_alt_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Employees',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(),
+                        'Directory',
+                        defaultTabIndex: 1,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Add Employee',
+                      onTap: () {
                         if (!widget.isPermanent) Navigator.pop(context);
                         showAppResponsiveModal(
                           context: context,
                           maxWidth: 620,
                           builder: (_) => const AddEmployeeSheet(),
                         );
-                      }),
-                      _buildSubItem('Active / Inactive', onTap: () => _navigateToScreen(const AllEmployeesScreen(initialStatusFilter: 'active'), 'Directory')),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Attendance',
-                    icon: Icons.calendar_month_outlined,
-                    children: [
-                      _buildSubItem('All Attendance', onTap: () => _navigateToScreen(const AllAttendanceScreen(), 'Company Attendance Feed')),
-                      _buildSubItem('Daily Attendance', onTap: () => _navigateToScreen(const HrDashboard(), 'Daily Overview', defaultTabIndex: 0)),
-                      _buildSubItem('Monthly Attendance', onTap: () => _navigateToScreen(const AttendanceHistoryScreen(isEmbedded: true), 'Monthly Attendance Calendar')),
-                      _buildSubItem('Attendance Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(), 'Audit Reports', defaultTabIndex: 2)),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Leave',
-                    icon: Icons.beach_access_outlined,
-                    children: [
-                      _buildSubItem('Leave Requests', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'all'), 'Leave Requests')),
-                      _buildSubItem('Approved', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'approved'), 'Leave Requests')),
-                      _buildSubItem('Rejected', onTap: () => _navigateToScreen(const LeaveApprovalScreen(initialFilter: 'rejected'), 'Leave Requests')),
-                    ],
-                  ),
-                  _buildExpandableSection(
-                    title: 'Announcements',
-                    icon: Icons.campaign_outlined,
-                    children: [
-                      _buildSubItem('Create Announcement', onTap: () {
-                        if (!widget.isPermanent) Navigator.pop(context);
-                        showAppResponsiveModal(
-                          context: context,
-                          maxWidth: 620,
-                          builder: (_) => const CreateAnnouncementSheet(),
-                        );
-                      }),
-                      _buildSubItem('Holiday', onTap: () {
-                        if (!widget.isPermanent) Navigator.pop(context);
-                        showAppResponsiveModal(
-                          context: context,
-                          maxWidth: 620,
-                          builder: (_) => const CreateAnnouncementSheet(),
-                        );
-                      }),
-                      _buildSubItem('History', onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications')),
-                    ],
-                  ),
-                  _buildNavItem(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    onTap: () => _navigateToScreen(const NotificationsScreen(), 'Notifications'),
-                  ),
-                  _buildExpandableSection(
-                    title: 'Reports',
-                    icon: Icons.bar_chart_outlined,
-                    children: [
-                      _buildSubItem('Daily Project Work Reports', onTap: () => _navigateToScreen(const ProjectReportsScreen(isEmbedded: true), 'Daily Project Work Reports')),
-                      _buildSubItem('Monthly Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'monthly'), 'Monthly Reports', defaultTabIndex: 2)),
-                      _buildSubItem('Employee Report', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'employee'), 'Employee Reports', defaultTabIndex: 2)),
-                      _buildSubItem('Export Excel/PDF', onTap: () => _navigateToScreen(const ReportGeneratorScreen(initialReportType: 'export'), 'Data Export Center', defaultTabIndex: 2)),
-                    ],
-                  ),
-                  _buildNavItem(
-                    icon: Icons.settings_outlined,
-                    title: 'System Settings',
-                    onTap: () => _navigateToScreen(const SystemSettingsScreen(isEmbedded: true), 'System Settings'),
-                  ),
-                ],
-
-                // Common AI Chatbot & Profile Navigation Items
-                _buildNavItem(
-                  icon: Icons.smart_toy_rounded,
-                  title: 'AI Chatbot',
-                  badgeText: 'AI',
-                  badgeColor: const Color(0xFF2563EB),
-                  onTap: () {
-                    if (!widget.isPermanent) Navigator.pop(context);
-                    AIVoiceAssistantSheet.show(context);
-                  },
-                ),
-                _buildNavItem(
-                  icon: Icons.person_outline_rounded,
-                  title: 'My Profile',
-                  isSelected: (widget.currentIndex == 3 && user?.role == UserRole.employee) ||
-                      (widget.currentIndex == 4 && (user?.role == UserRole.admin || user?.role == UserRole.manager)),
-                  onTap: () {
-                    final role = user?.role;
-                    int profileIndex = 3;
-                    if (role == UserRole.admin || role == UserRole.manager) profileIndex = 4;
-                    _navigateToScreen(const ProfileScreen(), 'Profile', defaultTabIndex: profileIndex);
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          // 3. Logout Item at Bottom
-          const Divider(height: 1, thickness: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () async {
-                final nav = Navigator.of(context);
-                await auth.logout();
-                nav.pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 22),
-                    const SizedBox(width: 14),
-                    Text(
-                      'Logout',
-                      style: GoogleFonts.outfit(
-                        color: const Color(0xFFEF4444),
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                      },
+                    ),
+                    _buildSubItem(
+                      'Active / Inactive',
+                      onTap: () => _navigateToScreen(
+                        const AllEmployeesScreen(initialStatusFilter: 'active'),
+                        'Directory',
                       ),
                     ),
                   ],
                 ),
+                _buildExpandableSection(
+                  title: 'Attendance',
+                  icon: Icons.calendar_month_outlined,
+                  children: [
+                    _buildSubItem(
+                      'All Attendance',
+                      onTap: () => _navigateToScreen(
+                        const AllAttendanceScreen(),
+                        'Company Attendance Feed',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Daily Attendance',
+                      onTap: () => _navigateToScreen(
+                        const HrDashboard(),
+                        'Daily Overview',
+                        defaultTabIndex: 0,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Monthly Attendance',
+                      onTap: () => _navigateToScreen(
+                        const AttendanceHistoryScreen(isEmbedded: true),
+                        'Monthly Attendance Calendar',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Attendance Report',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(),
+                        'Audit Reports',
+                        defaultTabIndex: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Leave',
+                  icon: Icons.beach_access_outlined,
+                  children: [
+                    _buildSubItem(
+                      'Leave Requests',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'all'),
+                        'Leave Requests',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Approved',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'approved'),
+                        'Leave Requests',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Rejected',
+                      onTap: () => _navigateToScreen(
+                        const LeaveApprovalScreen(initialFilter: 'rejected'),
+                        'Leave Requests',
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpandableSection(
+                  title: 'Announcements',
+                  icon: Icons.campaign_outlined,
+                  children: [
+                    _buildSubItem(
+                      'Create Announcement',
+                      onTap: () {
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
+                          context: context,
+                          maxWidth: 620,
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      },
+                    ),
+                    _buildSubItem(
+                      'Holiday',
+                      onTap: () {
+                        if (!widget.isPermanent) Navigator.pop(context);
+                        showAppResponsiveModal(
+                          context: context,
+                          maxWidth: 620,
+                          builder: (_) => const CreateAnnouncementSheet(),
+                        );
+                      },
+                    ),
+                    _buildSubItem(
+                      'History',
+                      onTap: () => _navigateToScreen(
+                        const NotificationsScreen(),
+                        'Notifications',
+                      ),
+                    ),
+                  ],
+                ),
+                _buildNavItem(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notifications',
+                  onTap: () => _navigateToScreen(
+                    const NotificationsScreen(),
+                    'Notifications',
+                  ),
+                ),
+                _buildExpandableSection(
+                  title: 'Reports',
+                  icon: Icons.bar_chart_outlined,
+                  children: [
+                    _buildSubItem(
+                      'Daily Project Work Reports',
+                      onTap: () => _navigateToScreen(
+                        const ProjectReportsScreen(isEmbedded: true),
+                        'Daily Project Work Reports',
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Monthly Report',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'monthly',
+                        ),
+                        'Monthly Reports',
+                        defaultTabIndex: 2,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Employee Report',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'employee',
+                        ),
+                        'Employee Reports',
+                        defaultTabIndex: 2,
+                      ),
+                    ),
+                    _buildSubItem(
+                      'Export Excel/PDF',
+                      onTap: () => _navigateToScreen(
+                        const ReportGeneratorScreen(
+                          initialReportType: 'export',
+                        ),
+                        'Data Export Center',
+                        defaultTabIndex: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildNavItem(
+                  icon: Icons.settings_outlined,
+                  title: 'System Settings',
+                  onTap: () => _navigateToScreen(
+                    const SystemSettingsScreen(isEmbedded: true),
+                    'System Settings',
+                  ),
+                ),
+              ],
+
+              // Common AI Chatbot & Profile Navigation Items
+              _buildNavItem(
+                icon: Icons.smart_toy_rounded,
+                title: 'AI Chatbot',
+                badgeText: 'AI',
+                badgeColor: const Color(0xFF2563EB),
+                onTap: () {
+                  if (!widget.isPermanent) Navigator.pop(context);
+                  AIVoiceAssistantSheet.show(context);
+                },
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline_rounded,
+                title: 'My Profile',
+                isSelected:
+                    (widget.currentIndex == 3 &&
+                        (user?.role == UserRole.employee ||
+                            user?.role == UserRole.hr)) ||
+                    (widget.currentIndex == 4 &&
+                        user?.role == UserRole.manager) ||
+                    (widget.currentIndex == 5 &&
+                        user?.role == UserRole.admin),
+                onTap: () {
+                  final role = user?.role;
+                  int profileIndex = 3;
+                  if (role == UserRole.admin) {
+                    profileIndex = 5;
+                  } else if (role == UserRole.manager) {
+                    profileIndex = 4;
+                  } else {
+                    profileIndex = 3;
+                  }
+                  _navigateToScreen(
+                    const ProfileScreen(),
+                    'Profile',
+                    defaultTabIndex: profileIndex,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // 3. Logout Item at Bottom
+        const Divider(height: 1, thickness: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final nav = Navigator.of(context);
+              await auth.logout();
+              nav.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    'Logout',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFEF4444),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      );
+        ),
+      ],
+    );
 
     if (widget.isPermanent) {
       return Container(
@@ -562,6 +952,8 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
     String roleName,
     String department,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -570,178 +962,161 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
         right: 20,
         bottom: 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0xFF2563EB),
-            Color(0xFF3B82F6),
-            Color(0xFF60A5FA),
-          ],
+          colors: isDark
+              ? [
+                  const Color(0xFF0F172A),
+                  const Color(0xFF1E293B),
+                  const Color(0xFF1E1B4B),
+                ]
+              : [
+                  const Color(0xFF2563EB),
+                  const Color(0xFF3B82F6),
+                  const Color(0xFF60A5FA),
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.vertical(
+        borderRadius: const BorderRadius.vertical(
           bottom: Radius.elliptical(280, 48),
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x332563EB),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.5)
+                : const Color(0x332563EB),
             blurRadius: 18,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Background Ripple Circles
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 20,
-            top: 20,
-            child: Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-          ),
-
-          // Main Header Content
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // Top Bar with Avatar and Close Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Top Bar with Avatar and Close Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // White Circle Avatar / User Profile Pic (76px Larger Avatar)
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                        ? ClipOval(
-                            child: PhotoDisplayWidget(
-                              photoUrl: user.avatarUrl,
-                              size: 76,
-                              borderRadius: 38,
-                            ),
-                          )
-                        : Center(
-                            child: Text(
-                              initial,
-                              style: GoogleFonts.outfit(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF2563EB),
-                              ),
-                            ),
-                          ),
+              // White Circle Avatar / User Profile Pic (76px Larger Avatar)
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF38BDF8) : Colors.white,
+                    width: 2.5,
                   ),
-
-                  // Close Button
-                  if (!widget.isPermanent)
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.chevron_left,
-                          color: Colors.white,
-                          size: 22,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                    ? PhotoDisplayWidget(
+                        photoUrl: user.avatarUrl,
+                        size: 76,
+                        borderRadius: 38,
+                      )
+                    : Center(
+                        child: Text(
+                          initial,
+                          style: GoogleFonts.outfit(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? const Color(0xFF38BDF8)
+                                : const Color(0xFF2563EB),
+                          ),
                         ),
                       ),
-                    ),
-                ],
               ),
 
-              const SizedBox(height: 18),
-
-              // User Info & Enterprise Pill Badge
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          style: GoogleFonts.outfit(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$roleName • $department',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Translucent Badge Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              // Close Button
+              if (!widget.isPermanent)
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        width: 1,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.25),
+                      shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      'Envision Beyond',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                    child: const Icon(
+                      Icons.chevron_left,
+                      color: Colors.white,
+                      size: 22,
                     ),
                   ),
-                ],
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          // User Info & Enterprise Pill Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$roleName • $department',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Translucent Badge Pill
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  'Envision Beyond',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
@@ -751,21 +1126,13 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
   }
 
   Widget _buildCommunityNavItem() {
-    return StreamBuilder<List<CommunityMessageModel>>(
-      stream: FirestoreService().allCommunityMessagesStream,
-      builder: (context, snap) {
-        final messages = snap.data ?? FirestoreService().getAllCommunityMessages();
-        final count = messages.length;
-        final badgeText = count > 0 ? '$count' : null;
-
-        return _buildNavItem(
-          icon: Icons.groups_rounded,
-          title: 'Community EB',
-          badgeText: badgeText,
-          badgeColor: const Color(0xFF2563EB),
-          onTap: () => _navigateToScreen(const CommunityEbScreen(isEmbedded: true), 'Community EB'),
-        );
-      },
+    return _buildNavItem(
+      icon: Icons.groups_rounded,
+      title: 'Community EB',
+      onTap: () => _navigateToScreen(
+        const CommunityEbScreen(isEmbedded: true),
+        'Community EB',
+      ),
     );
   }
 
@@ -784,7 +1151,9 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
         : const Color(0xFFEFF6FF); // Light blue tint like reference
 
     final selectedColor = const Color(0xFF2563EB); // Primary Blue
-    final unselectedColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563);
+    final unselectedColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF4B5563);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -792,43 +1161,53 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
         color: isSelected ? selectedBg : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: ListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        leading: Icon(
-          icon,
-          size: 22,
-          color: isSelected ? selectedColor : unselectedColor,
-        ),
-        title: Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? selectedColor : (isDark ? Colors.white : const Color(0xFF1F2937)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        trailing: badgeText != null
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor ?? const Color(0xFF2563EB),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  badgeText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 2,
+          ),
+          leading: Icon(
+            icon,
+            size: 22,
+            color: isSelected ? selectedColor : unselectedColor,
+          ),
+          title: Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? selectedColor
+                  : (isDark ? Colors.white : const Color(0xFF1F2937)),
+            ),
+          ),
+          trailing: badgeText != null
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
                   ),
-                ),
-              )
-            : null,
-        onTap: onTap,
+                  decoration: BoxDecoration(
+                    color: badgeColor ?? const Color(0xFF2563EB),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              : null,
+          onTap: onTap,
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildExpandableSection({
@@ -837,8 +1216,10 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
     required List<Widget> children,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final unselectedColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563);
-    
+    final unselectedColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF4B5563);
+
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(

@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -508,9 +505,12 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: _buildSmartImage(imgPath, fit: BoxFit.cover, width: 75, height: 75),
+                      child: SmartImageWidget(
+                        path: imgPath,
+                        fit: BoxFit.cover,
+                        width: 75,
+                        height: 75,
+                        borderRadius: 10,
                       ),
                     ),
                   );
@@ -583,9 +583,10 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
           children: [
             Container(
               constraints: const BoxConstraints(maxHeight: 500),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _buildSmartImage(imagePath, fit: BoxFit.contain),
+              child: SmartImageWidget(
+                path: imagePath,
+                fit: BoxFit.contain,
+                borderRadius: 16,
               ),
             ),
             IconButton(
@@ -595,83 +596,6 @@ class _ProjectReportsScreenState extends State<ProjectReportsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSmartImage(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
-    if (path.isEmpty) {
-      return Container(
-        width: width,
-        height: height,
-        color: Colors.grey.shade300,
-        child: const Icon(Icons.image, color: Colors.grey),
-      );
-    }
-
-    if (path.startsWith('data:image')) {
-      try {
-        final base64Part = path.split(',').last;
-        final bytes = base64Decode(base64Part);
-        return Image.memory(
-          bytes,
-          width: width,
-          height: height,
-          fit: fit,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: width,
-            height: height,
-            color: Colors.grey.shade300,
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          ),
-        );
-      } catch (_) {}
-    }
-
-    final lower = path.toLowerCase();
-    final isNetwork = lower.startsWith('http://') ||
-        lower.startsWith('https://') ||
-        lower.startsWith('blob:');
-
-    if (isNetwork) {
-      return Image.network(
-        path,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: width,
-          height: height,
-          color: Colors.grey.shade300,
-          child: const Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
-    }
-
-    if (!kIsWeb) {
-      try {
-        final file = File(path);
-        if (file.existsSync()) {
-          return Image.file(
-            file,
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: width,
-              height: height,
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            ),
-          );
-        }
-      } catch (_) {}
-    }
-
-    return Container(
-      width: width,
-      height: height,
-      color: Colors.grey.shade300,
-      child: const Icon(Icons.image, color: Colors.grey),
     );
   }
 }

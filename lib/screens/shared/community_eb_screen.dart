@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +34,8 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
   bool _isSending = false;
   String _searchUserQuery = '';
   CommunityMessageModel? _replyingToMessage;
+  final Map<String, DateTime> _lastReadTimestamps = {};
+  final DateTime _screenInitTime = DateTime.now();
 
   @override
   void dispose() {
@@ -170,6 +171,9 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                   memberUserIds: [],
                 ),
         );
+
+        // Mark current active group as read
+        _lastReadTimestamps[activeGroup.groupId] = DateTime.now();
 
         final isWideScreen = MediaQuery.of(context).size.width > 700;
         final chatArea = _buildChatArea(
@@ -362,7 +366,7 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
             ),
           ),
 
-          // Vertical List — dynamic message count badges via StreamBuilder
+          // Vertical List — dynamic unread message count badges via StreamBuilder
           Expanded(
             child: StreamBuilder<List<CommunityMessageModel>>(
               stream: FirestoreService().allCommunityMessagesStream,
@@ -371,11 +375,24 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                     msgSnap.data ??
                     FirestoreService().getAllCommunityMessages();
 
-                // Build a map: groupId -> message count
-                final Map<String, int> msgCountMap = {};
+                // Calculate unread messages count map per group
+                final Map<String, int> unreadCountMap = {};
                 for (final msg in allMessages) {
-                  msgCountMap[msg.groupId] =
-                      (msgCountMap[msg.groupId] ?? 0) + 1;
+                  final isMyMsg =
+                      msg.senderId == currentUser.userId ||
+                      (currentUser.employeeId.isNotEmpty &&
+                          msg.senderId == currentUser.employeeId);
+                  if (isMyMsg) continue;
+
+                  // Active group is currently being viewed, so 0 unread
+                  if (msg.groupId == activeGroup.groupId) continue;
+
+                  final groupLastRead =
+                      _lastReadTimestamps[msg.groupId] ?? _screenInitTime;
+                  if (msg.sentAt.isAfter(groupLastRead)) {
+                    unreadCountMap[msg.groupId] =
+                        (unreadCountMap[msg.groupId] ?? 0) + 1;
+                  }
                 }
 
                 return ListView.separated(
@@ -388,11 +405,14 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                   itemBuilder: (context, idx) {
                     final g = visibleGroups[idx];
                     final isSelected = g.groupId == activeGroup.groupId;
-                    final msgCount = msgCountMap[g.groupId] ?? 0;
+                    final unreadCount = unreadCountMap[g.groupId] ?? 0;
 
                     return InkWell(
                       onTap: () {
-                        setState(() => _selectedGroupId = g.groupId);
+                        setState(() {
+                          _selectedGroupId = g.groupId;
+                          _lastReadTimestamps[g.groupId] = DateTime.now();
+                        });
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: AnimatedContainer(
@@ -455,12 +475,12 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            // Dynamic badge: shows live message count
-                            if (msgCount > 0)
+                            // Dynamic unread badge: clears when messages are seen
+                            if (unreadCount > 0)
                               AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 200),
                                 child: Container(
-                                  key: ValueKey(msgCount),
+                                  key: ValueKey(unreadCount),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 7,
                                     vertical: 3,
@@ -468,19 +488,15 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? AppTheme.primary
-                                        : AppTheme.primary.withValues(
-                                            alpha: 0.15,
-                                          ),
+                                        : Colors.redAccent,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    msgCount > 99 ? '99+' : '$msgCount',
+                                    unreadCount > 99 ? '99+' : '$unreadCount',
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppTheme.primary,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
@@ -610,15 +626,15 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
             color: isDark ? AppTheme.cardDark : Colors.grey.shade100,
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(_attachedImage!.path),
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SmartImageWidget(
+                      path: _attachedImage!.path,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -989,43 +1005,99 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
             ),
             const Divider(),
             Expanded(
-              child: ListView.separated(
-                itemCount: visibleGroups.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, idx) {
-                  final g = visibleGroups[idx];
-                  final isSelected = g.groupId == activeGroup.groupId;
+              child: StreamBuilder<List<CommunityMessageModel>>(
+                stream: FirestoreService().allCommunityMessagesStream,
+                builder: (context, msgSnap) {
+                  final allMessages =
+                      msgSnap.data ??
+                      FirestoreService().getAllCommunityMessages();
 
-                  return ListTile(
-                    leading: _buildGroupAvatar(g),
-                    title: Text(
-                      g.name,
-                      style: GoogleFonts.outfit(
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.w600,
-                        color: isSelected
-                            ? AppTheme.primary
-                            : (isDark ? Colors.white : AppTheme.textMainLight),
-                      ),
-                    ),
-                    subtitle: Text(
-                      g.description.isNotEmpty
-                          ? g.description
-                          : 'Work Community',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 11),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppTheme.primary,
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      setState(() => _selectedGroupId = g.groupId);
+                  final Map<String, int> unreadCountMap = {};
+                  for (final msg in allMessages) {
+                    final isMyMsg =
+                        msg.senderId == currentUser.userId ||
+                        (currentUser.employeeId.isNotEmpty &&
+                            msg.senderId == currentUser.employeeId);
+                    if (isMyMsg) continue;
+                    if (msg.groupId == activeGroup.groupId) continue;
+
+                    final lastRead =
+                        _lastReadTimestamps[msg.groupId] ?? _screenInitTime;
+                    if (msg.sentAt.isAfter(lastRead)) {
+                      unreadCountMap[msg.groupId] =
+                          (unreadCountMap[msg.groupId] ?? 0) + 1;
+                    }
+                  }
+
+                  return ListView.separated(
+                    itemCount: visibleGroups.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, idx) {
+                      final g = visibleGroups[idx];
+                      final isSelected = g.groupId == activeGroup.groupId;
+                      final unreadCount = unreadCountMap[g.groupId] ?? 0;
+
+                      return ListTile(
+                        leading: _buildGroupAvatar(g),
+                        title: Text(
+                          g.name,
+                          style: GoogleFonts.outfit(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? AppTheme.primary
+                                : (isDark
+                                      ? Colors.white
+                                      : AppTheme.textMainLight),
+                          ),
+                        ),
+                        subtitle: Text(
+                          g.description.isNotEmpty
+                              ? g.description
+                              : 'Work Community',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 11),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (unreadCount > 0)
+                              Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : '$unreadCount',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            if (isSelected)
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppTheme.primary,
+                              ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            _selectedGroupId = g.groupId;
+                            _lastReadTimestamps[g.groupId] = DateTime.now();
+                          });
+                        },
+                      );
                     },
                   );
                 },
@@ -1385,7 +1457,10 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                                 maxHeight: 200,
                                 maxWidth: 260,
                               ),
-                              child: _buildSmartImage(msg.mediaUrl!),
+                              child: SmartImageWidget(
+                                path: msg.mediaUrl!,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                           if (msg.content.isNotEmpty) const SizedBox(height: 8),
@@ -1804,9 +1879,11 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
                                 ),
                                 child: groupLogoFile != null
                                     ? ClipOval(
-                                        child: _buildSmartImage(
-                                          groupLogoFile!.path,
+                                        child: SmartImageWidget(
+                                          path: groupLogoFile!.path,
                                           fit: BoxFit.cover,
+                                          width: 72,
+                                          height: 72,
                                         ),
                                       )
                                     : const Icon(
@@ -2572,33 +2649,4 @@ class _CommunityEbScreenState extends State<CommunityEbScreen> {
     );
   }
 
-  Widget _buildSmartImage(String path, {BoxFit fit = BoxFit.cover}) {
-    if (path.isEmpty) return const Icon(Icons.image, color: Colors.grey);
-
-    if (path.startsWith('data:image')) {
-      try {
-        final base64Part = path.split(',').last;
-        final bytes = base64Decode(base64Part);
-        return Image.memory(bytes, fit: fit);
-      } catch (_) {}
-    }
-
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
-        fit: fit,
-        errorBuilder: (_, _, _) =>
-            const Icon(Icons.broken_image, color: Colors.grey),
-      );
-    }
-
-    if (!kIsWeb) {
-      try {
-        final file = File(path);
-        if (file.existsSync()) return Image.file(file, fit: fit);
-      } catch (_) {}
-    }
-
-    return const Icon(Icons.image, color: Colors.grey);
-  }
 }

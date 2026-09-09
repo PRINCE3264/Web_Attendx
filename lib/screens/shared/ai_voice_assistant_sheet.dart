@@ -111,6 +111,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
   final _audioPlayer = AudioPlayer();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
+  final _chipScrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
   final List<ChatMessage> _messages = [];
@@ -171,6 +172,7 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
     _pulseController.dispose();
     _textController.dispose();
     _scrollController.dispose();
+    _chipScrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -497,35 +499,43 @@ class _AIVoiceAssistantSheetState extends State<AIVoiceAssistantSheet> with Sing
 
           // 4. Role-Specific Quick Action Suggestion Chips
           SizedBox(
-            height: 38,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: quickSuggestions.length,
-              separatorBuilder: (ctx, idx) => const SizedBox(width: 8),
-              itemBuilder: (ctx, index) {
-                final suggestion = quickSuggestions[index];
-                final cleanText = suggestion.replaceAll(RegExp(r'^[^\w\s]+\s*'), '');
-                return ActionChip(
-                  elevation: 0,
-                  pressElevation: 1,
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  surfaceTintColor: Colors.transparent,
-                  side: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  label: Text(
-                    suggestion,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+            height: 44,
+            child: Scrollbar(
+              controller: _chipScrollController,
+              thumbVisibility: true,
+              trackVisibility: false,
+              thickness: 3,
+              radius: const Radius.circular(2),
+              child: ListView.separated(
+                controller: _chipScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                itemCount: quickSuggestions.length,
+                separatorBuilder: (ctx, idx) => const SizedBox(width: 8),
+                itemBuilder: (ctx, index) {
+                  final suggestion = quickSuggestions[index];
+                  final cleanText = suggestion.replaceAll(RegExp(r'^[^\w\s]+\s*'), '');
+                  return ActionChip(
+                    elevation: 0,
+                    pressElevation: 1,
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    surfaceTintColor: Colors.transparent,
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
                     ),
-                  ),
-                  onPressed: () => _handleTextMessageSubmit(cleanText),
-                );
-              },
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    label: Text(
+                      suggestion,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+                      ),
+                    ),
+                    onPressed: () => _handleTextMessageSubmit(cleanText),
+                  );
+                },
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -928,7 +938,8 @@ class AIVoiceButton extends StatefulWidget {
   State<AIVoiceButton> createState() => _AIVoiceButtonState();
 }
 
-class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProviderStateMixin {
+class _AIVoiceButtonState extends State<AIVoiceButton>
+    with SingleTickerProviderStateMixin {
   static Offset? _savedPosition;
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
@@ -958,20 +969,31 @@ class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProvider
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final padding = MediaQuery.of(context).padding;
-
-    if (_savedPosition != null) {
-      if (_savedPosition!.dx < 0 ||
-          _savedPosition!.dy < 0 ||
-          _savedPosition!.dx > screenSize.width - 20 ||
-          _savedPosition!.dy > screenSize.height - 20) {
-        _savedPosition = null;
+  Offset _getLocalPosInParent(BuildContext ctx) {
+    final RenderBox? buttonBox = ctx.findRenderObject() as RenderBox?;
+    if (buttonBox != null && buttonBox.attached) {
+      final RenderObject? parentBox = buttonBox.parent;
+      if (parentBox is RenderBox && parentBox.attached) {
+        final globalPos = buttonBox.localToGlobal(Offset.zero);
+        return parentBox.globalToLocal(globalPos);
       }
     }
+    return Offset.zero;
+  }
 
+  Size _getParentSize(BuildContext ctx) {
+    final RenderBox? buttonBox = ctx.findRenderObject() as RenderBox?;
+    if (buttonBox != null && buttonBox.attached) {
+      final RenderObject? parentBox = buttonBox.parent;
+      if (parentBox is RenderBox && parentBox.attached) {
+        return parentBox.size;
+      }
+    }
+    return MediaQuery.of(ctx).size;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final double? leftPos = _savedPosition?.dx;
     final double? topPos = _savedPosition?.dy;
     final double? rightPos = _savedPosition == null ? 16.0 : null;
@@ -982,126 +1004,135 @@ class _AIVoiceButtonState extends State<AIVoiceButton> with SingleTickerProvider
       top: topPos,
       right: rightPos,
       bottom: bottomPos,
-      child: GestureDetector(
-        onPanStart: (details) {
-          final RenderBox? box = context.findRenderObject() as RenderBox?;
-          if (box != null) {
-            final globalPos = box.localToGlobal(Offset.zero);
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (details) {
+            final localPos = _getLocalPosInParent(context);
             setState(() {
-              _savedPosition = globalPos;
+              _savedPosition = localPos;
               _isDragging = true;
             });
-          }
-        },
-        onPanUpdate: (details) {
-          setState(() {
-            if (_savedPosition == null) {
-              final RenderBox? box = context.findRenderObject() as RenderBox?;
-              if (box != null) {
-                _savedPosition = box.localToGlobal(Offset.zero);
-              } else {
-                _savedPosition = Offset(
-                  (screenSize.width - 76.0).clamp(10.0, 1000.0),
-                  (screenSize.height - 150.0).clamp(50.0, 2000.0),
-                );
-              }
-            }
-            final newX = (_savedPosition!.dx + details.delta.dx).clamp(
-              10.0,
-              screenSize.width > 70 ? screenSize.width - 70.0 : 300.0,
+          },
+          onPanUpdate: (details) {
+            final parentSize = _getParentSize(context);
+            final currentPos = _savedPosition ?? _getLocalPosInParent(context);
+
+            final double newX = (currentPos.dx + details.delta.dx).clamp(
+              5.0,
+              (parentSize.width - 68.0).clamp(5.0, double.infinity),
             );
-            final newY = (_savedPosition!.dy + details.delta.dy).clamp(
-              padding.top + 10.0,
-              screenSize.height > 120 ? screenSize.height - 120.0 : 600.0,
+            final double newY = (currentPos.dy + details.delta.dy).clamp(
+              5.0,
+              (parentSize.height - 68.0).clamp(5.0, double.infinity),
             );
-            _savedPosition = Offset(newX, newY);
-          });
-        },
-        onPanEnd: (_) {
-          setState(() {
-            _isDragging = false;
-          });
-        },
-        onTap: () {
-          if (!_isDragging) {
+
+            setState(() {
+              _savedPosition = Offset(newX, newY);
+            });
+          },
+          onPanEnd: (_) {
+            setState(() {
+              _isDragging = false;
+            });
+          },
+          onTap: () {
             AIVoiceAssistantSheet.show(context);
-          }
-        },
-        child: Tooltip(
-          message: 'Drag anywhere on screen or tap to open AI Assistant',
-          child: AnimatedBuilder(
-            animation: _glowController,
-            builder: (context, child) {
-              final glowVal = _glowAnimation.value;
-              final scaleVal = _pulseScaleAnimation.value;
+          },
+          child: Tooltip(
+            message: 'Drag anywhere on screen or tap to open AI Assistant',
+            child: AnimatedBuilder(
+              animation: _glowController,
+              builder: (context, child) {
+                final glowVal = _glowAnimation.value;
+                final scaleVal = _pulseScaleAnimation.value;
 
-              return Transform.scale(
-                scale: _isDragging ? 1.15 : scaleVal,
-                child: SizedBox(
-                  width: 68,
-                  height: 68,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Subtle Pulsing Glow Ring
-                      Container(
-                        width: 52 + (glowVal * 4),
-                        height: 52 + (glowVal * 4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF2563EB).withValues(alpha: _isDragging ? 0.25 : 0.08 * glowVal),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3B82F6).withValues(alpha: _isDragging ? 0.4 : 0.15 + (glowVal * 0.15)),
-                              blurRadius: _isDragging ? 14 : 8 + (glowVal * 4),
-                              spreadRadius: _isDragging ? 4 : 1 + (glowVal * 2),
+                return Transform.scale(
+                  scale: _isDragging ? 1.15 : scaleVal,
+                  child: SizedBox(
+                    width: 68,
+                    height: 68,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Subtle Pulsing Glow Ring
+                        Container(
+                          width: 52 + (glowVal * 4),
+                          height: 52 + (glowVal * 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF2563EB).withValues(
+                              alpha: _isDragging ? 0.25 : 0.08 * glowVal,
                             ),
-                          ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF3B82F6).withValues(
+                                  alpha: _isDragging
+                                      ? 0.4
+                                      : 0.15 + (glowVal * 0.15),
+                                ),
+                                blurRadius: _isDragging
+                                    ? 14
+                                    : 8 + (glowVal * 4),
+                                spreadRadius: _isDragging
+                                    ? 4
+                                    : 1 + (glowVal * 2),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Inner Core Glowing Floating Button
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.5 + (glowVal * 0.4)),
-                            width: 1.8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF1D4ED8).withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
+                        // Inner Core Glowing Floating Button
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/ai.png',
-                            width: 30,
-                            height: 30,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.smart_toy_rounded,
-                              color: Colors.white.withValues(alpha: 0.92 + (glowVal * 0.08)),
-                              size: 26,
+                            border: Border.all(
+                              color: Colors.white.withValues(
+                                alpha: 0.5 + (glowVal * 0.4),
+                              ),
+                              width: 1.8,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF1D4ED8,
+                                ).withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              'assets/ai.png',
+                              width: 30,
+                              height: 30,
+                              fit: BoxFit.contain,
+                              errorBuilder:
+                                  (context, error, stackTrace) => Icon(
+                                    Icons.smart_toy_rounded,
+                                    color: Colors.white.withValues(
+                                      alpha: 0.92 + (glowVal * 0.08),
+                                    ),
+                                    size: 26,
+                                  ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),

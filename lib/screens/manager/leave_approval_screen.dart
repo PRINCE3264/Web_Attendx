@@ -297,6 +297,7 @@ class _LeaveApprovalScreenState extends State<LeaveApprovalScreen> {
     final isSelected = _selectedFilter == filterKey;
     return ChoiceChip(
       selected: isSelected,
+      checkmarkColor: Colors.white,
       onSelected: (selected) {
         if (selected) setState(() => _selectedFilter = filterKey);
       },

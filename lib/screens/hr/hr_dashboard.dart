@@ -433,12 +433,7 @@ class HrDashboard extends StatelessWidget {
                                       getTitlesWidget: (val, meta) {
                                         final idx = val.toInt();
                                         if (idx < 0 || idx >= deptList.length) return const SizedBox.shrink();
-                                        String rawName = deptList[idx].key;
-                                        String name = rawName;
-                                        if (rawName == 'Engineering & Technology' || rawName == 'Engineering') name = 'Engineering';
-                                        if (rawName == 'Human Resources' || rawName == 'HR & Admin') name = 'HR & Admin';
-                                        if (rawName == 'Design & UI' || rawName == 'Design') name = 'Design & UI';
-                                        if (rawName == 'Operations' || rawName == 'Corporate Administration') name = 'Operations';
+                                        final name = deptList[idx].key;
 
                                         return Padding(
                                           padding: const EdgeInsets.only(top: 8),

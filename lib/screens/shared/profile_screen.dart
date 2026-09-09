@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -143,26 +142,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Stack(
                           alignment: Alignment.bottomRight,
                           children: [
-                            CircleAvatar(
-                              radius: 46,
-                              backgroundColor: roleColor.withValues(alpha: 0.15),
-                              backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                                  ? (user.avatarUrl!.startsWith('data:image')
-                                      ? MemoryImage(base64Decode(user.avatarUrl!.split(',').last)) as ImageProvider
-                                      : NetworkImage(user.avatarUrl!))
-                                  : null,
-                              child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                                  ? Text(
-                                      user.name.isNotEmpty
-                                          ? user.name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
-                                          : 'U',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: roleColor,
+                            Container(
+                              width: 92,
+                              height: 92,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: roleColor.withValues(alpha: 0.15),
+                              ),
+                              child: ClipOval(
+                                child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                                    ? Center(
+                                        child: Text(
+                                          user.name.isNotEmpty
+                                              ? user.name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
+                                              : 'U',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.bold,
+                                            color: roleColor,
+                                          ),
+                                        ),
+                                      )
+                                    : PhotoDisplayWidget(
+                                        photoUrl: user.avatarUrl,
+                                        size: 92,
+                                        borderRadius: 46,
                                       ),
-                                    )
-                                  : null,
+                              ),
                             ),
                             Container(
                               padding: const EdgeInsets.all(6),
