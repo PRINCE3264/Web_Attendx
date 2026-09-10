@@ -81,12 +81,39 @@ class BreakRecord {
     };
   }
 
+  static DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is DateTime) return val;
+    try {
+      if (val.runtimeType.toString() == 'Timestamp' || val.toString().startsWith('Timestamp(')) {
+        final dynamic ts = val;
+        try {
+          return ts.toDate() as DateTime;
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+    if (val is double) return DateTime.fromMillisecondsSinceEpoch(val.toInt());
+    final str = val.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.contains('Timestamp(seconds=')) {
+      final match = RegExp(r'seconds=(\d+)').firstMatch(str);
+      if (match != null) {
+        final seconds = int.tryParse(match.group(1) ?? '');
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
+      }
+    }
+    return DateTime.tryParse(str);
+  }
+
   factory BreakRecord.fromMap(Map<String, dynamic> map) {
     return BreakRecord(
       breakId: map['breakId'] ?? '',
       type: BreakTypeExtension.fromString(map['type']),
-      startTime: DateTime.tryParse(map['startTime'].toString()) ?? DateTime.now(),
-      endTime: map['endTime'] != null ? DateTime.tryParse(map['endTime'].toString()) : null,
+      startTime: _parseDateTime(map['startTime']) ?? DateTime.now(),
+      endTime: _parseDateTime(map['endTime']),
       durationMinutes: map['durationMinutes'],
     );
   }

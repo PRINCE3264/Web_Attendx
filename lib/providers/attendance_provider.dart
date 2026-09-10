@@ -25,6 +25,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   StreamSubscription? _attendanceSub;
   StreamSubscription? _correctionsSub;
+  StreamSubscription? _authSub;
 
   AttendanceProvider() {
     _initStream();
@@ -40,7 +41,12 @@ class AttendanceProvider extends ChangeNotifier {
     });
 
     _correctionsSub = _firestoreService.correctionsStream.listen((corrs) {
-      _corrections = corrs; // Could also filter corrections if needed
+      _corrections = corrs;
+      notifyListeners();
+    });
+
+    _authSub = AuthService().authStateChanges.listen((_) {
+      _allAttendance = _filterAttendance(_firestoreService.getAllAttendance());
       notifyListeners();
     });
   }
@@ -49,26 +55,27 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       final user = AuthService().currentUser;
       if (user != null) {
-        if (user.role == UserRole.employee || user.role == UserRole.manager) {
+        if (user.role == UserRole.employee) {
           final validIds = <String>{
-            user.userId.toLowerCase(),
-            if (user.employeeId.isNotEmpty) user.employeeId.toLowerCase(),
-            if (user.email.isNotEmpty) user.email.toLowerCase(),
+            user.userId.toLowerCase().trim(),
+            if (user.employeeId.isNotEmpty) user.employeeId.toLowerCase().trim(),
+            if (user.email.isNotEmpty) user.email.toLowerCase().trim(),
           };
           return records.where((r) =>
-            validIds.contains(r.employeeId.toLowerCase()) ||
-            validIds.contains(r.employeeCode.toLowerCase()) ||
-            validIds.contains(r.uid.toLowerCase())).toList();
+            validIds.contains(r.employeeId.toLowerCase().trim()) ||
+            validIds.contains(r.employeeCode.toLowerCase().trim()) ||
+            validIds.contains(r.uid.toLowerCase().trim())).toList();
         }
       }
     } catch (_) {}
-    return records; // HR and Admin get all records
+    return records; // Team Leads, Managers, HR, and Admin get all records
   }
 
   @override
   void dispose() {
     _attendanceSub?.cancel();
     _correctionsSub?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -84,17 +91,17 @@ class AttendanceProvider extends ChangeNotifier {
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final targetUser = _firestoreService.getUserById(identifier) ?? AuthService().currentUser;
     final validIds = <String>{
-      identifier.toLowerCase(),
-      if (targetUser != null) targetUser.userId.toLowerCase(),
-      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase(),
-      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase(),
+      identifier.toLowerCase().trim(),
+      if (targetUser != null) targetUser.userId.toLowerCase().trim(),
+      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase().trim(),
+      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase().trim(),
     };
 
     try {
       return _allAttendance.firstWhere(
-        (a) => (validIds.contains(a.employeeId.toLowerCase()) ||
-                validIds.contains(a.employeeCode.toLowerCase()) ||
-                validIds.contains(a.uid.toLowerCase())) &&
+        (a) => (validIds.contains(a.employeeId.toLowerCase().trim()) ||
+                validIds.contains(a.employeeCode.toLowerCase().trim()) ||
+                validIds.contains(a.uid.toLowerCase().trim())) &&
             a.date == todayStr,
       );
     } catch (_) {
@@ -106,16 +113,16 @@ class AttendanceProvider extends ChangeNotifier {
     if (identifier == null) return [];
     final targetUser = _firestoreService.getUserById(identifier) ?? AuthService().currentUser;
     final validIds = <String>{
-      identifier.toLowerCase(),
-      if (targetUser != null) targetUser.userId.toLowerCase(),
-      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase(),
-      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase(),
+      identifier.toLowerCase().trim(),
+      if (targetUser != null) targetUser.userId.toLowerCase().trim(),
+      if (targetUser != null && targetUser.employeeId.isNotEmpty) targetUser.employeeId.toLowerCase().trim(),
+      if (targetUser != null && targetUser.email.isNotEmpty) targetUser.email.toLowerCase().trim(),
     };
 
     final list = _allAttendance.where((a) {
-      return validIds.contains(a.employeeId.toLowerCase()) ||
-          validIds.contains(a.employeeCode.toLowerCase()) ||
-          validIds.contains(a.uid.toLowerCase());
+      return validIds.contains(a.employeeId.toLowerCase().trim()) ||
+          validIds.contains(a.employeeCode.toLowerCase().trim()) ||
+          validIds.contains(a.uid.toLowerCase().trim());
     }).toList();
 
     list.sort((a, b) => b.date.compareTo(a.date));
@@ -312,13 +319,15 @@ class AttendanceProvider extends ChangeNotifier {
       );
     }
 
-    // 2. 8-Hour Net Work target alert (480 mins)
+    // 2. 8-Hour Net Work target alert & Auto-Approval (480 mins)
     if (netMins >= 480 && !_notified8HourAttendanceIds.contains(todayRec.attendanceId)) {
       _notified8HourAttendanceIds.add(todayRec.attendanceId);
       
+      _firestoreService.autoApprove8HourShift(todayRec.attendanceId);
+
       NotificationService().sendNotification(
-        title: '🎉 8-Hour Workday Completed!',
-        message: 'Congratulations ${user.name}! You completed your 8-hour net work target (Total shift span: ${todayRec.formattedGrossDuration}). You can clock out now.',
+        title: '🎉 8-Hour Workday Completed & Auto-Approved!',
+        message: 'Congratulations ${user.name}! You completed your 8-hour net work target (excluding breaks). Your attendance is automatically APPROVED. Please manually Clock-Out when leaving office.',
         type: 'approval',
       );
     }

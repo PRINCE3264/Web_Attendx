@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/report_model.dart';
+import '../models/leave_model.dart';
 import 'firestore_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
@@ -57,9 +58,13 @@ class ReportService {
           rec.status == AttendanceStatus.approved ||
           rec.clockInTime != null) {
         presentDays++;
-        if (rec.clockInTime != null &&
-            rec.clockInTime!.hour >= 9 &&
-            rec.clockInTime!.minute > 30) {
+        final bool isLateByStatus = rec.timingStatus == TimingStatus.lateArrival ||
+            rec.timingStatus == TimingStatus.gracePeriod;
+        final bool isLateByMinutes = rec.lateMinutes > 0;
+        final bool isLateByTime = rec.clockInTime != null &&
+            (rec.clockInTime!.hour * 60 + rec.clockInTime!.minute) > 570; // 9:30 AM = 570 mins
+
+        if (isLateByStatus || isLateByMinutes || isLateByTime) {
           lateArrivals++;
         }
         totalMinutes +=
@@ -68,6 +73,19 @@ class ReportService {
         pendingDays++;
       } else if (rec.status == AttendanceStatus.rejected) {
         rejectedDays++;
+      }
+    }
+
+    // Factor in approved leaves for the employee within the period
+    final allLeaves = FirestoreService().getAllLeaves();
+    int approvedLeaveDays = 0;
+    for (final leave in allLeaves) {
+      if ((leave.employeeId.toLowerCase() == employee.userId.toLowerCase() ||
+              leave.employeeId.toLowerCase() == employee.employeeId.toLowerCase()) &&
+          leave.status == LeaveStatus.approved) {
+        if (!leave.startDate.isAfter(periodEnd) && !leave.endDate.isBefore(periodStart)) {
+          approvedLeaveDays += leave.totalDays;
+        }
       }
     }
 
@@ -92,10 +110,11 @@ class ReportService {
       workingDays = presentDays;
     }
 
-    final int absentDays = (workingDays - presentDays - pendingDays).clamp(
+    final int rawAbsent = (workingDays - presentDays - pendingDays - approvedLeaveDays).clamp(
       0,
       workingDays,
     );
+    final int absentDays = rawAbsent + approvedLeaveDays;
 
     final double attendancePercentage = ((presentDays / workingDays) * 100).clamp(
       0.0,
@@ -328,22 +347,15 @@ class ReportService {
   }
 
   /// Automated 30-Day HR Attendance & Absenteeism Report Engine
+  /// Automated 30-Day Attendance Count & Absenteeism Report Engine
   /// Calculates Present, Absent, Working Days, and Attendance Rate for all employees
-  /// and dispatches Excel sheet & PDF document to HR emails automatically.
+  /// and dispatches email summary to Employees, Team Leads (TL), HR, and Admins.
   static Future<Map<String, dynamic>> trigger30DayAutomatedHrReport({
     List<UserModel>? users,
     List<AttendanceModel>? attendanceList,
     String? hrEmailOverride,
   }) async {
     final allUsers = users ?? FirestoreService().getAllUsers();
-    final employees = allUsers
-        .where((u) => u.role == UserRole.employee)
-        .toList();
-    final hrAndAdmins = allUsers
-        .where((u) => u.role == UserRole.hr || u.role == UserRole.admin)
-        .toList();
-
-    final currentUser = AuthService().currentUser;
     final List<String> recipients = [];
 
     if (hrEmailOverride != null && hrEmailOverride.trim().isNotEmpty) {
@@ -353,26 +365,20 @@ class ReportService {
       }
     }
 
-    if (currentUser != null &&
-        currentUser.email.trim().isNotEmpty &&
-        (currentUser.role == UserRole.hr ||
-            currentUser.role == UserRole.admin)) {
+    final currentUser = AuthService().currentUser;
+    if (currentUser != null && currentUser.email.trim().isNotEmpty) {
       final clean = currentUser.email.trim();
       if (!recipients.contains(clean)) {
         recipients.add(clean);
       }
     }
 
-    for (final hr in hrAndAdmins) {
-      if (hr.email.trim().isNotEmpty && !recipients.contains(hr.email.trim())) {
-        recipients.add(hr.email.trim());
+    // Add ALL Employees, Team Leads (Managers), HR, and Admin emails to recipients
+    for (final u in allUsers) {
+      final cleanEmail = u.email.trim();
+      if (cleanEmail.isNotEmpty && !recipients.contains(cleanEmail)) {
+        recipients.add(cleanEmail);
       }
-    }
-
-    if (recipients.isEmpty &&
-        currentUser != null &&
-        currentUser.email.trim().isNotEmpty) {
-      recipients.add(currentUser.email.trim());
     }
 
     final List<MonthlyAttendanceReport> reports = [];
@@ -380,9 +386,9 @@ class ReportService {
     int totalAbsentDays = 0;
     int totalWorkingDaysSum = 0;
 
-    for (final emp in employees) {
+    for (final emp in allUsers) {
       final empAttendance =
-          attendanceList?.where((a) => a.employeeId == emp.userId).toList() ??
+          attendanceList?.where((a) => a.employeeId == emp.userId || a.employeeCode == emp.employeeId).toList() ??
           FirestoreService().getAttendanceForEmployee(emp.userId);
       final rep = calculate30DayReport(
         employee: emp,
@@ -394,41 +400,41 @@ class ReportService {
       totalWorkingDaysSum += rep.totalWorkingDays;
     }
 
-    final double companyAvgRate = employees.isNotEmpty
+    final double companyAvgRate = allUsers.isNotEmpty
         ? (reports.fold(0.0, (sum, r) => sum + r.attendancePercentage) /
-              employees.length)
+              allUsers.length)
         : 100.0;
 
     final csvContent = generateCsvReport(reports);
     final pdfBytes = await generatePdfReport(
       reports: reports,
-      title: 'Automated 30-Day HR Attendance & Payroll Audit',
+      title: 'Automated 30-Day Attendance & Payroll Audit',
     );
 
     final subject =
-        '📊 [Automated HR Audit] 30-Day Attendance & Absenteeism Report (${DateFormat('dd MMM yyyy').format(DateTime.now())})';
+        '📊 [Automated 30-Day Summary] All-Employee Attendance & Count Report (${DateFormat('dd MMM yyyy').format(DateTime.now())})';
 
     final StringBuffer bodyBuf = StringBuffer();
-    bodyBuf.writeln('AUTOMATED 30-DAY ATTENDANCE & PAYROLL AUDIT REPORT');
-    bodyBuf.writeln('==================================================');
-    bodyBuf.writeln('Company Workforce Size: ${employees.length} Employees');
+    bodyBuf.writeln('AUTOMATED 30-DAY ALL-EMPLOYEE ATTENDANCE COUNT & AUDIT REPORT');
+    bodyBuf.writeln('==================================================================');
+    bodyBuf.writeln('Company Workforce Size: ${allUsers.length} Employees & Staff');
     bodyBuf.writeln('Total Working Days Audited: $totalWorkingDaysSum');
     bodyBuf.writeln('Total Present Days Logged: $totalPresentDays');
     bodyBuf.writeln('Total Absent Days Recorded: $totalAbsentDays');
     bodyBuf.writeln(
       'Overall Workforce Attendance Rate: ${companyAvgRate.toStringAsFixed(1)}%\n',
     );
-    bodyBuf.writeln('EMPLOYEE BREAKDOWN (PRESENT vs ABSENT):');
+    bodyBuf.writeln('ALL EMPLOYEE ATTENDANCE BREAKDOWN (PRESENT vs ABSENT):');
     for (final r in reports) {
       bodyBuf.writeln(
         '• ${r.employeeName} (${r.employeeCode} - ${r.department}): Present: ${r.presentDays}/${r.totalWorkingDays} days | Absent: ${r.absentDays} days | Rate: ${r.attendancePercentage}% | Logged Hours: ${r.totalHoursWorked}h',
       );
     }
-    bodyBuf.writeln('\n==================================================');
+    bodyBuf.writeln('\n==================================================================');
     bodyBuf.writeln(
       'Attached Files: 30_Day_Attendance_Summary.xlsx & 30_Day_Attendance_Audit.pdf',
     );
-    bodyBuf.writeln('Recipients Notified: ${recipients.join(', ')}');
+    bodyBuf.writeln('Recipients Notified (Employees, TLs, HR, Admins): ${recipients.join(', ')}');
 
     final reportSummary = bodyBuf.toString();
 
@@ -439,8 +445,9 @@ class ReportService {
     );
 
     try {
-      final actorUser = hrAndAdmins.isNotEmpty
-          ? hrAndAdmins.first
+      final hrOrAdmins = allUsers.where((u) => u.role == UserRole.hr || u.role == UserRole.admin).toList();
+      final actorUser = hrOrAdmins.isNotEmpty
+          ? hrOrAdmins.first
           : (allUsers.isNotEmpty
                 ? allUsers.first
                 : UserModel(
@@ -457,7 +464,7 @@ class ReportService {
         actor: actorUser,
         actionType: 'AUTOMATED_30DAY_HR_EMAIL_REPORT',
         description:
-            'Automated 30-day employee attendance report dispatched (Employees: ${employees.length}, Present: $totalPresentDays, Absent: $totalAbsentDays, Rate: ${companyAvgRate.toStringAsFixed(1)}%) to ${recipients.join(", ")} with Excel & PDF attachments.',
+            'Automated 30-day employee attendance report dispatched (Workforce: ${allUsers.length}, Present: $totalPresentDays, Absent: $totalAbsentDays, Rate: ${companyAvgRate.toStringAsFixed(1)}%) to ${recipients.join(", ")} with Excel & PDF attachments.',
         targetEntityId:
             'report_30day_${DateFormat('yyyyMMdd').format(DateTime.now())}',
       );
@@ -470,7 +477,7 @@ class ReportService {
       'recipients': recipients,
       'subject': subject,
       'summary': reportSummary,
-      'employeeCount': employees.length,
+      'employeeCount': allUsers.length,
       'totalPresentDays': totalPresentDays,
       'totalAbsentDays': totalAbsentDays,
       'companyAvgRate': companyAvgRate,

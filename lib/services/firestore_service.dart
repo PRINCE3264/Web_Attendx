@@ -42,6 +42,7 @@ class FirestoreService {
     // Start periodic background auto-sync timer for continuous long-term cloud & local persistence
     Timer.periodic(const Duration(minutes: 5), (_) {
       syncLocalDataToFirestore();
+      checkAll8HourAutoApprovals();
     });
   }
 
@@ -441,6 +442,11 @@ class FirestoreService {
           final items = snap.docs
               .map((d) => AttendanceModel.fromMap(d.data(), d.id))
               .toList();
+          items.sort((a, b) {
+            final timeA = a.clockInTime ?? a.createdAt;
+            final timeB = b.clockInTime ?? b.createdAt;
+            return timeB.compareTo(timeA);
+          });
           _attendance.clear();
           _attendance.addAll(items);
           _attendanceStreamController.add(List.unmodifiable(_attendance));
@@ -1592,7 +1598,7 @@ class FirestoreService {
     }
 
     final updated = old.copyWith(
-      status: AttendanceStatus.approved,
+      status: old.clockOutTime != null ? AttendanceStatus.completed : AttendanceStatus.approved,
       approvedBy: manager.userId,
       approvedByName: '${manager.name} (${manager.role.name})',
       approvedAt: DateTime.now(),
@@ -1773,14 +1779,14 @@ class FirestoreService {
       );
     }
 
-    // Clock-Out is strictly permitted only AFTER attendance has been approved by TL
-    if (old.status != AttendanceStatus.approved) {
+    // Clock-Out check for rejected attendance
+    if (old.status == AttendanceStatus.rejected) {
       throw Exception(
-        'Clock-Out is locked! Your Clock-In status is "${old.status.label}". You can Clock-Out only AFTER your Team Lead / Manager approves your attendance.',
+        'Cannot Clock-Out because your attendance record for today (${old.date}) was rejected.',
       );
     }
 
-    // Geofence verification for Clock-Out (within 300 meters of office)
+    // Geofence verification for Clock-Out (within allowed radius of office)
     final userLat = latitude ?? _policy.officeLatitude + 0.0001;
     final userLng = longitude ?? _policy.officeLongitude + 0.0001;
     final geofenceRes = GeofenceService.verifyLocation(
@@ -1821,14 +1827,21 @@ class FirestoreService {
     for (final b in closedBreaks) {
       totalBreakMins += b.currentDurationMinutes;
     }
+    final netMinutes = grossMinutes - totalBreakMins;
+    final bool is8HourTargetMet = netMinutes >= 480;
 
     final updated = old.copyWith(
       clockOutTime: now,
       clockOutPhotoUrl: clockOutPhotoUrl,
-      status: AttendanceStatus.completed,
+      status: (is8HourTargetMet || old.status == AttendanceStatus.approved)
+          ? AttendanceStatus.completed
+          : AttendanceStatus.pending,
       breaks: closedBreaks,
       totalBreakMinutes: totalBreakMins,
       totalWorkMinutes: grossMinutes,
+      approvedBy: is8HourTargetMet && old.approvedBy == null ? 'system_auto_8h' : old.approvedBy,
+      approvedByName: is8HourTargetMet && old.approvedByName == null ? 'System Auto-Approval (8-Hour Target)' : old.approvedByName,
+      approvedAt: is8HourTargetMet && old.approvedAt == null ? now : old.approvedAt,
     );
 
     _attendance[index] = updated;
@@ -1868,6 +1881,84 @@ class FirestoreService {
     );
 
     return updated;
+  }
+
+  // Automatic 8-Hour Work Target Approval Engine
+  Future<AttendanceModel?> autoApprove8HourShift(String attendanceId) async {
+    final index = _attendance.indexWhere((a) => a.attendanceId == attendanceId);
+    if (index == -1) return null;
+
+    final old = _attendance[index];
+    if (old.status == AttendanceStatus.approved || old.status == AttendanceStatus.completed) {
+      return old;
+    }
+
+    final now = DateTime.now();
+    final updated = old.copyWith(
+      status: old.clockOutTime != null ? AttendanceStatus.completed : AttendanceStatus.approved,
+      approvedBy: 'system_auto_8h',
+      approvedByName: 'System Auto-Approval (8-Hour Target)',
+      approvedAt: now,
+      managerComment: 'Automatically approved upon completing 8-hour net work target.',
+    );
+
+    _attendance[index] = updated;
+    _notifyAll();
+    LocalStorageService().saveAttendance(_attendance);
+
+    try {
+      await _db
+          ?.collection('attendance')
+          .doc(updated.attendanceId)
+          .set(updated.toMap(), SetOptions(merge: true));
+      await _db
+          ?.collection('attendanceApprovals')
+          .doc('appr_${updated.attendanceId}')
+          .set({
+            'status': updated.status.code,
+            'reviewedAt': FieldValue.serverTimestamp(),
+            'approvedBy': 'system_auto_8h',
+            'managerComment': 'Automatically approved upon completing 8-hour net work target.',
+          }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore 8-hour auto-approval write error: $e');
+    }
+
+    AuditService().log(
+      actor: UserModel(
+        userId: 'system_auto',
+        employeeId: 'EMP-AUTO',
+        name: 'System Auto-Approval',
+        email: 'system@company.com',
+        role: UserRole.admin,
+        department: 'System',
+        teamId: 'team_system',
+      ),
+      actionType: 'AUTO_APPROVED_8_HOURS',
+      description: 'System automatically approved attendance for ${old.employeeName} upon reaching 8-hour net work target.',
+      targetEntityId: attendanceId,
+    );
+
+    NotificationService().sendNotification(
+      title: 'Attendance Auto-Approved! 🎉',
+      message: 'Congratulations ${old.employeeName}! Your attendance was automatically approved for completing 8 hours of work.',
+      type: 'approval',
+    );
+
+    return updated;
+  }
+
+  void checkAll8HourAutoApprovals() {
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    for (int i = 0; i < _attendance.length; i++) {
+      final rec = _attendance[i];
+      if (rec.date == todayStr && rec.status == AttendanceStatus.pending) {
+        final netMins = rec.netWorkingDuration?.inMinutes ?? 0;
+        if (netMins >= 480) {
+          autoApprove8HourShift(rec.attendanceId);
+        }
+      }
+    }
   }
 
   // Leave Management Lifecycle

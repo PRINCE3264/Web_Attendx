@@ -260,6 +260,33 @@ class AttendanceModel {
     };
   }
 
+  static DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is DateTime) return val;
+    try {
+      if (val.runtimeType.toString() == 'Timestamp' || val.toString().startsWith('Timestamp(')) {
+        final dynamic ts = val;
+        try {
+          return ts.toDate() as DateTime;
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+    if (val is double) return DateTime.fromMillisecondsSinceEpoch(val.toInt());
+    final str = val.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.contains('Timestamp(seconds=')) {
+      final match = RegExp(r'seconds=(\d+)').firstMatch(str);
+      if (match != null) {
+        final seconds = int.tryParse(match.group(1) ?? '');
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
+      }
+    }
+    return DateTime.tryParse(str);
+  }
+
   factory AttendanceModel.fromMap(Map<String, dynamic> map, [String? id]) {
     final rawBreaks = map['breaks'] as List<dynamic>?;
     final List<BreakRecord> parsedBreaks = rawBreaks != null
@@ -287,12 +314,8 @@ class AttendanceModel {
       teamId: map['teamId'] ?? '',
       teamName: map['teamName'] ?? 'General',
       date: map['date'] ?? map['attendanceDate'] ?? '',
-      clockInTime: rawClockIn != null
-          ? DateTime.tryParse(rawClockIn.toString())
-          : null,
-      clockOutTime: rawClockOut != null
-          ? DateTime.tryParse(rawClockOut.toString())
-          : null,
+      clockInTime: _parseDateTime(rawClockIn),
+      clockOutTime: _parseDateTime(rawClockOut),
       clockInPhotoUrl: map['clockInPhotoUrl'],
       clockOutPhotoUrl: map['clockOutPhotoUrl'],
       status: AttendanceStatusExtension.fromString(map['status']),
@@ -300,9 +323,7 @@ class AttendanceModel {
       lateMinutes: (map['lateMinutes'] as num?)?.toInt() ?? 0,
       approvedBy: map['approvedBy'],
       approvedByName: map['approvedByName'],
-      approvedAt: map['approvedAt'] != null
-          ? DateTime.tryParse(map['approvedAt'].toString())
-          : null,
+      approvedAt: _parseDateTime(map['approvedAt']),
       rejectionReason: map['rejectionReason'],
       managerComment: map['managerComment'],
       totalWorkMinutes: map['totalWorkMinutes'] is int
@@ -317,9 +338,7 @@ class AttendanceModel {
       isWithinGeofence: map['isWithinGeofence'] ?? true,
       distanceFromOfficeMeters: (map['distanceFromOfficeMeters'] as num?)?.toDouble() ?? 0.0,
       isMissingClockOut: map['isMissingClockOut'] ?? false,
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      createdAt: _parseDateTime(map['createdAt']) ?? DateTime.now(),
       location: map['location'],
     );
   }

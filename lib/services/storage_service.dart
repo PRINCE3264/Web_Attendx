@@ -43,29 +43,29 @@ class StorageService {
       if (source == ImageSource.gallery) {
         return await _picker.pickImage(
           source: ImageSource.gallery,
-          maxWidth: 1024,
-          maxHeight: 1024,
-          imageQuality: 85,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 75,
         );
       }
 
-      // Try front camera first
+      // Live front camera capture instantly without delay
       try {
         final XFile? photo = await _picker.pickImage(
           source: ImageSource.camera,
           preferredCameraDevice: CameraDevice.front,
-          maxWidth: 1024,
-          maxHeight: 1024,
-          imageQuality: 85,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 75,
         );
         return photo;
       } catch (frontErr) {
         debugPrint('Front camera pick notice, falling back to default camera: $frontErr');
         return await _picker.pickImage(
           source: ImageSource.camera,
-          maxWidth: 1024,
-          maxHeight: 1024,
-          imageQuality: 85,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 75,
         );
       }
     } catch (e) {

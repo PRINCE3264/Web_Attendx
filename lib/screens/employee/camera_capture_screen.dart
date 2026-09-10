@@ -38,6 +38,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       final provider = context.read<AttendanceProvider>();
       provider.clearTempPhoto();
       provider.resetProcessing();
+      _startCapture(source: ImageSource.camera);
     });
   }
 

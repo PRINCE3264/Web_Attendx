@@ -213,10 +213,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
 
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.medium,
         ),
       ).timeout(
-        const Duration(seconds: 7),
+        const Duration(seconds: 3),
       );
     } catch (_) {
       return null;

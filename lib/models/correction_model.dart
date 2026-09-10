@@ -95,6 +95,33 @@ class AttendanceCorrectionModel {
     };
   }
 
+  static DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is DateTime) return val;
+    try {
+      if (val.runtimeType.toString() == 'Timestamp' || val.toString().startsWith('Timestamp(')) {
+        final dynamic ts = val;
+        try {
+          return ts.toDate() as DateTime;
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+    if (val is double) return DateTime.fromMillisecondsSinceEpoch(val.toInt());
+    final str = val.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.contains('Timestamp(seconds=')) {
+      final match = RegExp(r'seconds=(\d+)').firstMatch(str);
+      if (match != null) {
+        final seconds = int.tryParse(match.group(1) ?? '');
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
+      }
+    }
+    return DateTime.tryParse(str);
+  }
+
   factory AttendanceCorrectionModel.fromMap(Map<String, dynamic> map, [String? id]) {
     return AttendanceCorrectionModel(
       correctionId: id ?? map['correctionId'] ?? '',
@@ -103,19 +130,15 @@ class AttendanceCorrectionModel {
       employeeName: map['employeeName'] ?? '',
       employeeCode: map['employeeCode'] ?? '',
       date: map['date'] ?? '',
-      requestedClockIn: DateTime.tryParse(map['requestedClockIn'].toString()) ?? DateTime.now(),
-      requestedClockOut: DateTime.tryParse(map['requestedClockOut'].toString()) ?? DateTime.now(),
+      requestedClockIn: _parseDateTime(map['requestedClockIn']) ?? DateTime.now(),
+      requestedClockOut: _parseDateTime(map['requestedClockOut']) ?? DateTime.now(),
       reason: map['reason'] ?? '',
       status: CorrectionStatusExtension.fromString(map['status']),
       reviewedBy: map['reviewedBy'],
       reviewerName: map['reviewerName'],
-      reviewedAt: map['reviewedAt'] != null
-          ? DateTime.tryParse(map['reviewedAt'].toString())
-          : null,
+      reviewedAt: _parseDateTime(map['reviewedAt']),
       managerNote: map['managerNote'],
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      createdAt: _parseDateTime(map['createdAt']) ?? DateTime.now(),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,16 +29,17 @@ class HrProvider extends ChangeNotifier {
   bool _isGeneratingReport = false;
   bool _is30DayAutomationActive = true;
   DateTime? _last30DayReportSentAt = DateTime.now();
+  Timer? _autoEmailTimer;
   String _selectedDepartmentFilter = 'All';
   String _selectedTeamFilter = 'All';
   String _searchQuery = '';
   String _selectedReportPeriod = '30-Day'; // 'Daily', 'Weekly', 'Monthly', '30-Day'
 
   HrProvider() {
-    _init();
+    _initStreams();
   }
 
-  void _init() {
+  void _initStreams() {
     _users = _firestoreService.getAllUsers();
     _allAttendance = _firestoreService.getAllAttendance();
     _allLeaves = _firestoreService.getAllLeaves();
@@ -77,6 +79,15 @@ class HrProvider extends ChangeNotifier {
     });
 
     _checkAndTrigger30DayAutoEmail();
+    _autoEmailTimer = Timer.periodic(const Duration(hours: 12), (_) {
+      _checkAndTrigger30DayAutoEmail();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoEmailTimer?.cancel();
+    super.dispose();
   }
 
   void _checkAndTrigger30DayAutoEmail() {
